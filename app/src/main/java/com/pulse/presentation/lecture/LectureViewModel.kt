@@ -2,6 +2,7 @@ package com.pulse.presentation.lecture
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.net.Uri
 import androidx.media3.common.Player
 import com.pulse.data.db.Lecture
 import com.pulse.data.db.Note
@@ -52,7 +53,26 @@ class LectureViewModel(
     }
 
     private fun preparePlayer(path: String, position: Long) {
-        playerProvider.prepare(path)
+        val uri = android.net.Uri.parse(path)
+        
+        // Holistic check for URI accessibility before trying to play
+        val isAccessible = if (path.startsWith("content://")) {
+            try {
+                val context = playerProvider.getContext() // Need to expose context or check via repository
+                context.contentResolver.openInputStream(uri)?.close()
+                true
+            } catch (e: Exception) {
+                logger.e("LectureVM", "URI not accessible: $path")
+                false
+            }
+        } else true
+
+        if (!isAccessible && path.startsWith("content://")) {
+            // Future: Post error state to UI
+            return
+        }
+
+        playerProvider.prepare(path, _lecture.value?.name ?: "Lecture")
         if (position > 0) {
             player.seekTo(position)
         }

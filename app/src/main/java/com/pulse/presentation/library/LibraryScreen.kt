@@ -5,7 +5,9 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.os.Environment
 import android.provider.OpenableColumns
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -67,12 +69,49 @@ fun LibraryScreen(
         }
     }
 
-    // Permission Launcher
+    // Manage All Files Permission (Android 11+)
+    val manageFilesLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (Environment.isExternalStorageManager()) {
+                videoPickerLauncher.launch(arrayOf("video/*"))
+            }
+        }
+    }
+
+    // Standard Permission Launcher
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
             videoPickerLauncher.launch(arrayOf("video/*"))
+        }
+    }
+
+    fun requestLocalAccess() {
+        when {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
+                if (Environment.isExternalStorageManager()) {
+                    videoPickerLauncher.launch(arrayOf("video/*"))
+                } else {
+                    try {
+                        val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                            data = Uri.parse("package:${context.packageName}")
+                        }
+                        manageFilesLauncher.launch(intent)
+                    } catch (e: Exception) {
+                        val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                        manageFilesLauncher.launch(intent)
+                    }
+                }
+            }
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
+                permissionLauncher.launch(Manifest.permission.READ_MEDIA_VIDEO)
+            }
+            else -> {
+                permissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+            }
         }
     }
 
@@ -136,14 +175,7 @@ fun LibraryScreen(
         floatingActionButton = {
             if (currentTab == LibraryTab.HOME) {
                 FloatingActionButton(
-                    onClick = {
-                        val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            Manifest.permission.READ_MEDIA_VIDEO
-                        } else {
-                            Manifest.permission.READ_EXTERNAL_STORAGE
-                        }
-                        permissionLauncher.launch(permission)
-                    },
+                    onClick = { requestLocalAccess() },
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
                 ) {

@@ -1,9 +1,9 @@
 -- Merging decision tree log ---
 manifest
-ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:2:1-35:12
-INJECTED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:2:1-35:12
-INJECTED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:2:1-35:12
-INJECTED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:2:1-35:12
+ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:2:1-37:12
+INJECTED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:2:1-37:12
+INJECTED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:2:1-37:12
+INJECTED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:2:1-37:12
 MERGED from [io.insert-koin:koin-androidx-compose:3.5.6] C:\Users\welcome\.gradle\caches\8.10.2\transforms\918a1b356041121f24aa1a0b13358d83\transformed\jetified-koin-androidx-compose-3.5.6\AndroidManifest.xml:2:1-7:12
 MERGED from [io.insert-koin:koin-android:3.5.6] C:\Users\welcome\.gradle\caches\8.10.2\transforms\6fa3b59518c22f5114a032f437a721a1\transformed\jetified-koin-android-3.5.6\AndroidManifest.xml:2:1-9:12
 MERGED from [androidx.appcompat:appcompat-resources:1.6.1] C:\Users\welcome\.gradle\caches\8.10.2\transforms\6b18a0f290e84e18803e99bf992bf4d4\transformed\jetified-appcompat-resources-1.6.1\AndroidManifest.xml:17:1-22:12
@@ -136,9 +136,15 @@ uses-permission#android.permission.READ_MEDIA_IMAGES
 ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:9:5-76
 	android:name
 		ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:9:22-73
+uses-permission#android.permission.MANAGE_EXTERNAL_STORAGE
+ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:10:5-11:40
+	tools:ignore
+		ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:11:9-37
+	android:name
+		ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:10:22-79
 application
-ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:11:5-33:19
-INJECTED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:11:5-33:19
+ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:13:5-35:19
+INJECTED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:13:5-35:19
 MERGED from [io.insert-koin:koin-android:3.5.6] C:\Users\welcome\.gradle\caches\8.10.2\transforms\6fa3b59518c22f5114a032f437a721a1\transformed\jetified-koin-android-3.5.6\AndroidManifest.xml:7:5-20
 MERGED from [io.insert-koin:koin-android:3.5.6] C:\Users\welcome\.gradle\caches\8.10.2\transforms\6fa3b59518c22f5114a032f437a721a1\transformed\jetified-koin-android-3.5.6\AndroidManifest.xml:7:5-20
 MERGED from [com.google.android.gms:play-services-auth:21.2.0] C:\Users\welcome\.gradle\caches\8.10.2\transforms\17308dc0e5fb199003dce97903236169\transformed\jetified-play-services-auth-21.2.0\AndroidManifest.xml:22:5-38:19
@@ -170,47 +176,47 @@ MERGED from [androidx.startup:startup-runtime:1.1.1] C:\Users\welcome\.gradle\ca
 	android:appComponentFactory
 		ADDED from [androidx.core:core:1.13.1] C:\Users\welcome\.gradle\caches\8.10.2\transforms\e1c2b4fbec2c806a453419ac1a42abbb\transformed\core-1.13.1\AndroidManifest.xml:28:18-86
 	android:supportsRtl
-		ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:19:9-35
+		ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:21:9-35
 	android:label
-		ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:17:9-41
+		ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:19:9-41
 	android:fullBackupContent
-		ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:15:9-54
+		ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:17:9-54
 	android:roundIcon
-		ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:18:9-52
+		ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:20:9-52
 	tools:targetApi
-		ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:21:9-29
+		ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:23:9-29
 	android:icon
-		ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:16:9-47
+		ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:18:9-47
 	android:allowBackup
-		ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:13:9-35
+		ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:15:9-35
 	android:theme
-		ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:20:9-43
+		ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:22:9-43
 	android:dataExtractionRules
-		ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:14:9-65
+		ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:16:9-65
 	android:name
-		ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:12:9-33
+		ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:14:9-33
 activity#com.pulse.MainActivity
-ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:22:9-32:20
+ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:24:9-34:20
 	android:exported
-		ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:24:13-36
+		ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:26:13-36
 	android:supportsPictureInPicture
-		ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:26:13-52
+		ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:28:13-52
 	android:configChanges
-		ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:25:13-91
+		ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:27:13-91
 	android:theme
-		ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:27:13-47
+		ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:29:13-47
 	android:name
-		ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:23:13-41
+		ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:25:13-41
 intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
-ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:28:13-31:29
+ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:30:13-33:29
 action#android.intent.action.MAIN
-ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:29:17-69
+ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:31:17-69
 	android:name
-		ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:29:25-66
+		ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:31:25-66
 category#android.intent.category.LAUNCHER
-ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:30:17-77
+ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:32:17-77
 	android:name
-		ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:30:27-74
+		ADDED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml:32:27-74
 uses-sdk
 INJECTED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml reason: use-sdk injection requested
 INJECTED from C:\Users\welcome\Desktop\pulse\app\src\main\AndroidManifest.xml

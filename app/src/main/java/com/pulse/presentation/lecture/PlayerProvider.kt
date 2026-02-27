@@ -14,7 +14,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import com.pulse.data.local.FileStorageManager
 import com.pulse.utils.Constants
 
-class PlayerProvider(context: Context, fileStorageManager: FileStorageManager) {
+class PlayerProvider(private val context: Context, fileStorageManager: FileStorageManager) {
 
     private val cache = SimpleCache(
         fileStorageManager.videoCacheDir,
@@ -52,15 +52,23 @@ class PlayerProvider(context: Context, fileStorageManager: FileStorageManager) {
             addAnalyticsListener(androidx.media3.exoplayer.util.EventLogger())
         }
 
+    fun getContext() = context
+
     private var currentUrl: String? = null
 
-    fun prepare(url: String) {
+    fun prepare(url: String, title: String? = null) {
         if (currentUrl == url) return
         currentUrl = url
         
         val uri = Uri.parse(url)
         val mediaItem = MediaItem.Builder()
             .setUri(uri)
+            .setMediaMetadata(
+                androidx.media3.common.MediaMetadata.Builder()
+                    .setTitle(title ?: "Lecture")
+                    .setArtist("PULSE")
+                    .build()
+            )
             .build()
             
         player.setMediaItem(mediaItem)
