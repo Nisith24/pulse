@@ -1,0 +1,3 @@
+## 2026-02-28 - NotesPanel Accessibility and Interactive Feedback
+**Learning:** Found an accessibility issue pattern in Jetpack Compose clickable items. Clickable items that seek the media player only state "Button" to screen readers. Empty state handling on text input forms for immediate feedback is crucial.
+**Action:** When adding clickable rows in Jetpack Compose, use `onClickLabel` with a contextual description of the action, and `role = Role.Button`. Ensure immediate visual feedback for text inputs by passing `enabled = text.isNotBlank()` to their submit buttons. Add contextual `contentDescription` on icon buttons.
