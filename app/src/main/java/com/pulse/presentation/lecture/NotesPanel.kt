@@ -11,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import java.util.concurrent.TimeUnit
 
@@ -49,7 +50,10 @@ fun NotesPanel(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { viewModel.seekTo(note.timestamp) }
+                            .clickable(
+                                onClickLabel = "Seek to ${formatTime(note.timestamp)}",
+                                role = Role.Button
+                            ) { viewModel.seekTo(note.timestamp) }
                             .padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -72,7 +76,7 @@ fun NotesPanel(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Delete,
-                                contentDescription = "Delete",
+                                contentDescription = "Delete note",
                                 tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
                               )
                         }
@@ -102,9 +106,10 @@ fun NotesPanel(
                         viewModel.addNote(newNoteText)
                         newNoteText = ""
                     }
-                }
+                },
+                enabled = newNoteText.isNotBlank()
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Note")
+                Icon(Icons.Default.Add, contentDescription = "Add note at current time")
             }
         }
     }
