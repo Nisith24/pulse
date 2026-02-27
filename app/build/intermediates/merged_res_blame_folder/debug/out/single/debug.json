@@ -1,0 +1,14 @@
+[
+    {
+        "merged": "com.pulse.app-merged_res-65:/drawable_ic_pulse_logo.xml.flat",
+        "source": "com.pulse.app-main-67:/drawable/ic_pulse_logo.xml"
+    },
+    {
+        "merged": "com.pulse.app-merged_res-65:/xml_data_extraction_rules.xml.flat",
+        "source": "com.pulse.app-main-67:/xml/data_extraction_rules.xml"
+    },
+    {
+        "merged": "com.pulse.app-merged_res-65:/xml_backup_rules.xml.flat",
+        "source": "com.pulse.app-main-67:/xml/backup_rules.xml"
+    }
+]

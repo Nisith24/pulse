@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <exclude domain="sharedpref" fpath="."/>
+    <exclude domain="database" fpath="."/>
+    <exclude domain="root" fpath="."/>
+</full-backup-content>
