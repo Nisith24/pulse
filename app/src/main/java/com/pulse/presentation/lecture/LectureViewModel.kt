@@ -34,6 +34,7 @@ class LectureViewModel(
 
     private var periodicSaveJob: Job? = null
     private var lastPreparedPath: String? = null
+    private var errorListener: Player.Listener? = null
 
     init {
         // Reactive Metadata & Player Preparation
@@ -80,14 +81,40 @@ class LectureViewModel(
         // Ensure playWhenReady is true for local files
         player.playWhenReady = true
         
-        val listener = object : Player.Listener {
+        // Remove previous listener to prevent leaks on multiple prepares
+        errorListener?.let { player.removeListener(it) }
+
+        errorListener = object : Player.Listener {
             override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                logger.e("LectureViewModel", "Playback Error: ${error.message} for path: $path")
-                // If local fails, try to fallback to stream if available
-                lastPreparedPath = null 
+                logger.e("LectureViewModel", "Playback Error: ${error.errorCodeName} - ${error.message} for path: $path")
+                
+                // If the error is network/HTTP related (usually URL expiration for Google Drive streams)
+                val isNetworkError = error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED || 
+                                     error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS
+                
+                if (isNetworkError && !path.startsWith("content://") && !path.startsWith("file://") && !path.startsWith("/")) {
+                    logger.d("LectureViewModel", "Attempting to refresh stream URL due to network error...")
+                    val currentPos = player.currentPosition
+                    
+                    viewModelScope.launch {
+                        _lecture.value?.videoId?.let { vId ->
+                            val freshUrl = getLectureStreamUrlUseCase(vId, true)
+                            if (freshUrl != null && freshUrl != path) {
+                                logger.d("LectureViewModel", "Found fresh URL, retrying playback.")
+                                // Remove listener so we don't trigger again for the old path
+                                errorListener?.let { player.removeListener(it) } 
+                                preparePlayer(freshUrl, currentPos)
+                                lastPreparedPath = freshUrl
+                            }
+                        }
+                    }
+                } else {
+                    // Force a re-emit if local failed, to try fallback logic
+                    lastPreparedPath = null
+                }
             }
         }
-        player.addListener(listener)
+        player.addListener(errorListener!!)
     }
 
     private fun startPeriodicSave() {
@@ -161,6 +188,8 @@ class LectureViewModel(
     fun cleanup() {
         periodicSaveJob?.cancel()
         saveProgress()
+        errorListener?.let { player.removeListener(it) }
+        errorListener = null
         playerProvider.stop()
         _lecture.value = null
         lastPreparedPath = null

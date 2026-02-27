@@ -53,4 +53,12 @@ class DriveAuthManager(private val context: Context) : IDriveAuthManager {
             throw PulseAuthException.Fatal(e.message ?: "Unknown auth error")
         }
     }
+
+    override suspend fun clearToken(token: String) = withContext(Dispatchers.IO) {
+        try {
+            GoogleAuthUtil.clearToken(context, token)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
 }

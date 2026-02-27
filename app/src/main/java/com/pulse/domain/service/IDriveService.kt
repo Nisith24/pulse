@@ -10,4 +10,5 @@ interface IDriveService {
 
 interface IDriveAuthManager {
     suspend fun getToken(): String
+    suspend fun clearToken(token: String)
 }
