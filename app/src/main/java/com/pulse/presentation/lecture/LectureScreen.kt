@@ -67,10 +67,18 @@ fun LectureScreen(
     val pdfHorizontalOrientation by viewModel.pdfHorizontalOrientation.collectAsState()
     val isBackgroundPlaybackEnabled by settingsManager.backgroundPlaybackFlow.collectAsState(initial = true)
 
-    LaunchedEffect(savedRatio) {
-        if (!initialized) {
+    LaunchedEffect(savedRatio, lecture) {
+        if (!initialized && savedRatio > 0.1f) {
             splitRatio = savedRatio
             initialized = true
+        }
+        
+        // Standalone PDF Mode: If no video is present, expand PDF to full screen automatically
+        lecture?.let { l ->
+            val hasVideo = l.videoId != null || (l.videoLocalPath != null && l.videoLocalPath != "")
+            if (!hasVideo && l.pdfLocalPath != "blank_note" && (l.pdfId != null || (l.pdfLocalPath != null && l.pdfLocalPath != ""))) {
+                splitRatio = 0f
+            }
         }
     }
 

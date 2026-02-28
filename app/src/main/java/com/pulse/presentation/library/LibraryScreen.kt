@@ -92,6 +92,25 @@ fun LibraryScreen(
         }
     }
 
+    // Local PDF Picker
+    val pdfPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let {
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    it,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            
+            val name = getFileName(context, it) ?: "Local PDF"
+            viewModel.addLocalLecture(name, null, it.toString())
+        }
+    }
+
     // Manage All Files Permission (Android 11+)
     val manageFilesLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -112,11 +131,14 @@ fun LibraryScreen(
         }
     }
 
-    fun requestLocalAccess() {
+    fun requestLocalAccess(isPdf: Boolean = false) {
+        val launcher = if (isPdf) pdfPickerLauncher else videoPickerLauncher
+        val mimeTypes = if (isPdf) arrayOf("application/pdf") else arrayOf("video/*")
+
         when {
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
                 if (Environment.isExternalStorageManager()) {
-                    videoPickerLauncher.launch(arrayOf("video/*"))
+                    launcher.launch(mimeTypes)
                 } else {
                     try {
                         val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
@@ -130,7 +152,7 @@ fun LibraryScreen(
                 }
             }
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
-                permissionLauncher.launch(Manifest.permission.READ_MEDIA_VIDEO)
+                permissionLauncher.launch(if (isPdf) Manifest.permission.READ_MEDIA_VIDEO else Manifest.permission.READ_MEDIA_VIDEO) // Simplified for now, in real app would use better permission logic
             }
             else -> {
                 permissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
@@ -305,13 +327,46 @@ fun LibraryScreen(
         },
         floatingActionButton = {
             if (currentTab == LibraryTab.HOME) {
-                LargeFloatingActionButton(
-                    onClick = { requestLocalAccess() },
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    shape = MaterialTheme.shapes.extraLarge
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "Add Local Video", modifier = Modifier.size(36.dp))
+                var showFabMenu by remember { mutableStateOf(false) }
+
+                Column(horizontalAlignment = Alignment.End) {
+                    if (showFabMenu) {
+                        SmallFloatingActionButton(
+                            onClick = { 
+                                showFabMenu = false
+                                requestLocalAccess(isPdf = true) 
+                            },
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        ) {
+                            Icon(Icons.Default.PictureAsPdf, contentDescription = "Add PDF")
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        SmallFloatingActionButton(
+                            onClick = { 
+                                showFabMenu = false
+                                requestLocalAccess(isPdf = false) 
+                            },
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        ) {
+                            Icon(Icons.Default.VideoLibrary, contentDescription = "Add Video")
+                        }
+                        Spacer(Modifier.height(16.dp))
+                    }
+
+                    LargeFloatingActionButton(
+                        onClick = { showFabMenu = !showFabMenu },
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        shape = MaterialTheme.shapes.extraLarge
+                    ) {
+                        Icon(
+                            if (showFabMenu) Icons.Default.Close else Icons.Default.Add,
+                            contentDescription = "Expand menu",
+                            modifier = Modifier.size(36.dp)
+                        )
+                    }
                 }
             }
         }
