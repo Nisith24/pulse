@@ -689,7 +689,8 @@ fun LibraryScreen(
                                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            if (lecture.videoId != null || lecture.videoLocalPath != null) {
+                                            val hasVideo = lecture.videoId != null || (lecture.videoLocalPath != null && lecture.videoLocalPath != "")
+                                            if (hasVideo) {
                                                 Icon(
                                                     imageVector = Icons.Default.PlayCircle,
                                                     contentDescription = "Video",
@@ -697,18 +698,26 @@ fun LibraryScreen(
                                                     tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
                                                 )
                                             }
-                                            if (lecture.pdfId != null || (lecture.pdfLocalPath.isNotEmpty() && lecture.pdfLocalPath != "")) {
-                                                val isAvailable = if (lecture.isLocal) {
-                                                    lecture.pdfLocalPath.isNotEmpty() && lecture.pdfLocalPath != ""
-                                                } else {
-                                                    lecture.isPdfDownloaded
-                                                }
+                                            
+                                            val isPdfAvailable = if (lecture.isLocal) {
+                                                lecture.pdfLocalPath.isNotEmpty() && lecture.pdfLocalPath != ""
+                                            } else {
+                                                lecture.isPdfDownloaded || lecture.pdfId != null
+                                            }
+
+                                            if (isPdfAvailable) {
                                                 Icon(
                                                     imageVector = Icons.Default.PictureAsPdf,
                                                     contentDescription = "PDF",
                                                     modifier = Modifier.size(20.dp),
-                                                    tint = if (isAvailable) MaterialTheme.colorScheme.secondary.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                                                    tint = if (lecture.isPdfDownloaded || lecture.isLocal) MaterialTheme.colorScheme.secondary.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                                                 )
+                                                
+                                                if (!hasVideo) {
+                                                    Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)) {
+                                                        Text("STANDALONE PDF", modifier = Modifier.padding(2.dp), style = MaterialTheme.typography.labelSmall)
+                                                    }
+                                                }
                                             }
                                         }
                                         

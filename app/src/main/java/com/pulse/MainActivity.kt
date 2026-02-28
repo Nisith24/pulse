@@ -39,13 +39,19 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import kotlinx.coroutines.flow.MutableStateFlow
 
 class MainActivity : ComponentActivity() {
     private val authManager: IBtrAuthManager by inject()
     private val playerProvider: PlayerProvider by inject()
+    private val repository: com.pulse.data.repository.LectureRepository by inject()
+
+    private val externalPdfUri = MutableStateFlow<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        handleIntent(intent)
+        
         setContent {
             PulseTheme {
                 Surface(
@@ -83,10 +89,32 @@ class MainActivity : ComponentActivity() {
                                     authManager.signOut()
                                     isSignedIn = false
                                 }
-                            }
+                            },
+                            initialExternalPdf = externalPdfUri.collectAsState().value,
+                            onExternalPdfHandled = { externalPdfUri.value = null }
                         )
                     }
                 }
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: android.content.Intent?) {
+        if (intent?.action == android.content.Intent.ACTION_VIEW && intent.type == "application/pdf") {
+            intent.data?.let { uri ->
+                try {
+                    contentResolver.takePersistableUriPermission(
+                        uri,
+                        android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    )
+                } catch (_: Exception) {}
+                
+                externalPdfUri.value = uri.toString()
             }
         }
     }
@@ -148,10 +176,34 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun PulseAppContent(onSignOut: () -> Unit = {}) {
+fun PulseAppContent(
+    onSignOut: () -> Unit = {},
+    initialExternalPdf: String? = null,
+    onExternalPdfHandled: () -> Unit = {}
+) {
     val navController = rememberNavController()
     val playerProvider: PlayerProvider = org.koin.compose.koinInject()
+    val repository: com.pulse.data.repository.LectureRepository = org.koin.compose.koinInject()
+    val scope = rememberCoroutineScope()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    
     val miniPlayerId by playerProvider.miniPlayerFlow.collectAsState()
+
+    // Handle initial external PDF
+    LaunchedEffect(initialExternalPdf) {
+        initialExternalPdf?.let { uriString ->
+            val uri = android.net.Uri.parse(uriString)
+            val name = "PDF: " + (getFileName(context, uri) ?: "External Document")
+            
+            // We need a stable ID to navigate. Let's create it.
+            val lectureId = java.util.UUID.randomUUID().toString()
+            scope.launch {
+                repository.addLocalLectureWithId(lectureId, name, null, uriString)
+                onExternalPdfHandled()
+                navController.navigate(LectureRoute(lectureId))
+            }
+        }
+    }
 
     Box(Modifier.fillMaxSize()) {
         NavHost(navController = navController, startDestination = LibraryRoute) {
@@ -216,4 +268,22 @@ fun PulseAppContent(onSignOut: () -> Unit = {}) {
             )
         }
     }
+}
+
+private fun getFileName(context: android.content.Context, uri: android.net.Uri): String? {
+    var result: String? = null
+    if (uri.scheme == "content") {
+        context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val index = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                if (index != -1) result = cursor.getString(index)
+            }
+        }
+    }
+    if (result == null) {
+        result = uri.path
+        val cut = result?.lastIndexOf('/') ?: -1
+        if (cut != -1) result = result?.substring(cut + 1)
+    }
+    return result
 }

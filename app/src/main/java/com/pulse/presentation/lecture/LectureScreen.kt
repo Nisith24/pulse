@@ -67,6 +67,11 @@ fun LectureScreen(
     val pdfHorizontalOrientation by viewModel.pdfHorizontalOrientation.collectAsState()
     val isBackgroundPlaybackEnabled by settingsManager.backgroundPlaybackFlow.collectAsState(initial = true)
 
+    val hasVideo = remember(lecture) {
+        val l = lecture
+        l != null && (l.videoId != null || (l.videoLocalPath != null && l.videoLocalPath != ""))
+    }
+
     LaunchedEffect(savedRatio, lecture) {
         if (!initialized && savedRatio > 0.1f) {
             splitRatio = savedRatio
@@ -75,7 +80,6 @@ fun LectureScreen(
         
         // Standalone PDF Mode: If no video is present, expand PDF to full screen automatically
         lecture?.let { l ->
-            val hasVideo = l.videoId != null || (l.videoLocalPath != null && l.videoLocalPath != "")
             if (!hasVideo && l.pdfLocalPath != "blank_note" && (l.pdfId != null || (l.pdfLocalPath != null && l.pdfLocalPath != ""))) {
                 splitRatio = 0f
             }
@@ -230,114 +234,64 @@ fun LectureScreen(
         ) {
             when (val state = playerState) {
                 is PlayerUiState.ERROR -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Default.ErrorOutline, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.error)
-                            Spacer(Modifier.height(12.dp))
-                            Text(state.message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+                    // Check if we actually HAVE a PDF, in which case we show it despite the Player Error
+                    val hasPdf = lecture?.let { it.pdfId != null || it.pdfLocalPath.isNotEmpty() } ?: false
+                    
+                    if (hasPdf) {
+                         Box(Modifier.fillMaxSize()) {
+                            PdfViewer(
+                                pdfPath = lecture?.pdfLocalPath ?: "",
+                                title = lecture?.name ?: "Lecture",
+                                initialPage = 0,
+                                isPdfDownloaded = lecture?.isPdfDownloaded ?: true,
+                                visuals = visuals,
+                                annotationState = annotationState,
+                                onPageChanged = { },
+                                onAddVisual = { type, data, page, color, width ->
+                                    viewModel.addVisual(type, data, page, color, width)
+                                },
+                                onDeleteVisual = { id -> viewModel.deleteVisual(id) },
+                                onAddLocalPdf = onAddLocalPdf,
+                                onCreateBlankNote = onCreateBlankNote,
+                                onAddPage = { viewModel.addPage() },
+                                totalPages = lecture?.pdfPageCount ?: 0,
+                                onClose = onClosePdf,
+                                isHorizontal = pdfHorizontalOrientation,
+                                onOrientationChange = { viewModel.savePdfOrientation(it) },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                    } else {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(Icons.Default.ErrorOutline, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.error)
+                                Spacer(Modifier.height(12.dp))
+                                Text(state.message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+                            }
                         }
                     }
                 }
                 else -> {
-                    BoxWithConstraints(Modifier.fillMaxSize()) {
-                        val totalWidth = constraints.maxWidth.toFloat()
-                        val isTablet = maxWidth > 840.dp
-                        
-                        // 1. One Single Stable Placement for Video (prevents PiP freezes)
-                        Box(
-                            modifier = when {
-                                isPip || isFullscreen -> Modifier.fillMaxSize()
-                                isTablet && showPdf -> Modifier.fillMaxHeight().fillMaxWidth(splitRatio)
-                                !isTablet && showPdf -> Modifier.fillMaxWidth().fillMaxHeight(splitRatio)
-                                else -> Modifier.fillMaxSize()
-                            }.clipToBounds()
-                        ) {
-                            VideoPlayer(
-                                player = viewModel.player,
-                                title = if (isPip) "" else (lecture?.name ?: ""),
-                                modifier = Modifier.fillMaxSize(),
-                                isFullscreen = isFullscreen,
-                                isPip = isPip,
-                                onFullscreenToggle = { isFullscreen = !isFullscreen },
-                                onPipClick = onPipClick,
-                                onSpeedChanged = { viewModel.setPlaybackSpeed(it) }
-                            )
-                        }
+                    val l = lecture
+                    if (l == null) {
+                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                             CircularProgressIndicator()
+                         }
+                    } else {
+                        BoxWithConstraints(Modifier.fillMaxSize()) {
+                            val totalWidth = constraints.maxWidth.toFloat()
+                            val isTablet = maxWidth > 840.dp
+                            
+                            val isStandalonePdf = !hasVideo && l.pdfLocalPath.isNotEmpty() && l.pdfLocalPath != "blank_note"
 
-                        // 2. The other components (PDF, drag handle)
-                        if (!isPip && !isFullscreen && showPdf) {
-                            if (isTablet) {
-                                // 1. PDF View Tablet (Drawn first, lower Z)
-                                Box(
-                                    Modifier
-                                        .align(Alignment.CenterEnd)
-                                        .fillMaxHeight()
-                                        .fillMaxWidth(1f - splitRatio)
-                                        .clipToBounds()
-                                ) {
-                                    lecture?.let { l ->
-                                        PdfViewer(
-                                            pdfPath = l.pdfLocalPath,
-                                            title = l.name,
-                                            initialPage = 0,
-                                            isPdfDownloaded = l.isPdfDownloaded,
-                                            visuals = visuals,
-                                            annotationState = annotationState,
-                                            onPageChanged = { },
-                                            onAddVisual = { type, data, page, color, width ->
-                                                viewModel.addVisual(type, data, page, color, width)
-                                            },
-                                            onDeleteVisual = { id -> viewModel.deleteVisual(id) },
-                                            onAddLocalPdf = onAddLocalPdf,
-                                            onCreateBlankNote = onCreateBlankNote,
-                                            onAddPage = { viewModel.addPage() },
-                                            totalPages = l.pdfPageCount,
-                                            onClose = onClosePdf,
-                                            isHorizontal = pdfHorizontalOrientation,
-                                            onOrientationChange = { viewModel.savePdfOrientation(it) },
-                                            modifier = Modifier.fillMaxSize()
-                                        )
-                                    }
-                                }
-
-                                // 2. Drag Handle Tablet (Drawn last, highest Z)
-                                val density = androidx.compose.ui.platform.LocalDensity.current
-                                val dragHandleStart = with(density) { (totalWidth * splitRatio).toDp() }
-
-                                Box(
-                                    Modifier
-                                        .align(Alignment.CenterStart)
-                                        .padding(start = dragHandleStart - 6.dp)
-                                        .width(12.dp)
-                                        .fillMaxHeight()
-                                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                                        .draggable(
-                                            orientation = Orientation.Horizontal,
-                                            state = rememberDraggableState { delta ->
-                                                splitRatio = (splitRatio + delta / totalWidth).coerceIn(0.2f, 0.8f)
-                                            },
-                                            onDragStopped = {
-                                                scope.launch { settingsManager.saveSplitRatio(splitRatio) }
-                                            }
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(Icons.Default.DragHandle, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f), modifier = Modifier.size(16.dp))
-                                }
-                            } else {
-                                // 1. PDF View Phone (Drawn first, lower Z)
-                                Box(
-                                    Modifier
-                                        .align(Alignment.BottomCenter)
-                                        .fillMaxWidth()
-                                        .fillMaxHeight(1f - splitRatio)
-                                        .clipToBounds()
-                                ) {
+                            if (isStandalonePdf) {
+                                // ── Professional Standalone PDF Mode ──
+                                Box(Modifier.fillMaxSize()) {
                                     PdfViewer(
-                                        pdfPath = lecture?.pdfLocalPath ?: "",
-                                        title = lecture?.name ?: "Lecture",
+                                        pdfPath = l.pdfLocalPath,
+                                        title = l.name,
                                         initialPage = 0,
-                                        isPdfDownloaded = lecture?.isPdfDownloaded ?: false,
+                                        isPdfDownloaded = l.isPdfDownloaded,
                                         visuals = visuals,
                                         annotationState = annotationState,
                                         onPageChanged = { },
@@ -348,37 +302,147 @@ fun LectureScreen(
                                         onAddLocalPdf = onAddLocalPdf,
                                         onCreateBlankNote = onCreateBlankNote,
                                         onAddPage = { viewModel.addPage() },
-                                        totalPages = lecture?.pdfPageCount ?: 0,
+                                        totalPages = l.pdfPageCount,
                                         onClose = onClosePdf,
                                         isHorizontal = pdfHorizontalOrientation,
                                         onOrientationChange = { viewModel.savePdfOrientation(it) },
                                         modifier = Modifier.fillMaxSize()
                                     )
                                 }
+                            } else {
+                                // ── Hybrid Split-Screen Mode ──
+                                // 1. Video Placement
+                                if (hasVideo) {
+                                    Box(
+                                        modifier = when {
+                                            isPip || isFullscreen -> Modifier.fillMaxSize()
+                                            isTablet && showPdf -> Modifier.fillMaxHeight().fillMaxWidth(splitRatio)
+                                            !isTablet && showPdf -> Modifier.fillMaxWidth().fillMaxHeight(splitRatio)
+                                            else -> Modifier.fillMaxSize()
+                                        }.clipToBounds()
+                                    ) {
+                                        VideoPlayer(
+                                            player = viewModel.player,
+                                            title = if (isPip) "" else (lecture?.name ?: ""),
+                                            modifier = Modifier.fillMaxSize(),
+                                            isFullscreen = isFullscreen,
+                                            isPip = isPip,
+                                            onFullscreenToggle = { isFullscreen = !isFullscreen },
+                                            onPipClick = onPipClick,
+                                            onSpeedChanged = { viewModel.setPlaybackSpeed(it) }
+                                        )
+                                    }
+                                }
 
-                                // 2. Drag Handle Phone (Drawn last, highest Z)
-                                val dragHandleStart = maxHeight * splitRatio
-                                val totalHeightPx = constraints.maxHeight.toFloat()
+                                // 2. Multi-Component Layout
+                                if (!isPip && !isFullscreen && showPdf) {
+                                    if (isTablet) {
+                                        // Tablet PDF
+                                        Box(
+                                            Modifier
+                                                .align(Alignment.CenterEnd)
+                                                .fillMaxHeight()
+                                                .fillMaxWidth(1f - splitRatio)
+                                                .clipToBounds()
+                                        ) {
+                                            PdfViewer(
+                                                pdfPath = l.pdfLocalPath,
+                                                title = l.name,
+                                                initialPage = 0,
+                                                isPdfDownloaded = l.isPdfDownloaded,
+                                                visuals = visuals,
+                                                annotationState = annotationState,
+                                                onPageChanged = { },
+                                                onAddVisual = { type, data, page, color, width ->
+                                                    viewModel.addVisual(type, data, page, color, width)
+                                                },
+                                                onDeleteVisual = { id -> viewModel.deleteVisual(id) },
+                                                onAddLocalPdf = onAddLocalPdf,
+                                                onCreateBlankNote = onCreateBlankNote,
+                                                onAddPage = { viewModel.addPage() },
+                                                totalPages = l.pdfPageCount,
+                                                onClose = onClosePdf,
+                                                isHorizontal = pdfHorizontalOrientation,
+                                                onOrientationChange = { viewModel.savePdfOrientation(it) },
+                                                modifier = Modifier.fillMaxSize()
+                                            )
+                                        }
 
-                                Box(
-                                    Modifier
-                                        .align(Alignment.TopCenter)
-                                        .padding(top = dragHandleStart - 6.dp)
-                                        .height(12.dp)
-                                        .fillMaxWidth()
-                                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                                        .draggable(
-                                            orientation = Orientation.Vertical,
-                                            state = rememberDraggableState { delta ->
-                                                splitRatio = (splitRatio + delta / totalHeightPx).coerceIn(0.2f, 0.8f)
-                                            },
-                                            onDragStopped = {
-                                                scope.launch { settingsManager.saveSplitRatio(splitRatio) }
-                                            }
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(Icons.Default.DragHandle, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f), modifier = Modifier.size(16.dp))
+                                        // Tablet Drag Handle
+                                        val density = androidx.compose.ui.platform.LocalDensity.current
+                                        val dragHandleStart = with(density) { (totalWidth * splitRatio).toDp() }
+                                        Box(
+                                            Modifier
+                                                .align(Alignment.CenterStart)
+                                                .padding(start = dragHandleStart - 6.dp)
+                                                .width(12.dp)
+                                                .fillMaxHeight()
+                                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                                .draggable(
+                                                    orientation = Orientation.Horizontal,
+                                                    state = rememberDraggableState { delta ->
+                                                        splitRatio = (splitRatio + delta / totalWidth).coerceIn(0.2f, 0.8f)
+                                                    },
+                                                    onDragStopped = { scope.launch { settingsManager.saveSplitRatio(splitRatio) } }
+                                                ),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(Icons.Default.DragHandle, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f), modifier = Modifier.size(16.dp))
+                                        }
+                                    } else {
+                                        // Phone PDF
+                                        Box(
+                                            Modifier
+                                                .align(Alignment.BottomCenter)
+                                                .fillMaxWidth()
+                                                .fillMaxHeight(1f - splitRatio)
+                                                .clipToBounds()
+                                        ) {
+                                            PdfViewer(
+                                                pdfPath = l.pdfLocalPath,
+                                                title = l.name,
+                                                initialPage = 0,
+                                                isPdfDownloaded = l.isPdfDownloaded,
+                                                visuals = visuals,
+                                                annotationState = annotationState,
+                                                onPageChanged = { },
+                                                onAddVisual = { type, data, page, color, width ->
+                                                    viewModel.addVisual(type, data, page, color, width)
+                                                },
+                                                onDeleteVisual = { id -> viewModel.deleteVisual(id) },
+                                                onAddLocalPdf = onAddLocalPdf,
+                                                onCreateBlankNote = onCreateBlankNote,
+                                                onAddPage = { viewModel.addPage() },
+                                                totalPages = l.pdfPageCount,
+                                                onClose = onClosePdf,
+                                                isHorizontal = pdfHorizontalOrientation,
+                                                onOrientationChange = { viewModel.savePdfOrientation(it) },
+                                                modifier = Modifier.fillMaxSize()
+                                            )
+                                        }
+
+                                        // Phone Drag Handle
+                                        val totalHeightPx = constraints.maxHeight.toFloat()
+                                        val dragHandleStart = maxHeight * splitRatio
+                                        Box(
+                                            Modifier
+                                                .align(Alignment.TopCenter)
+                                                .padding(top = dragHandleStart - 6.dp)
+                                                .height(12.dp)
+                                                .fillMaxWidth()
+                                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                                .draggable(
+                                                    orientation = Orientation.Vertical,
+                                                    state = rememberDraggableState { delta ->
+                                                        splitRatio = (splitRatio + delta / totalHeightPx).coerceIn(0.2f, 0.8f)
+                                                    },
+                                                    onDragStopped = { scope.launch { settingsManager.saveSplitRatio(splitRatio) } }
+                                                ),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(Icons.Default.DragHandle, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f), modifier = Modifier.size(16.dp))
+                                        }
+                                    }
                                 }
                             }
                         }

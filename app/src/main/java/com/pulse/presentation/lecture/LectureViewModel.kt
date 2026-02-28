@@ -105,32 +105,41 @@ class LectureViewModel(
             // Internal state is LOADING until ExoPlayer reports STATE_READY
             _playerState.value = PlayerUiState.LOADING
             
-            val result = getLectureStreamUrlUseCase(lecture.videoId)
-            val url = lecture.videoLocalPath ?: result?.first
-            val token = result?.second
+            val hasVideo = lecture.videoId != null || (lecture.videoLocalPath != null && lecture.videoLocalPath != "")
+            val hasPdf = lecture.pdfId != null || (lecture.pdfLocalPath.isNotEmpty() && lecture.pdfLocalPath != "")
 
-            if (url != null) {
-                hasStartedPlayback = true
-                val shouldResume = settingsManager.resumePlaybackFlow.first()
-                val defSpeed = settingsManager.defaultSpeedFlow.first()
-                
-                val actualSeek = if (shouldResume) lecture.lastPosition else 0L
-                val actualSpeed = if (lecture.speed != 1.0f) lecture.speed else defSpeed
-                
-                Log.d("LectureViewModel", "Requesting session for ${lecture.name} at $actualSeek with speed $actualSpeed")
-                
-                playerProvider.prepareSession(
-                    sessionId = lectureId,
-                    url = url,
-                    token = token,
-                    title = lecture.name,
-                    seekTo = actualSeek,
-                    speed = actualSpeed,
-                    fileId = lecture.videoId
-                )
-                // Note: We DON'T set READY here. We wait for onPlaybackStateChanged.
+            if (hasVideo) {
+                val result = getLectureStreamUrlUseCase(lecture.videoId)
+                val url = lecture.videoLocalPath ?: result?.first
+                val token = result?.second
+
+                if (url != null) {
+                    hasStartedPlayback = true
+                    val shouldResume = settingsManager.resumePlaybackFlow.first()
+                    val defSpeed = settingsManager.defaultSpeedFlow.first()
+                    
+                    val actualSeek = if (shouldResume) lecture.lastPosition else 0L
+                    val actualSpeed = if (lecture.speed != 1.0f) lecture.speed else defSpeed
+                    
+                    Log.d("LectureViewModel", "Requesting session for ${lecture.name} at $actualSeek with speed $actualSpeed")
+                    
+                    playerProvider.prepareSession(
+                        sessionId = lectureId,
+                        url = url,
+                        token = token,
+                        title = lecture.name,
+                        seekTo = actualSeek,
+                        speed = actualSpeed,
+                        fileId = lecture.videoId
+                    )
+                } else {
+                    _playerState.value = PlayerUiState.ERROR("Video stream not available")
+                }
+            } else if (hasPdf) {
+                // Standalone PDF mode: Set to READY immediately as there is no video to load
+                _playerState.value = PlayerUiState.READY
             } else {
-                _playerState.value = PlayerUiState.ERROR("Video stream not available")
+                _playerState.value = PlayerUiState.ERROR("No media available in this lecture")
             }
         } catch (e: Exception) {
             Log.e("LectureViewModel", "Failed to process playback", e)

@@ -62,10 +62,14 @@ class LectureRepository(
     }
 
     suspend fun addLocalLecture(name: String, videoPath: String?, pdfPath: String?) {
+        addLocalLectureWithId(UUID.randomUUID().toString(), name, videoPath, pdfPath)
+    }
+
+    suspend fun addLocalLectureWithId(id: String, name: String, videoPath: String?, pdfPath: String?) {
         val now = System.currentTimeMillis()
         val hlc = hlcGenerator.generate()
         val lecture = Lecture(
-            id = UUID.randomUUID().toString(),
+            id = id,
             name = name,
             videoId = null,
             pdfId = null,
