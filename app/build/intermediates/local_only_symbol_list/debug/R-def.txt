@@ -4,8 +4,16 @@ array com_google_android_gms_fonts_certs
 array com_google_android_gms_fonts_certs_dev
 array com_google_android_gms_fonts_certs_prod
 drawable ic_pulse_logo
+id player_view
+layout texture_player_view
 string app_name
+string gcm_defaultSenderId
 string gdrive_client_id
+string google_api_key
+string google_app_id
+string google_crash_reporting_api_key
+string google_storage_bucket
+string project_id
 style Theme.Pulse
 xml backup_rules
 xml data_extraction_rules

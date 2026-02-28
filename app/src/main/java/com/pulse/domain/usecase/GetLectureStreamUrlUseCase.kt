@@ -1,30 +1,32 @@
 package com.pulse.domain.usecase
 
-import com.pulse.domain.service.IDriveAuthManager
-import com.pulse.domain.service.IDriveService
+import com.pulse.domain.services.btr.IBtrAuthManager
+import com.pulse.domain.services.btr.IBtrService
 
 class GetLectureStreamUrlUseCase(
-    private val driveService: IDriveService,
-    private val authManager: IDriveAuthManager
+    private val btrService: IBtrService,
+    private val authManager: IBtrAuthManager
 ) {
-    suspend operator fun invoke(videoId: String?, forceRefresh: Boolean = false): String? {
+    suspend operator fun invoke(videoId: String?): Pair<String, String?>? {
         if (videoId == null) return null
         
-        var token: String? = null
-        try {
-            if (forceRefresh) {
-                val oldToken = authManager.getToken()
-                authManager.clearToken(oldToken)
-            }
-            token = authManager.getToken()
+        // TODO: Future bit-rate selection (e.g., driveService.getStreamingManifest(videoId))
+        val token = try {
+            authManager.getToken()
         } catch (e: Exception) {
             e.printStackTrace()
+            null
         }
         
-        return if (token != null) {
-            driveService.streamUrl(videoId) + "&access_token=$token"
-        } else {
-            driveService.streamUrl(videoId)
+        return Pair(btrService.streamUrl(videoId), token)
+    }
+
+    suspend fun invalidateToken() {
+        try {
+            val oldToken = authManager.getToken()
+            authManager.clearToken(oldToken)
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 }

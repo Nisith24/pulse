@@ -44,6 +44,9 @@
     <string msgid="8875138169939072951" name="abc_shareactionprovider_share_with">"Ndaje me"</string>
     <string msgid="9055268688411532828" name="abc_shareactionprovider_share_with_application">"Ndaje me <ns1:g id="APPLICATION_NAME">%s</ns1:g>"</string>
     <string msgid="1656852541809559762" name="abc_toolbar_collapse_description">"Palos"</string>
+    <string msgid="8397015543330865059" name="android.credentials.TYPE_PASSWORD_CREDENTIAL">"Fjalëkalimi"</string>
+    <string msgid="3929015085059320822" name="androidx.credentials.TYPE_PUBLIC_KEY_CREDENTIAL">"Çelësi i kalimit"</string>
+    <string name="authentication_required">Kërkohet vërtetimi</string>
     <string msgid="881409763997275156" name="call_notification_answer_action">"Përgjigju"</string>
     <string msgid="8793775615905189152" name="call_notification_answer_video_action">"Video"</string>
     <string msgid="3229508546291798546" name="call_notification_decline_action">"Refuzo"</string>
@@ -71,7 +74,9 @@
     <string name="common_open_on_phone">Hape në telefon</string>
     <string name="common_signin_button_text">Identifikohu</string>
     <string name="common_signin_button_text_long">Identifikohu me Google</string>
+    <string msgid="3260749812566568062" name="copy_toast_msg">"Lidhja u kopjua në kujtesën e fragmenteve"</string>
     <string msgid="8038256446254964252" name="default_error_message">"Hyrje e pavlefshme"</string>
+    <string name="default_notification_channel_name">Gjej këngën</string>
     <string msgid="6312721426453364202" name="default_popup_window_title">"Dritare kërcyese"</string>
     <string msgid="1890207353314751437" name="dropdown_menu">"Menyja me lëshim poshtë"</string>
     <string name="exo_controls_cc_disabled_description">Aktivizo titrat</string>
@@ -126,6 +131,9 @@
     <string name="exo_track_surround_7_point_1">Tingull rrethues 7.1</string>
     <string name="exo_track_unknown">E panjohur</string>
     <string name="exo_track_unknown_name">E panjohur (%1$s)</string>
+    <string msgid="4566929209979330987" name="fallback_menu_item_copy_link">"Kopjo lidhjen"</string>
+    <string msgid="3413186855122069269" name="fallback_menu_item_open_in_browser">"Hape në shfletues"</string>
+    <string msgid="7145444925855055364" name="fallback_menu_item_share_link">"Ndaj lidhjen"</string>
     <string msgid="6827826412747255547" name="in_progress">"Në vazhdim"</string>
     <string msgid="7933458017204019916" name="indeterminate">"Pjesërisht e shënuar"</string>
     <string msgid="2988463736136100848" name="m3c_bottom_sheet_collapse_description">"Palos fletën e poshtme"</string>
@@ -184,14 +192,21 @@
     <string msgid="6616362054113087709" name="m3c_time_picker_pm">"pasdite"</string>
     <string msgid="1805687647081129904" name="m3c_tooltip_long_press_label">"Shfaq këshillat për veglën"</string>
     <string msgid="5460405025248574620" name="m3c_tooltip_pane_description">"Këshilla për veglën"</string>
+    <string name="media3_controls_pause_description">Vendos në pauzë</string>
+    <string name="media3_controls_play_description">Luaj</string>
+    <string name="media3_controls_seek_back_description">Kërko prapa</string>
+    <string name="media3_controls_seek_forward_description">Kërko përpara</string>
+    <string name="media3_controls_seek_to_next_description">Kërko te artikulli tjetër</string>
+    <string name="media3_controls_seek_to_previous_description">Kërko te artikulli i mëparshëm</string>
     <string msgid="542007171693138492" name="navigation_menu">"Menyja e navigimit"</string>
     <string msgid="6610465462668679431" name="not_selected">"Nuk është zgjedhur"</string>
-    <string msgid="875452955155264703" name="off">"Joaktiv"</string>
-    <string msgid="8655164131929253426" name="on">"Aktiv"</string>
     <string msgid="5941395253238309765" name="range_end">"Fundi i diapazonit"</string>
     <string msgid="7097486360902471446" name="range_start">"Fillimi i diapazonit"</string>
     <string msgid="6264217191555673260" name="search_menu_title">"Kërko"</string>
     <string msgid="6043586758067023" name="selected">"Zgjedhur"</string>
+    <string msgid="4139871816613051306" name="state_empty">"Bosh"</string>
+    <string msgid="5834637030682409883" name="state_off">"Joaktiv"</string>
+    <string msgid="1490883874751719580" name="state_on">"Aktiv"</string>
     <string msgid="6277540029070332960" name="status_bar_notification_info_overflow">"999+"</string>
     <string msgid="2561197295334830845" name="switch_role">"Ndërro"</string>
     <string msgid="1672349317127674378" name="tab">"Tab"</string>

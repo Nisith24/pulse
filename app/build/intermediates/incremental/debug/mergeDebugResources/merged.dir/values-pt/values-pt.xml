@@ -44,6 +44,9 @@
     <string msgid="8875138169939072951" name="abc_shareactionprovider_share_with">"Compartilhar com"</string>
     <string msgid="9055268688411532828" name="abc_shareactionprovider_share_with_application">"Compartilhar com <ns1:g id="APPLICATION_NAME">%s</ns1:g>"</string>
     <string msgid="1656852541809559762" name="abc_toolbar_collapse_description">"Recolher"</string>
+    <string msgid="8397015543330865059" name="android.credentials.TYPE_PASSWORD_CREDENTIAL">"Senha"</string>
+    <string msgid="3929015085059320822" name="androidx.credentials.TYPE_PUBLIC_KEY_CREDENTIAL">"Chave de acesso"</string>
+    <string name="authentication_required">Autenticação necessária</string>
     <string msgid="881409763997275156" name="call_notification_answer_action">"Atender"</string>
     <string msgid="8793775615905189152" name="call_notification_answer_video_action">"Vídeo"</string>
     <string msgid="3229508546291798546" name="call_notification_decline_action">"Recusar"</string>
@@ -53,7 +56,9 @@
     <string msgid="59049573811482460" name="call_notification_screening_text">"Filtrando uma ligação recebida"</string>
     <string msgid="406453423630273620" name="close_drawer">"Fechar menu de navegação"</string>
     <string msgid="7573152094250666567" name="close_sheet">"Fechar planilha"</string>
+    <string msgid="3260749812566568062" name="copy_toast_msg">"Link copiado para a área de transferência"</string>
     <string msgid="8038256446254964252" name="default_error_message">"Entrada inválida"</string>
+    <string name="default_notification_channel_name">Tocando agora</string>
     <string msgid="6312721426453364202" name="default_popup_window_title">"Janela pop-up"</string>
     <string msgid="1890207353314751437" name="dropdown_menu">"Menu suspenso"</string>
     <string name="exo_controls_cc_disabled_description">Ativar legendas</string>
@@ -108,6 +113,9 @@
     <string name="exo_track_surround_7_point_1">Sistema surround 7.1</string>
     <string name="exo_track_unknown">Desconhecido</string>
     <string name="exo_track_unknown_name">Desconhecido (%1$s)</string>
+    <string msgid="4566929209979330987" name="fallback_menu_item_copy_link">"Copiar link"</string>
+    <string msgid="3413186855122069269" name="fallback_menu_item_open_in_browser">"Abrir no navegador"</string>
+    <string msgid="7145444925855055364" name="fallback_menu_item_share_link">"Compartilhar link"</string>
     <string msgid="6827826412747255547" name="in_progress">"Em andamento"</string>
     <string msgid="7933458017204019916" name="indeterminate">"Parcialmente selecionada"</string>
     <string msgid="2988463736136100848" name="m3c_bottom_sheet_collapse_description">"Fechar página inferior"</string>
@@ -166,14 +174,21 @@
     <string msgid="6616362054113087709" name="m3c_time_picker_pm">"PM"</string>
     <string msgid="1805687647081129904" name="m3c_tooltip_long_press_label">"Mostrar dica"</string>
     <string msgid="5460405025248574620" name="m3c_tooltip_pane_description">"Dica"</string>
+    <string name="media3_controls_pause_description">Pausar</string>
+    <string name="media3_controls_play_description">Tocar</string>
+    <string name="media3_controls_seek_back_description">Retroceder</string>
+    <string name="media3_controls_seek_forward_description">Avançar</string>
+    <string name="media3_controls_seek_to_next_description">Ir para o próximo item</string>
+    <string name="media3_controls_seek_to_previous_description">Ir para o item anterior</string>
     <string msgid="542007171693138492" name="navigation_menu">"Menu de navegação"</string>
     <string msgid="6610465462668679431" name="not_selected">"Não selecionado"</string>
-    <string msgid="875452955155264703" name="off">"Desativado"</string>
-    <string msgid="8655164131929253426" name="on">"Ativado"</string>
     <string msgid="5941395253238309765" name="range_end">"Fim do intervalo"</string>
     <string msgid="7097486360902471446" name="range_start">"Início do intervalo"</string>
     <string msgid="6264217191555673260" name="search_menu_title">"Pesquisar"</string>
     <string msgid="6043586758067023" name="selected">"Selecionado"</string>
+    <string msgid="4139871816613051306" name="state_empty">"Vazio"</string>
+    <string msgid="5834637030682409883" name="state_off">"Desativado"</string>
+    <string msgid="1490883874751719580" name="state_on">"Ativado"</string>
     <string msgid="6277540029070332960" name="status_bar_notification_info_overflow">"999+"</string>
     <string msgid="2561197295334830845" name="switch_role">"Chave"</string>
     <string msgid="1672349317127674378" name="tab">"Guia"</string>

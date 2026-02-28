@@ -44,6 +44,9 @@
     <string msgid="8875138169939072951" name="abc_shareactionprovider_share_with">"ಇವರೊಂದಿಗೆ ಹಂಚಿಕೊಳ್ಳಿ"</string>
     <string msgid="9055268688411532828" name="abc_shareactionprovider_share_with_application">"<ns1:g id="APPLICATION_NAME">%s</ns1:g> ನೊಂದಿಗೆ ಹಂಚಿಕೊಳ್ಳಿ"</string>
     <string msgid="1656852541809559762" name="abc_toolbar_collapse_description">"ಕುಗ್ಗಿಸಿ"</string>
+    <string msgid="8397015543330865059" name="android.credentials.TYPE_PASSWORD_CREDENTIAL">"ಪಾಸ್‌ವರ್ಡ್"</string>
+    <string msgid="3929015085059320822" name="androidx.credentials.TYPE_PUBLIC_KEY_CREDENTIAL">"ಪಾಸ್‌ಕೀ"</string>
+    <string name="authentication_required">ದೃಢೀಕರಣದ ಅಗತ್ಯವಿದೆ</string>
     <string msgid="881409763997275156" name="call_notification_answer_action">"ಉತ್ತರಿಸಿ"</string>
     <string msgid="8793775615905189152" name="call_notification_answer_video_action">"ವೀಡಿಯೊ"</string>
     <string msgid="3229508546291798546" name="call_notification_decline_action">"ನಿರಾಕರಿಸಿ"</string>
@@ -71,7 +74,9 @@
     <string name="common_open_on_phone">ಫೋನ್‌ನಲ್ಲಿ ತೆರೆಯಿರಿ</string>
     <string name="common_signin_button_text">ಸೈನ್ ಇನ್</string>
     <string name="common_signin_button_text_long">Google ಮೂಲಕ ಸೈನ್ ಇನ್ ಮಾಡಿ</string>
+    <string msgid="3260749812566568062" name="copy_toast_msg">"ಕ್ಲಿಪ್‌ಬೋರ್ಡ್‌ಗೆ ಲಿಂಕ್ ಅನ್ನು ನಕಲಿಸಲಾಗಿದೆ"</string>
     <string msgid="8038256446254964252" name="default_error_message">"ಅಮಾನ್ಯ ಇನ್‌ಪುಟ್"</string>
+    <string name="default_notification_channel_name">ಇದೀಗ ಪ್ಲೇ ಮಾಡಲಾಗುತ್ತಿದೆ</string>
     <string msgid="6312721426453364202" name="default_popup_window_title">"ಪಾಪ್-ಅಪ್ ವಿಂಡೋ"</string>
     <string msgid="1890207353314751437" name="dropdown_menu">"ಡ್ರಾಪ್‌ಡೌನ್ ಮೆನು"</string>
     <string name="exo_controls_cc_disabled_description">ಸಬ್‌ಟೈಟಲ್‌ಗಳನ್ನು ಸಕ್ರಿಯಗೊಳಿಸಿ</string>
@@ -126,6 +131,9 @@
     <string name="exo_track_surround_7_point_1">7.1 ಸರೌಂಡ್ ಶಬ್ದ</string>
     <string name="exo_track_unknown">ಅಪರಿಚಿತ</string>
     <string name="exo_track_unknown_name">ಅಪರಿಚಿತ (%1$s)</string>
+    <string msgid="4566929209979330987" name="fallback_menu_item_copy_link">"ಲಿಂಕ್ ನಕಲಿಸಿ"</string>
+    <string msgid="3413186855122069269" name="fallback_menu_item_open_in_browser">"ಬ್ರೌಸರ್‌ನಲ್ಲಿ ತೆರೆಯಿರಿ"</string>
+    <string msgid="7145444925855055364" name="fallback_menu_item_share_link">"ಲಿಂಕ್ ಹಂಚಿರಿ"</string>
     <string msgid="6827826412747255547" name="in_progress">"ಪ್ರಗತಿಯಲ್ಲಿದೆ"</string>
     <string msgid="7933458017204019916" name="indeterminate">"ಭಾಗಶಃ ಪರೀಕ್ಷಿಸಲಾಗಿದೆ"</string>
     <string msgid="2988463736136100848" name="m3c_bottom_sheet_collapse_description">"ಕೆಳಭಾಗದ ಶೀಟ್ ಅನ್ನು ಕುಗ್ಗಿಸಿ"</string>
@@ -184,14 +192,21 @@
     <string msgid="6616362054113087709" name="m3c_time_picker_pm">"PM"</string>
     <string msgid="1805687647081129904" name="m3c_tooltip_long_press_label">"ಟೂಲ್‌ಟಿಪ್ ಅನ್ನು ತೋರಿಸಿ"</string>
     <string msgid="5460405025248574620" name="m3c_tooltip_pane_description">"ಟೂಲ್‌ಟಿಪ್"</string>
+    <string name="media3_controls_pause_description">ವಿರಾಮಗೊಳಿಸಿ</string>
+    <string name="media3_controls_play_description">ಪ್ಲೇ ಮಾಡಿ</string>
+    <string name="media3_controls_seek_back_description">ಹಿಂದಕ್ಕೆ ಸೀಕ್ ಮಾಡಿ</string>
+    <string name="media3_controls_seek_forward_description">ಮುಂದಕ್ಕೆ ಸೀಕ್ ಮಾಡಿ</string>
+    <string name="media3_controls_seek_to_next_description">ಮುಂದಿನ ಐಟಂಗೆ ಸೀಕ್ ಮಾಡಿ</string>
+    <string name="media3_controls_seek_to_previous_description">ಹಿಂದಿನ ಐಟಂಗೆ ಸೀಕ್ ಮಾಡಿ</string>
     <string msgid="542007171693138492" name="navigation_menu">"ನ್ಯಾವಿಗೇಶನ್‌ ಮೆನು"</string>
     <string msgid="6610465462668679431" name="not_selected">"ಆಯ್ಕೆ ಮಾಡಿಲ್ಲ"</string>
-    <string msgid="875452955155264703" name="off">"ಆಫ್ ಆಗಿದೆ"</string>
-    <string msgid="8655164131929253426" name="on">"ಆನ್ ಆಗಿದೆ"</string>
     <string msgid="5941395253238309765" name="range_end">"ಶ್ರೇಣಿಯ ಅಂತ್ಯ"</string>
     <string msgid="7097486360902471446" name="range_start">"ಶ್ರೇಣಿಯ ಪ್ರಾರಂಭ"</string>
     <string msgid="6264217191555673260" name="search_menu_title">"ಹುಡುಕಿ"</string>
     <string msgid="6043586758067023" name="selected">"ಆಯ್ಕೆಮಾಡಲಾಗಿದೆ"</string>
+    <string msgid="4139871816613051306" name="state_empty">"ಖಾಲಿ"</string>
+    <string msgid="5834637030682409883" name="state_off">"ಆಫ್ ಆಗಿದೆ"</string>
+    <string msgid="1490883874751719580" name="state_on">"ಆನ್ ಆಗಿದೆ"</string>
     <string msgid="6277540029070332960" name="status_bar_notification_info_overflow">"999+"</string>
     <string msgid="2561197295334830845" name="switch_role">"ಬದಲಿಸಿ"</string>
     <string msgid="1672349317127674378" name="tab">"ಟ್ಯಾಬ್"</string>

@@ -2,119 +2,219 @@ package com.pulse.presentation.lecture
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import android.net.Uri
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
-import com.pulse.data.db.Lecture
-import com.pulse.data.db.Note
+import com.pulse.core.data.db.Lecture
+import com.pulse.core.data.db.Note
 import com.pulse.data.repository.LectureRepository
-import com.pulse.domain.repository.INoteRepository
+import com.pulse.core.domain.repository.INoteRepository
 import com.pulse.domain.usecase.GetLectureStreamUrlUseCase
-import com.pulse.domain.util.ILogger
+import com.pulse.core.domain.util.ILogger
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import android.util.Log
+
+import com.pulse.data.local.SettingsManager
+
+import com.pulse.core.data.repository.NoteVisualRepository
+import com.pulse.core.data.db.NoteVisual
+import com.pulse.core.data.db.VisualType
 
 class LectureViewModel(
     private val lectureId: String,
     private val repository: LectureRepository,
     private val noteRepository: INoteRepository,
+    private val noteVisualRepository: NoteVisualRepository,
     private val playerProvider: PlayerProvider,
     private val getLectureStreamUrlUseCase: GetLectureStreamUrlUseCase,
-    private val logger: ILogger
+    private val logger: ILogger,
+    private val settingsManager: SettingsManager
 ) : ViewModel() {
 
     private val _lecture = MutableStateFlow<Lecture?>(null)
     val lecture: StateFlow<Lecture?> = _lecture.asStateFlow()
-    
+
+    private val _playerState: MutableStateFlow<PlayerUiState> = MutableStateFlow(PlayerUiState.LOADING)
+    val playerState: StateFlow<PlayerUiState> = _playerState.asStateFlow()
+
     val notes: Flow<List<Note>> = noteRepository.getNotes(lectureId)
     
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val visuals: Flow<List<NoteVisual>> = lecture.filterNotNull()
+        .map { it.pdfLocalPath.ifEmpty { it.pdfId ?: it.id } }
+        .distinctUntilChanged()
+        .flatMapLatest { pdfId ->
+            noteVisualRepository.getVisualsForFile(lectureId, pdfId)
+        }
     val player = playerProvider.player
+    
+    val pdfHorizontalOrientation: StateFlow<Boolean> = settingsManager.pdfHorizontalOrientationFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
     private var periodicSaveJob: Job? = null
-    private var lastPreparedPath: String? = null
-    private var errorListener: Player.Listener? = null
+    private var playerListener: Player.Listener? = null
+    private var hasStartedPlayback = false
 
     init {
-        // Reactive Metadata & Player Preparation
-        viewModelScope.launch {
-            repository.getLectureById(lectureId).collect { l ->
-                _lecture.value = l
-                l?.let { 
-                    val currentPath = it.videoLocalPath ?: getLectureStreamUrlUseCase(it.videoId)
-                    if (currentPath != null && currentPath != lastPreparedPath) {
-                        preparePlayer(currentPath, it.lastPosition)
-                        lastPreparedPath = currentPath
-                    }
-                }
-            }
-        }
+        setupPlayerListener()
+        loadLectureAndPlay()
         startPeriodicSave()
     }
 
-    private fun preparePlayer(path: String, position: Long) {
-        val uri = android.net.Uri.parse(path)
-        
-        // Holistic check for URI accessibility before trying to play
-        val isAccessible = if (path.startsWith("content://")) {
-            try {
-                val context = playerProvider.getContext() // Need to expose context or check via repository
-                context.contentResolver.openInputStream(uri)?.close()
-                true
-            } catch (e: Exception) {
-                logger.e("LectureVM", "URI not accessible: $path")
-                false
+    private fun loadLectureAndPlay() {
+        viewModelScope.launch {
+            // Step 1: Get the lecture meta-data (blocking collection for initial data)
+            repository.getLectureById(lectureId).take(1).collect { initialLecture ->
+                _lecture.value = initialLecture
+                if (initialLecture != null) {
+                    processPlayback(initialLecture)
+                } else {
+                    _playerState.value = PlayerUiState.ERROR("Lecture not found")
+                }
             }
-        } else true
-
-        if (!isAccessible && path.startsWith("content://")) {
-            // Future: Post error state to UI
-            return
+            
+            // Step 2: Keep metadata in sync without re-triggering playback
+            repository.getLectureById(lectureId).drop(1).collect { updatedLecture ->
+                _lecture.value = updatedLecture
+            }
         }
+    }
 
-        playerProvider.prepare(path, _lecture.value?.name ?: "Lecture")
-        if (position > 0) {
-            player.seekTo(position)
+    fun playSessionIfNeeded() {
+        val currentLecture = _lecture.value ?: return
+        if (!playerProvider.isSessionActive(lectureId)) {
+            viewModelScope.launch {
+                hasStartedPlayback = false
+                processPlayback(currentLecture)
+            }
+        } else {
+             // Production fix: Force play if it was pending and we are ready
+            if (!player.isPlaying && player.playbackState == Player.STATE_READY) {
+                player.play()
+            }
         }
-        
-        // Ensure playWhenReady is true for local files
-        player.playWhenReady = true
-        
-        // Remove previous listener to prevent leaks on multiple prepares
-        errorListener?.let { player.removeListener(it) }
+    }
 
-        errorListener = object : Player.Listener {
-            override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                logger.e("LectureViewModel", "Playback Error: ${error.errorCodeName} - ${error.message} for path: $path")
+    private suspend fun processPlayback(lecture: Lecture) {
+        if (hasStartedPlayback) return
+        
+        try {
+            // Internal state is LOADING until ExoPlayer reports STATE_READY
+            _playerState.value = PlayerUiState.LOADING
+            
+            val result = getLectureStreamUrlUseCase(lecture.videoId)
+            val url = lecture.videoLocalPath ?: result?.first
+            val token = result?.second
+
+            if (url != null) {
+                hasStartedPlayback = true
+                val shouldResume = settingsManager.resumePlaybackFlow.first()
+                val defSpeed = settingsManager.defaultSpeedFlow.first()
                 
-                // If the error is network/HTTP related (usually URL expiration for Google Drive streams)
-                val isNetworkError = error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED || 
-                                     error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS
+                val actualSeek = if (shouldResume) lecture.lastPosition else 0L
+                val actualSpeed = if (lecture.speed != 1.0f) lecture.speed else defSpeed
                 
-                if (isNetworkError && !path.startsWith("content://") && !path.startsWith("file://") && !path.startsWith("/")) {
-                    logger.d("LectureViewModel", "Attempting to refresh stream URL due to network error...")
+                Log.d("LectureViewModel", "Requesting session for ${lecture.name} at $actualSeek with speed $actualSpeed")
+                
+                playerProvider.prepareSession(
+                    sessionId = lectureId,
+                    url = url,
+                    token = token,
+                    title = lecture.name,
+                    seekTo = actualSeek,
+                    speed = actualSpeed,
+                    fileId = lecture.videoId
+                )
+                // Note: We DON'T set READY here. We wait for onPlaybackStateChanged.
+            } else {
+                _playerState.value = PlayerUiState.ERROR("Video stream not available")
+            }
+        } catch (e: Exception) {
+            Log.e("LectureViewModel", "Failed to process playback", e)
+            _playerState.value = PlayerUiState.ERROR("Init failed: ${e.localizedMessage}")
+        }
+    }
+
+    private fun setupPlayerListener() {
+        playerListener = object : Player.Listener {
+            override fun onPlaybackStateChanged(state: Int) {
+                if (!playerProvider.isSessionActive(lectureId)) return
+                
+                Log.d("LectureViewModel", "ExoPlayer State: $state")
+                when (state) {
+                    Player.STATE_BUFFERING -> _playerState.value = PlayerUiState.LOADING
+                    Player.STATE_READY -> {
+                        _playerState.value = PlayerUiState.READY
+                        // Production fix: Force play if it was pending and we are ready
+                        if (player.playWhenReady && !player.isPlaying) {
+                            player.play()
+                        }
+                    }
+                    Player.STATE_ENDED -> _playerState.value = PlayerUiState.READY
+                    Player.STATE_IDLE -> {
+                        // Only error if we aren't intentionally stopping
+                        if (player.playerError != null) {
+                            _playerState.value = PlayerUiState.ERROR(player.playerError?.message ?: "Idle Error")
+                        }
+                    } 
+                }
+            }
+
+            override fun onPlayerError(error: PlaybackException) {
+                if (!playerProvider.isSessionActive(lectureId)) return
+                logger.e("LectureVM", "Playback error: ${error.errorCodeName} (${error.errorCode})")
+
+                val isNetworkError = error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED ||
+                        error.errorCode == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS ||
+                        error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT ||
+                        error.errorCode == PlaybackException.ERROR_CODE_IO_UNSPECIFIED ||
+                        error.errorCode == PlaybackException.ERROR_CODE_IO_CLEARTEXT_NOT_PERMITTED
+
+                val lecture = _lecture.value
+                // If it's a network error or potential token expiry (Bad HTTP Status usually covers 401/403)
+                if (isNetworkError && lecture?.videoId != null) {
                     val currentPos = player.currentPosition
-                    
                     viewModelScope.launch {
-                        _lecture.value?.videoId?.let { vId ->
-                            val freshUrl = getLectureStreamUrlUseCase(vId, true)
-                            if (freshUrl != null && freshUrl != path) {
-                                logger.d("LectureViewModel", "Found fresh URL, retrying playback.")
-                                // Remove listener so we don't trigger again for the old path
-                                errorListener?.let { player.removeListener(it) } 
-                                preparePlayer(freshUrl, currentPos)
-                                lastPreparedPath = freshUrl
+                        try {
+                            _playerState.value = PlayerUiState.LOADING
+                            Log.d("LectureViewModel", "Network/Auth error detected. Invalidating token and retrying...")
+                            
+                            // 1. Invalidate current token
+                            getLectureStreamUrlUseCase.invalidateToken()
+                            
+                            // 2. Fetch fresh URL and token
+                            val freshResult = getLectureStreamUrlUseCase(lecture.videoId)
+                            val freshUrl = freshResult?.first
+                            val freshToken = freshResult?.second
+                            
+                            if (freshUrl != null) {
+                                // 3. Re-prepare with the fresh credentials at the exact same spot
+                                playerProvider.prepareSession(
+                                    sessionId = lectureId,
+                                    url = freshUrl,
+                                    token = freshToken,
+                                    title = lecture.name,
+                                    seekTo = currentPos,
+                                    speed = player.playbackParameters.speed,
+                                    fileId = lecture?.videoId
+                                )
+                            } else {
+                                _playerState.value = PlayerUiState.ERROR("Failed to refresh stream")
                             }
+                        } catch (e: Exception) {
+                            Log.e("LectureViewModel", "Token/URL refresh failed", e)
+                            _playerState.value = PlayerUiState.ERROR("Link expired. Sign in again.")
                         }
                     }
                 } else {
-                    // Force a re-emit if local failed, to try fallback logic
-                    lastPreparedPath = null
+                    _playerState.value = PlayerUiState.ERROR(error.message ?: "Player Error")
                 }
             }
         }
-        player.addListener(errorListener!!)
+        player.addListener(playerListener!!)
     }
 
     private fun startPeriodicSave() {
@@ -125,42 +225,62 @@ class LectureViewModel(
             }
         }
     }
-    
+
     fun saveProgress() {
-        val currentLecture = _lecture.value ?: return
+        if (!playerProvider.isSessionActive(lectureId)) return
+        val lecture = _lecture.value ?: return
+        
+        // Capture position and duration synchronously on the main thread
         val pos = player.currentPosition
         val dur = player.duration
-        if (dur <= 0) return // Don't save if player isn't ready
         
-        viewModelScope.launch {
-            repository.updateLectureProgress(currentLecture, pos, dur)
+        // Optimization: Don't save if in IDLE state or at extreme beginning
+        if (player.playbackState == Player.STATE_IDLE || dur <= 1000) return
+
+        // Use kotlinx.coroutines.NonCancellable to ensure DB save completes even if VM is cleared
+        viewModelScope.launch(kotlinx.coroutines.NonCancellable) {
+            repository.updateLectureProgress(lecture, pos, dur)
         }
     }
 
     fun addNote(text: String) {
         viewModelScope.launch {
             noteRepository.insertNote(
-                Note(
-                    lectureId = lectureId,
-                    timestamp = player.currentPosition,
-                    text = text
-                )
+                Note(lectureId = lectureId, timestamp = player.currentPosition, text = text)
             )
         }
     }
 
     fun deleteNote(noteId: Long) {
+        viewModelScope.launch { noteRepository.deleteNote(noteId) }
+    }
+
+    fun addVisual(type: VisualType, data: String, page: Int, color: Int, width: Float) {
+        val currentPdfId = _lecture.value?.let { it.pdfLocalPath.ifEmpty { it.pdfId ?: it.id } } ?: lectureId
         viewModelScope.launch {
-            noteRepository.deleteNote(noteId)
+            noteVisualRepository.insert(
+                NoteVisual(
+                    lectureId = lectureId,
+                    pdfId = currentPdfId,
+                    timestamp = player.currentPosition,
+                    pageNumber = page,
+                    type = type,
+                    data = data,
+                    color = color,
+                    strokeWidth = width
+                )
+            )
         }
+    }
+
+    fun deleteVisual(id: Long) {
+        viewModelScope.launch { noteVisualRepository.delete(id) }
     }
 
     fun setPlaybackSpeed(speed: Float) {
         player.setPlaybackSpeed(speed)
         _lecture.value?.let { l ->
-            viewModelScope.launch {
-                repository.updateLectureZoom(l.copy(speed = speed), l.lastPage) 
-            }
+            viewModelScope.launch { repository.updateLectureSpeed(l, speed) }
         }
     }
 
@@ -168,35 +288,56 @@ class LectureViewModel(
         player.seekTo(timestamp)
     }
 
-    fun updatePdfPage(page: Int) {
-        _lecture.value?.let { l ->
-            if (l.lastPage == page) return@let
-            viewModelScope.launch {
-                repository.updateLectureZoom(l, page)
-            }
-        }
-    }
+
 
     fun updateLocalPdfPath(path: String) {
         _lecture.value?.let { l ->
-            viewModelScope.launch {
-                repository.updateLectureZoom(l.copy(pdfLocalPath = path), l.lastPage)
+            viewModelScope.launch { 
+                // Initialize page count for blank note
+                if (path == "blank_note" && l.pdfPageCount == 0) {
+                    repository.updatePageCount(l.id, 5)
+                }
+                repository.updateLocalPdfPath(l, path) 
             }
         }
     }
 
-    fun cleanup() {
-        periodicSaveJob?.cancel()
+    fun addPage() {
+        _lecture.value?.let { l ->
+            viewModelScope.launch {
+                repository.updatePageCount(l.id, l.pdfPageCount + 10)
+            }
+        }
+    }
+
+    fun onExit() {
+        Log.d("LectureViewModel", "Exiting session: $lectureId")
         saveProgress()
-        errorListener?.let { player.removeListener(it) }
-        errorListener = null
-        playerProvider.stop()
-        _lecture.value = null
-        lastPreparedPath = null
+        playerProvider.stopSession(lectureId)
+    }
+
+    fun savePdfOrientation(horizontal: Boolean) {
+        viewModelScope.launch {
+            settingsManager.savePdfHorizontalOrientation(horizontal)
+        }
     }
 
     override fun onCleared() {
-        cleanup()
+        Log.d("LectureViewModel", "ViewModel cleared for $lectureId")
+        periodicSaveJob?.cancel()
+        saveProgress() // Final flush
+        playerListener?.let { player.removeListener(it) }
+        playerListener = null
+        // Only stop session if NOT going to mini-player
+        if (!playerProvider.isMiniPlayerActive || playerProvider.miniPlayerLectureId != lectureId) {
+            playerProvider.stopSession(lectureId)
+        }
         super.onCleared()
     }
+}
+
+sealed class PlayerUiState {
+    object LOADING : PlayerUiState()
+    object READY : PlayerUiState()
+    data class ERROR(val message: String) : PlayerUiState()
 }

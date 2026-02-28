@@ -48,6 +48,9 @@
     <string msgid="8875138169939072951" name="abc_shareactionprovider_share_with">"Sdílet s"</string>
     <string msgid="9055268688411532828" name="abc_shareactionprovider_share_with_application">"Sdílet s aplikací <ns1:g id="APPLICATION_NAME">%s</ns1:g>"</string>
     <string msgid="1656852541809559762" name="abc_toolbar_collapse_description">"Sbalit"</string>
+    <string msgid="8397015543330865059" name="android.credentials.TYPE_PASSWORD_CREDENTIAL">"Heslo"</string>
+    <string msgid="3929015085059320822" name="androidx.credentials.TYPE_PUBLIC_KEY_CREDENTIAL">"Přístupový klíč"</string>
+    <string name="authentication_required">Je vyžadováno ověření</string>
     <string msgid="881409763997275156" name="call_notification_answer_action">"Přijmout"</string>
     <string msgid="8793775615905189152" name="call_notification_answer_video_action">"Video"</string>
     <string msgid="3229508546291798546" name="call_notification_decline_action">"Odmítnout"</string>
@@ -75,7 +78,9 @@
     <string name="common_open_on_phone">Otevřít v telefonu</string>
     <string name="common_signin_button_text">Přihlásit se</string>
     <string name="common_signin_button_text_long">Přihlásit se k účtu Google</string>
+    <string msgid="3260749812566568062" name="copy_toast_msg">"Odkaz zkopírován do schránky"</string>
     <string msgid="8038256446254964252" name="default_error_message">"Neplatný údaj"</string>
+    <string name="default_notification_channel_name">Přehrává se</string>
     <string msgid="6312721426453364202" name="default_popup_window_title">"Vyskakovací okno"</string>
     <string msgid="1890207353314751437" name="dropdown_menu">"Rozbalovací nabídka"</string>
     <string name="exo_controls_cc_disabled_description">Zapnout titulky</string>
@@ -130,6 +135,9 @@
     <string name="exo_track_surround_7_point_1">Prostorový zvuk 7.1</string>
     <string name="exo_track_unknown">Neznámé</string>
     <string name="exo_track_unknown_name">Neznámé (%1$s)</string>
+    <string msgid="4566929209979330987" name="fallback_menu_item_copy_link">"Kopírovat odkaz"</string>
+    <string msgid="3413186855122069269" name="fallback_menu_item_open_in_browser">"Otevřít v prohlížeči"</string>
+    <string msgid="7145444925855055364" name="fallback_menu_item_share_link">"Sdílet odkaz"</string>
     <string msgid="6827826412747255547" name="in_progress">"Probíhá"</string>
     <string msgid="7933458017204019916" name="indeterminate">"Částečně zaškrtnuto"</string>
     <string msgid="2988463736136100848" name="m3c_bottom_sheet_collapse_description">"Sbalit spodní tabulku"</string>
@@ -188,14 +196,21 @@
     <string msgid="6616362054113087709" name="m3c_time_picker_pm">"PM"</string>
     <string msgid="1805687647081129904" name="m3c_tooltip_long_press_label">"Zobrazit popisek"</string>
     <string msgid="5460405025248574620" name="m3c_tooltip_pane_description">"Popisek"</string>
+    <string name="media3_controls_pause_description">Pozastavit</string>
+    <string name="media3_controls_play_description">Přehrát</string>
+    <string name="media3_controls_seek_back_description">Posunout zpět</string>
+    <string name="media3_controls_seek_forward_description">Posunout vpřed</string>
+    <string name="media3_controls_seek_to_next_description">Posunout na další položku</string>
+    <string name="media3_controls_seek_to_previous_description">Posunout na předchozí položku</string>
     <string msgid="542007171693138492" name="navigation_menu">"Navigační nabídka"</string>
     <string msgid="6610465462668679431" name="not_selected">"Nevybráno"</string>
-    <string msgid="875452955155264703" name="off">"Vypnuto"</string>
-    <string msgid="8655164131929253426" name="on">"Zapnuto"</string>
     <string msgid="5941395253238309765" name="range_end">"Konec rozsahu"</string>
     <string msgid="7097486360902471446" name="range_start">"Začátek rozsahu"</string>
     <string msgid="6264217191555673260" name="search_menu_title">"Hledat"</string>
     <string msgid="6043586758067023" name="selected">"Vybráno"</string>
+    <string msgid="4139871816613051306" name="state_empty">"Prázdné"</string>
+    <string msgid="5834637030682409883" name="state_off">"Vypnuto"</string>
+    <string msgid="1490883874751719580" name="state_on">"Zapnuto"</string>
     <string msgid="6277540029070332960" name="status_bar_notification_info_overflow">"999+"</string>
     <string msgid="2561197295334830845" name="switch_role">"Přepnout"</string>
     <string msgid="1672349317127674378" name="tab">"Karta"</string>

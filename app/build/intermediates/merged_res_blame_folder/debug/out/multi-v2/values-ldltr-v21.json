@@ -1,10 +1,10 @@
 {
     "logs": [
         {
-            "outputFile": "com.pulse.app-mergeDebugResources-63:/values-ldltr-v21/values-ldltr-v21.xml",
+            "outputFile": "com.pulse.app-mergeDebugResources-81:/values-ldltr-v21/values-ldltr-v21.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\welcome\\.gradle\\caches\\8.10.2\\transforms\\6d20c4c87976a37c7d9c7835a8981b45\\transformed\\appcompat-1.6.1\\res\\values-ldltr-v21\\values-ldltr-v21.xml",
+                    "source": "C:\\Users\\welcome\\.gradle\\caches\\8.10.2\\transforms\\5117e0331dd0797d5cbfa97559ccd1db\\transformed\\appcompat-1.6.1\\res\\values-ldltr-v21\\values-ldltr-v21.xml",
                     "from": {
                         "startLines": "2",
                         "startColumns": "4",

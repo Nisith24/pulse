@@ -1,18 +1,18 @@
 package com.pulse.domain.usecase
 
-import com.pulse.data.db.Lecture
-import com.pulse.data.drive.DriveFile
+import com.pulse.core.data.db.Lecture
+import com.pulse.data.services.btr.BtrFile
 import com.pulse.data.local.FileStorageManager
-import com.pulse.domain.util.IFileTypeDetector
-import com.pulse.domain.util.ILogger
+import com.pulse.core.domain.util.IFileTypeDetector
+import com.pulse.core.domain.util.ILogger
 
 class SyncLecturesUseCase(
     private val fileTypeDetector: IFileTypeDetector,
     private val logger: ILogger,
     private val fileStorage: FileStorageManager
 ) {
-    operator fun invoke(files: List<DriveFile>): List<Lecture> {
-        val map = mutableMapOf<String, Pair<DriveFile?, DriveFile?>>()
+    operator fun invoke(files: List<BtrFile>): List<Lecture> {
+        val map = mutableMapOf<String, Pair<BtrFile?, BtrFile?>>()
         
         logger.d("LectureSync", "Grouping ${files.size} files from Drive")
 

@@ -48,6 +48,9 @@
     <string msgid="8875138169939072951" name="abc_shareactionprovider_share_with">"Zdieľať s"</string>
     <string msgid="9055268688411532828" name="abc_shareactionprovider_share_with_application">"Zdieľať s aplikáciou <ns1:g id="APPLICATION_NAME">%s</ns1:g>"</string>
     <string msgid="1656852541809559762" name="abc_toolbar_collapse_description">"Zbaliť"</string>
+    <string msgid="8397015543330865059" name="android.credentials.TYPE_PASSWORD_CREDENTIAL">"Heslo"</string>
+    <string msgid="3929015085059320822" name="androidx.credentials.TYPE_PUBLIC_KEY_CREDENTIAL">"Prístupový kľúč"</string>
+    <string name="authentication_required">Vyžaduje sa overenie</string>
     <string msgid="881409763997275156" name="call_notification_answer_action">"Prijať"</string>
     <string msgid="8793775615905189152" name="call_notification_answer_video_action">"Video"</string>
     <string msgid="3229508546291798546" name="call_notification_decline_action">"Odmietnuť"</string>
@@ -75,7 +78,9 @@
     <string name="common_open_on_phone">Otvoriť v telefóne</string>
     <string name="common_signin_button_text">Prihlásiť sa</string>
     <string name="common_signin_button_text_long">Prihlásiť sa do účtu Google</string>
+    <string msgid="3260749812566568062" name="copy_toast_msg">"Odkaz bol skopírovaný do schránky"</string>
     <string msgid="8038256446254964252" name="default_error_message">"Neplatný vstup"</string>
+    <string name="default_notification_channel_name">Prehráva sa</string>
     <string msgid="6312721426453364202" name="default_popup_window_title">"Vyskakovacie okno"</string>
     <string msgid="1890207353314751437" name="dropdown_menu">"Rozbaľovacia ponuka"</string>
     <string name="exo_controls_cc_disabled_description">Povoliť titulky</string>
@@ -130,6 +135,9 @@
     <string name="exo_track_surround_7_point_1">Priestorový zvuk 7.1</string>
     <string name="exo_track_unknown">Neznáme</string>
     <string name="exo_track_unknown_name">Neznáme (%1$s)</string>
+    <string msgid="4566929209979330987" name="fallback_menu_item_copy_link">"Kopírovať odkaz"</string>
+    <string msgid="3413186855122069269" name="fallback_menu_item_open_in_browser">"Otvoriť v prehliadači"</string>
+    <string msgid="7145444925855055364" name="fallback_menu_item_share_link">"Zdieľať odkaz"</string>
     <string msgid="6827826412747255547" name="in_progress">"Prebieha"</string>
     <string msgid="7933458017204019916" name="indeterminate">"Čiastočne začiarknuté"</string>
     <string msgid="2988463736136100848" name="m3c_bottom_sheet_collapse_description">"Zbaliť dolný hárok"</string>
@@ -188,14 +196,21 @@
     <string msgid="6616362054113087709" name="m3c_time_picker_pm">"PM"</string>
     <string msgid="1805687647081129904" name="m3c_tooltip_long_press_label">"Zobraziť popis"</string>
     <string msgid="5460405025248574620" name="m3c_tooltip_pane_description">"Popis"</string>
+    <string name="media3_controls_pause_description">Pozastaviť</string>
+    <string name="media3_controls_play_description">Prehrať</string>
+    <string name="media3_controls_seek_back_description">Hľadať smerom dozadu</string>
+    <string name="media3_controls_seek_forward_description">Hľadať smerom dopredu</string>
+    <string name="media3_controls_seek_to_next_description">Hľadať v ďalšej položke</string>
+    <string name="media3_controls_seek_to_previous_description">Hľadať v predchádzajúcej položke</string>
     <string msgid="542007171693138492" name="navigation_menu">"Navigačná ponuka"</string>
     <string msgid="6610465462668679431" name="not_selected">"Nevybrané"</string>
-    <string msgid="875452955155264703" name="off">"Vypnuté"</string>
-    <string msgid="8655164131929253426" name="on">"Zapnuté"</string>
     <string msgid="5941395253238309765" name="range_end">"Koniec rozsahu"</string>
     <string msgid="7097486360902471446" name="range_start">"Začiatok rozsahu"</string>
     <string msgid="6264217191555673260" name="search_menu_title">"Hľadať"</string>
     <string msgid="6043586758067023" name="selected">"Vybrané"</string>
+    <string msgid="4139871816613051306" name="state_empty">"Prázdne"</string>
+    <string msgid="5834637030682409883" name="state_off">"Vypnuté"</string>
+    <string msgid="1490883874751719580" name="state_on">"Zapnuté"</string>
     <string msgid="6277540029070332960" name="status_bar_notification_info_overflow">"999+"</string>
     <string msgid="2561197295334830845" name="switch_role">"Prepnúť"</string>
     <string msgid="1672349317127674378" name="tab">"Karta"</string>

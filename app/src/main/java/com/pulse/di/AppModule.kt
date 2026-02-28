@@ -2,27 +2,32 @@ package com.pulse.di
 
 import androidx.room.Room
 import com.pulse.data.db.AppDatabase
-import com.pulse.data.drive.DriveAuthManager
-import com.pulse.data.drive.DriveService
+import com.pulse.data.services.btr.GoogleAuthManager
+import com.pulse.data.services.btr.GoogleDriveBtrService
 import com.pulse.data.local.FileStorageManager
 import com.pulse.data.local.SettingsManager
 import com.pulse.data.repository.LectureRepository
-import com.pulse.data.repository.NoteRepository
-import com.pulse.domain.repository.INoteRepository
-import com.pulse.domain.service.IDriveAuthManager
-import com.pulse.domain.service.IDriveService
+import com.pulse.core.data.repository.NoteRepository
+import com.pulse.core.data.repository.NoteVisualRepository
+import com.pulse.core.domain.repository.INoteRepository
+import com.pulse.domain.services.btr.IBtrAuthManager
+import com.pulse.domain.services.btr.IBtrService
 import com.pulse.domain.usecase.GetLectureStreamUrlUseCase
 import com.pulse.domain.usecase.SyncLecturesUseCase
-import com.pulse.domain.util.AndroidLogger
-import com.pulse.domain.util.DefaultFileTypeDetector
-import com.pulse.domain.util.IFileTypeDetector
-import com.pulse.domain.util.ILogger
-import com.pulse.presentation.lecture.LectureViewModel
 import com.pulse.presentation.lecture.PlayerProvider
 import com.pulse.presentation.library.LibraryViewModel
+import com.pulse.presentation.downloads.DownloadsViewModel
+import com.pulse.presentation.lecture.LectureViewModel
+import com.pulse.core.domain.util.AndroidLogger
+import com.pulse.core.domain.util.DefaultFileTypeDetector
+import com.pulse.core.domain.util.IFileTypeDetector
+import com.pulse.core.domain.util.ILogger
+import com.pulse.core.domain.util.NetworkMonitor
+import com.pulse.core.domain.util.HlcGenerator
 import okhttp3.OkHttpClient
 import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.viewmodel.dsl.viewModel
+import org.koin.androidx.workmanager.dsl.worker
 import org.koin.dsl.module
 import java.util.concurrent.TimeUnit
 
@@ -33,6 +38,7 @@ val appModule = module {
     single<IFileTypeDetector> { DefaultFileTypeDetector() }
     single { SettingsManager(androidContext()) }
     single { FileStorageManager(androidContext()) }
+    single { NetworkMonitor(androidContext()) }
     
     single { 
         Room.databaseBuilder(
@@ -45,10 +51,20 @@ val appModule = module {
     
     single { get<AppDatabase>().lectureDao() }
     single { get<AppDatabase>().noteDao() }
+    single { get<AppDatabase>().noteVisualDao() }
+    
+    // HLC Generator for CRDT
+    single { 
+        val androidId = android.provider.Settings.Secure.getString(
+            androidContext().contentResolver, 
+            android.provider.Settings.Secure.ANDROID_ID
+        ) ?: java.util.UUID.randomUUID().toString()
+        com.pulse.core.domain.util.HlcGenerator(androidId) 
+    }
     
     // Services
-    single { DriveAuthManager(androidContext()) }
-    single<IDriveAuthManager> { get<DriveAuthManager>() }
+    single { GoogleAuthManager(androidContext()) }
+    single<IBtrAuthManager> { get<GoogleAuthManager>() }
     
     single {
         OkHttpClient.Builder()
@@ -58,23 +74,28 @@ val appModule = module {
             .build()
     }
     
-    single<IDriveService> { DriveService(get(), get()) }
+    single<IBtrService> { GoogleDriveBtrService(get(), get()) }
     
     // UseCases
     single { SyncLecturesUseCase(get(), get(), get()) }
     single { GetLectureStreamUrlUseCase(get(), get()) }
     
     // Repositories
-    single<INoteRepository> { NoteRepository(get()) }
-    single { LectureRepository(get(), get(), get(), get(), get(), get()) }
+    single<INoteRepository> { NoteRepository(get(), get()) }
+    single { NoteVisualRepository(get(), get()) }
+    single { LectureRepository(get(), get(), get(), get(), get(), get(), get()) }
     
-    // Player
+    // Player — MUST be singleton (SimpleCache uses exclusive DB lock)
     single { PlayerProvider(androidContext(), get()) }
     
     // ViewModels
-    viewModel { LibraryViewModel(get(), get()) }
+    viewModel { LibraryViewModel(get(), get(), get()) }
+    viewModel { DownloadsViewModel(get()) }
     
     viewModel { (lectureId: String) -> 
-        LectureViewModel(lectureId, get(), get(), get(), get(), get()) 
+        LectureViewModel(lectureId, get(), get(), get(), get(), get(), get(), get()) 
     }
+    
+    // Workers
+    worker { com.pulse.data.services.btr.BtrSyncWorker(get(), get(), get()) }
 }

@@ -1,5 +1,6 @@
 package com.pulse.presentation.lecture
 
+import com.pulse.core.data.db.Note
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -7,10 +8,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
 import androidx.compose.ui.unit.dp
 import java.util.concurrent.TimeUnit
 
@@ -27,12 +31,44 @@ fun NotesPanel(
             .fillMaxWidth()
             .padding(12.dp)
     ) {
-        Text(
-            text = "Notes",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
+        val context = LocalContext.current
+
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Notes",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.weight(1f)
+            )
+            val lectureName = viewModel.lecture.collectAsState().value?.name ?: "Lecture"
+            IconButton(
+                onClick = {
+                    if (notes.isNotEmpty()) {
+                        val markdown = buildString {
+                            appendLine("# Notes for $lectureName")
+                            appendLine()
+                            notes.sortedBy { it.timestamp }.forEach { note ->
+                                appendLine("- **[${formatTime(note.timestamp)}]** ${note.text}")
+                            }
+                        }
+                        
+                        val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                            putExtra(Intent.EXTRA_TEXT, markdown)
+                            putExtra(Intent.EXTRA_TITLE, "$lectureName Notes")
+                            type = "text/markdown"
+                        }
+                        
+                        val shareIntent = Intent.createChooser(sendIntent, "Export Notes as Markdown")
+                        context.startActivity(shareIntent)
+                    }
+                }
+            ) {
+                Icon(Icons.Default.Share, contentDescription = "Export as Markdown", tint = MaterialTheme.colorScheme.primary)
+            }
+        }
 
         LazyColumn(
             modifier = Modifier.weight(1f),
