@@ -89,6 +89,7 @@ val appModule = module {
     single { PlayerProvider(androidContext(), get()) }
     
     // ViewModels
+    viewModel { com.pulse.presentation.theme.ThemeViewModel() }
     viewModel { LibraryViewModel(get(), get(), get()) }
     viewModel { DownloadsViewModel(get()) }
     

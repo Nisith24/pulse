@@ -34,7 +34,7 @@ class SettingsManager(private val context: Context) {
     val backgroundPlaybackFlow: Flow<Boolean> = context.dataStore.data.map { it[BACKGROUND_PLAYBACK_KEY] ?: true }
     val defaultSpeedFlow: Flow<Float> = context.dataStore.data.map { it[DEFAULT_SPEED_KEY] ?: 1.0f }
     val videoQualityFlow: Flow<String> = context.dataStore.data.map { it[VIDEO_QUALITY_KEY] ?: "Auto" }
-    val pdfHorizontalOrientationFlow: Flow<Boolean> = context.dataStore.data.map { it[PDF_HORIZONTAL_ORIENTATION_KEY] ?: true }
+    val pdfHorizontalOrientationFlow: Flow<Boolean> = context.dataStore.data.map { it[PDF_HORIZONTAL_ORIENTATION_KEY] ?: false }
 
     suspend fun saveSplitRatio(value: Float) {
         context.dataStore.edit { preferences ->

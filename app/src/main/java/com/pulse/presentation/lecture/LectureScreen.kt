@@ -268,6 +268,9 @@ fun LectureScreen(
                                 onAddVisual = { type, data, page, color, width ->
                                     viewModel.addVisual(type, data, page, color, width)
                                 },
+                                onAddVisualAtPos = { type, x, y, page, color ->
+                                    viewModel.addVisualAtPos(type, x, y, page, color)
+                                },
                                 onDeleteVisual = { id -> viewModel.deleteVisual(id) },
                                 onAddLocalPdf = onAddLocalPdf,
                                 onCreateBlankNote = onCreateBlankNote,
@@ -312,13 +315,16 @@ fun LectureScreen(
                                     PdfViewer(
                                         pdfPath = l.pdfLocalPath,
                                         title = l.name,
-                                        initialPage = 0,
+                                        initialPage = l.lastPdfPage,
                                         isPdfDownloaded = l.isPdfDownloaded,
                                         visuals = visuals,
                                         annotationState = annotationState,
-                                        onPageChanged = { },
+                                        onPageChanged = { viewModel.updatePdfState(it) },
                                         onAddVisual = { type, data, page, color, width ->
                                             viewModel.addVisual(type, data, page, color, width)
+                                        },
+                                        onAddVisualAtPos = { type, x, y, page, color ->
+                                            viewModel.addVisualAtPos(type, x, y, page, color)
                                         },
                                         onDeleteVisual = { id -> viewModel.deleteVisual(id) },
                                         onAddLocalPdf = onAddLocalPdf,
@@ -326,8 +332,8 @@ fun LectureScreen(
                                         onAddPage = { viewModel.addPage() },
                                         totalPages = l.pdfPageCount,
                                         onClose = onClosePdf,
-                                        isHorizontal = pdfHorizontalOrientation,
-                                        onOrientationChange = { viewModel.savePdfOrientation(it) },
+                                        isHorizontal = l.pdfIsHorizontal,
+                                        onOrientationChange = { viewModel.updatePdfOrientation(it) },
                                         modifier = Modifier.fillMaxSize()
                                     )
                                 }
@@ -377,6 +383,9 @@ fun LectureScreen(
                                                 onPageChanged = { },
                                                 onAddVisual = { type, data, page, color, width ->
                                                     viewModel.addVisual(type, data, page, color, width)
+                                                },
+                                                onAddVisualAtPos = { type, x, y, page, color ->
+                                                    viewModel.addVisualAtPos(type, x, y, page, color)
                                                 },
                                                 onDeleteVisual = { id -> viewModel.deleteVisual(id) },
                                                 onAddLocalPdf = onAddLocalPdf,
@@ -430,6 +439,9 @@ fun LectureScreen(
                                                 onPageChanged = { },
                                                 onAddVisual = { type, data, page, color, width ->
                                                     viewModel.addVisual(type, data, page, color, width)
+                                                },
+                                                onAddVisualAtPos = { type, x, y, page, color ->
+                                                    viewModel.addVisualAtPos(type, x, y, page, color)
                                                 },
                                                 onDeleteVisual = { id -> viewModel.deleteVisual(id) },
                                                 onAddLocalPdf = onAddLocalPdf,

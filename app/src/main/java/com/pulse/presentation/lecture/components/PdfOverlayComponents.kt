@@ -95,7 +95,7 @@ fun PdfSettingsMenu(
             contentColor = if (state.isDrawingMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
         ) {
             Icon(
-                imageVector = if (state.isDrawingMode) Icons.Default.Edit else Icons.Default.Settings,
+                imageVector = Icons.Default.Settings,
                 contentDescription = "PDF Overlay Settings"
             )
         }
@@ -107,7 +107,7 @@ fun PdfSettingsMenu(
         ) {
             // ── ANNOTATION MODE TOGGLE ──
             DropdownMenuItem(
-                text = { Text(if (state.isDrawingMode) "Disable Markers" else "Enable Annotation Mode") },
+                text = { Text("Annotate") },
                 onClick = { 
                     state.isDrawingMode = !state.isDrawingMode
                     expanded = false
@@ -176,7 +176,7 @@ fun PdfSettingsMenu(
 
             // ── ORIENTATION ──
             DropdownMenuItem(
-                text = { Text(if (isHorizontal) "Vertical Scroll" else "Horizontal Swipe") },
+                text = { Text(if (isHorizontal) "Vertical" else "Horizontal") },
                 onClick = { 
                     onOrientationChange(!isHorizontal)
                     expanded = false
@@ -187,10 +187,28 @@ fun PdfSettingsMenu(
             )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+            
+            // ── FOCUS MODE ──
+            DropdownMenuItem(
+                text = { Text("Focus Mode") },
+                onClick = { 
+                    state.isFocused = !state.isFocused
+                    expanded = false
+                },
+                leadingIcon = { 
+                    Icon(
+                        imageVector = if (state.isFocused) Icons.Default.CheckBox else Icons.Default.CheckBoxOutlineBlank,
+                        contentDescription = null,
+                        tint = if (state.isFocused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                    ) 
+                }
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
             // ── ACTIONS ──
             DropdownMenuItem(
-                text = { Text("Close Workspace", color = MaterialTheme.colorScheme.error) },
+                text = { Text("Close", color = MaterialTheme.colorScheme.error) },
                 onClick = { 
                     onClose()
                     expanded = false

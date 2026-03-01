@@ -49,15 +49,20 @@ class LibraryViewModel(
     private val _showFavoritesOnly = MutableStateFlow(false)
     val showFavoritesOnly = _showFavoritesOnly.asStateFlow()
 
-    private fun List<com.pulse.core.data.db.Lecture>.filterAndSort(query: String, favOnly: Boolean): List<com.pulse.core.data.db.Lecture> {
-        val filtered = (if (query.isBlank()) this
-        else this.filter { it.name.contains(query, ignoreCase = true) })
-            .filter { !favOnly || it.isFavorite }
+    companion object {
+        private val MODULE_NUMBER_REGEX = Regex("\\d+")
+    }
 
-        return filtered.sortedWith(compareBy<com.pulse.core.data.db.Lecture> { 
-            // Extract the first sequence of digits as a number for sorting
-            Regex("\\d+").find(it.name)?.value?.toIntOrNull() ?: Int.MAX_VALUE 
-        }.thenBy { it.name })
+    private fun List<com.pulse.core.data.db.Lecture>.filterAndSort(query: String, favOnly: Boolean): List<com.pulse.core.data.db.Lecture> {
+        val sequence = this.asSequence()
+            .filter { !favOnly || it.isFavorite }
+            .filter { query.isBlank() || it.name.contains(query, ignoreCase = true) }
+
+        return sequence.sortedWith(
+            compareBy<com.pulse.core.data.db.Lecture> { 
+                MODULE_NUMBER_REGEX.find(it.name)?.value?.toIntOrNull() ?: Int.MAX_VALUE 
+            }.thenBy { it.name }
+        ).toList()
     }
 
     val btrLectures = combine(repository.btrLectures, _searchQuery, _showFavoritesOnly) { lectures, query, favOnly ->
@@ -68,8 +73,13 @@ class LibraryViewModel(
         initialValue = emptyList()
     )
 
-    val localLectures = combine(repository.localLectures, _searchQuery, _showFavoritesOnly) { lectures, query, favOnly ->
-        lectures.filterAndSort(query, favOnly)
+    val localLectures = combine(
+        repository.localLectures,
+        repository.downloadedLectures,
+        _searchQuery,
+        _showFavoritesOnly
+    ) { local, downloaded, query, favOnly ->
+        (local + downloaded).filterAndSort(query, favOnly)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -154,9 +164,13 @@ class LibraryViewModel(
         _authIntent.value = null
     }
 
-    fun deleteLocalLecture(id: String) {
+    fun deleteLecture(lecture: com.pulse.core.data.db.Lecture) {
         viewModelScope.launch {
-            repository.deleteLecture(id)
+            if (lecture.isLocal) {
+                repository.deleteLecture(lecture.id)
+            } else {
+                repository.deleteOfflineVideo(lecture.id)
+            }
         }
     }
 }

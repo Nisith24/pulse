@@ -60,4 +60,7 @@ interface LectureDao {
 
     @Query("UPDATE lectures SET pdfPageCount = :count, updatedAt = :updatedAt, hlcTimestamp = :hlcTimestamp WHERE id = :id")
     suspend fun updatePageCount(id: String, count: Int, updatedAt: Long, hlcTimestamp: String)
+
+    @Query("UPDATE lectures SET lastPdfPage = :page, pdfIsHorizontal = :isHorizontal, updatedAt = :updatedAt, hlcTimestamp = :hlcTimestamp WHERE id = :id")
+    suspend fun updatePdfState(id: String, page: Int, isHorizontal: Boolean, updatedAt: Long, hlcTimestamp: String)
 }

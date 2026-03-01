@@ -29,6 +29,8 @@ import com.github.barteksc.pdfviewer.PDFView
 import com.github.barteksc.pdfviewer.scroll.DefaultScrollHandle
 import com.github.barteksc.pdfviewer.util.FitPolicy
 import java.io.File
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.toArgb
 import com.pulse.core.data.db.NoteVisual
 import com.pulse.core.data.db.VisualType
 import com.pulse.core.presentation.components.DrawingCanvas
@@ -48,17 +50,18 @@ fun PdfViewer(
     annotationState: AnnotationState,
     onPageChanged: (Int) -> Unit,
     onAddVisual: (VisualType, String, Int, Int, Float) -> Unit,
+    onAddVisualAtPos: (VisualType, Float, Float, Int, Int) -> Unit,
     onDeleteVisual: (Long) -> Unit,
     onCreateBlankNote: () -> Unit = {},
     onAddPage: () -> Unit = {},
     onAddLocalPdf: () -> Unit = {},
     onClose: () -> Unit = {},
-    isHorizontal: Boolean = true,
+    isHorizontal: Boolean = false,
     onOrientationChange: (Boolean) -> Unit = {},
     onPageSelected: (Int) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    var currentPage by remember { mutableIntStateOf(initialPage) }
+    var currentPage by androidx.compose.runtime.saveable.rememberSaveable { mutableIntStateOf(initialPage) }
     var pdfTotalPages by remember { mutableIntStateOf(0) }
     val displayTotalPages = if (pdfPath == "blank_note") totalPages else pdfTotalPages
     
@@ -69,7 +72,7 @@ fun PdfViewer(
     val isContentUri = pdfPath.startsWith("content://")
     val fileExists = if (isContentUri) true else (pdfPath.isNotEmpty() && File(pdfPath).exists())
     
-    key(pdfPath, isHorizontal) {
+    key(pdfPath) {
         var loadError by remember { mutableStateOf<String?>(null) }
         
         Box(
@@ -99,12 +102,13 @@ fun PdfViewer(
                             visuals = visuals,
                             onPageChanged = { currentPage = it; onPageChanged(it) },
                             onAddVisual = onAddVisual,
+                            onAddVisualAtPos = onAddVisualAtPos,
                             onDeleteVisual = onDeleteVisual
                         )
-                    } else {
+                    } else if (fileExists || isContentUri) {
                         PdfMode(
                             pdfPath = pdfPath,
-                            initialPage = initialPage,
+                            initialPage = currentPage, // Use saved currentPage
                             isHorizontal = isHorizontal,
                             isContentUri = isContentUri,
                             annotationState = annotationState,
@@ -116,9 +120,16 @@ fun PdfViewer(
                                 onPageChanged(p)
                             },
                             onAddVisual = onAddVisual,
+                            onAddVisualAtPos = onAddVisualAtPos,
                             onDeleteVisual = onDeleteVisual,
                             onError = { loadError = it },
                             pdfViewRef = pdfViewRef
+                        )
+                    } else {
+                        PdfPlaceholder(
+                            pdfPath = pdfPath,
+                            onAddLocalPdf = onAddLocalPdf,
+                            onCreateBlankNote = onCreateBlankNote
                         )
                     }
                 }
@@ -132,13 +143,19 @@ fun PdfViewer(
                     modifier = Modifier.align(Alignment.TopEnd).padding(16.dp)
                 )
 
-                AnnotationToggleButton(
-                    isEditing = annotationState.isDrawingMode,
-                    onClick = { annotationState.isDrawingMode = !annotationState.isDrawingMode },
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(bottom = 80.dp, end = 16.dp) // Above indicator/bottom area
-                )
+                Column(
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalAlignment = Alignment.End
+                ) {
+                    AnnotationToggleButton(
+                        isEditing = annotationState.isDrawingMode,
+                        onClick = { annotationState.isDrawingMode = !annotationState.isDrawingMode }
+                    )
+                    
+                    // Spacer for the FloatingActionButton in LectureScreen
+                    Spacer(modifier = Modifier.height(72.dp)) 
+                }
 
                 PdfPageIndicator(
                     currentPage = currentPage,
@@ -241,6 +258,7 @@ private fun NotebookMode(
     visuals: List<NoteVisual>,
     onPageChanged: (Int) -> Unit,
     onAddVisual: (VisualType, String, Int, Int, Float) -> Unit,
+    onAddVisualAtPos: (VisualType, Float, Float, Int, Int) -> Unit,
     onDeleteVisual: (Long) -> Unit
 ) {
     val pagerState = rememberPagerState(initialPage = currentPage.coerceIn(0, (totalPages - 1).coerceAtLeast(0))) { totalPages }
@@ -271,7 +289,7 @@ private fun NotebookMode(
                 userScrollEnabled = !annotationState.isDrawingMode,
                 modifier = Modifier.fillMaxSize().background(Color.White)
             ) { pageIndex ->
-                NotebookPage(title, pageIndex, annotationState, visuals, onAddVisual, onDeleteVisual)
+                NotebookPage(title, pageIndex, annotationState, visuals, onAddVisual, onAddVisualAtPos, onDeleteVisual)
             }
         } else {
             VerticalPager(
@@ -279,7 +297,7 @@ private fun NotebookMode(
                 userScrollEnabled = !annotationState.isDrawingMode,
                 modifier = Modifier.fillMaxSize().background(Color.White)
             ) { pageIndex ->
-                NotebookPage(title, pageIndex, annotationState, visuals, onAddVisual, onDeleteVisual)
+                NotebookPage(title, pageIndex, annotationState, visuals, onAddVisual, onAddVisualAtPos, onDeleteVisual)
             }
         }
     }
@@ -292,6 +310,7 @@ private fun NotebookPage(
     annotationState: AnnotationState,
     visuals: List<NoteVisual>,
     onAddVisual: (VisualType, String, Int, Int, Float) -> Unit,
+    onAddVisualAtPos: (VisualType, Float, Float, Int, Int) -> Unit,
     onDeleteVisual: (Long) -> Unit
 ) {
     Box(Modifier.fillMaxSize()) {
@@ -323,6 +342,9 @@ private fun NotebookPage(
             onDrawComplete = { type, data, color, width ->
                 onAddVisual(type, data, pageIndex, color.toArgb(), width)
             },
+            onAddVisualAtPos = { type, x, y, color ->
+                onAddVisualAtPos(type, x, y, pageIndex, color)
+            },
             onDeleteVisual = onDeleteVisual,
             modifier = Modifier.fillMaxSize()
         )
@@ -340,6 +362,7 @@ private fun PdfMode(
     currentPage: Int,
     onStatusUpdate: (Int, Int) -> Unit,
     onAddVisual: (VisualType, String, Int, Int, Float) -> Unit,
+    onAddVisualAtPos: (VisualType, Float, Float, Int, Int) -> Unit,
     onDeleteVisual: (Long) -> Unit,
     onError: (String) -> Unit,
     pdfViewRef: MutableState<PDFView?>
@@ -347,9 +370,6 @@ private fun PdfMode(
     val context = androidx.compose.ui.platform.LocalContext.current
     
     // ── NATIVE-OVERLAY INTEGRATION ──
-    // We use a FrameLayout to host both the PDFView and a ComposeView.
-    // This ensures that when the ComposeView doesn't consume a 'Touch' (e.g., swiping),
-    // the native FrameLayout correctly passes the event to the PDFView underneath.
     val composeOverlay = remember { 
         androidx.compose.ui.platform.ComposeView(context).apply {
             layoutParams = android.view.ViewGroup.LayoutParams(
@@ -364,12 +384,47 @@ private fun PdfMode(
         composeOverlay.setContent {
             DrawingCanvas(
                 annotationState = annotationState,
+                pdfView = pdfViewRef.value,
                 visuals = visuals.filter { it.pageNumber == currentPage },
                 onDrawComplete = { type, data, color, width ->
                     onAddVisual(type, data, currentPage, color.toArgb(), width)
                 },
+                onAddVisualAtPos = { type, x, y, color ->
+                    onAddVisualAtPos(type, x, y, currentPage, color)
+                },
                 onDeleteVisual = onDeleteVisual,
                 modifier = Modifier.fillMaxSize()
+            )
+        }
+        
+        // Direct coordinate mapping using PDFView's public zoom/offset API
+        pdfViewRef.value?.let { pdfView ->
+            annotationState.pdfToScreenMapper = { x, y ->
+                android.graphics.PointF(
+                    x * pdfView.zoom + pdfView.currentXOffset,
+                    y * pdfView.zoom + pdfView.currentYOffset
+                )
+            }
+            annotationState.screenToPdfMapper = { x, y ->
+                android.graphics.PointF(
+                    (x - pdfView.currentXOffset) / pdfView.zoom,
+                    (y - pdfView.currentYOffset) / pdfView.zoom
+                )
+            }
+        }
+    }
+
+    // Reload on orientation change without destroying the native view
+    LaunchedEffect(isHorizontal) {
+        pdfViewRef.value?.let { pdfView ->
+            loadPdfInternal(
+                pdfView = pdfView,
+                path = pdfPath,
+                page = currentPage,
+                isHorizontal = isHorizontal,
+                isContentUri = isContentUri,
+                onError = onError,
+                onStatusUpdate = onStatusUpdate
             )
         }
     }
@@ -383,60 +438,46 @@ private fun PdfMode(
                     ViewGroup.LayoutParams.MATCH_PARENT
                 )
             }
-            
+
             val pdfView = PDFView(ctx, null).apply {
                 id = android.view.View.generateViewId()
                 layoutParams = FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.MATCH_PARENT,
                     FrameLayout.LayoutParams.MATCH_PARENT
                 )
-                // Fix for native swipe/zoom when overlaid
                 isFocusableInTouchMode = true
             }
             pdfViewRef.value = pdfView
             
-            // Add PDF (Bottom) then Compose Overlay (Top)
+            // Force Canvas recomposition on every PDFView draw (zoom/pan/scroll)
+            pdfView.viewTreeObserver.addOnDrawListener {
+                annotationState.invalidationTick++
+            }
+
             frameLayout.addView(pdfView)
             frameLayout.addView(composeOverlay)
-            
-            // ── INDUSTRY STANDARD HYBRID TOUCH HANDLING ──
-            // If we are NOT in drawing mode, we must ensure the native PDFView receives 100% of touches.
-            // We use an onTouchListener on the overlay to 'swallow' or 'pass-through' events.
-            composeOverlay.setOnTouchListener { _, _ -> 
-                !annotationState.isDrawingMode // If NOT drawing mode, return true (Wait, returning true consumes it)
-                // Actually, if we return true, it's consumed. We want to return false to let FrameLayout pass it down.
-                false 
-            }
-            
-            // Actually, a better native approach is to disable the view so FrameLayout skips it during touch dispatch.
-            // We'll handle this in the update block for reactivity.
-            
+            composeOverlay.setOnTouchListener { _, _ -> false }
+
             loadPdfInternal(
                 pdfView = pdfView,
                 path = pdfPath,
-                page = initialPage,
+                page = currentPage,
                 isHorizontal = isHorizontal,
                 isContentUri = isContentUri,
                 onError = onError,
-                onStatusUpdate = onStatusUpdate,
-                onTransformUpdate = { zoom, xOff, yOff, w, h ->
-                    annotationState.currentZoom = zoom
-                    annotationState.currentXOffset = xOff
-                    annotationState.currentYOffset = yOff
-                    annotationState.pageWidth = w
-                    annotationState.pageHeight = h
-                }
+                onStatusUpdate = onStatusUpdate
             )
             frameLayout
         },
-        update = { _ ->
-            // ── REACTIVE INTERACTION SYNC ──
-            // If we are NOT in drawing mode, we disable input on the overlay entirely.
-            // This is the cleanest way in Android for FrameLayout to bypass the top view
-            // and deliver 100% of touches to the native PDFView underneath.
-            composeOverlay.isEnabled = annotationState.isDrawingMode
-            composeOverlay.isFocusable = annotationState.isDrawingMode
-            composeOverlay.isClickable = annotationState.isDrawingMode
+        update = { frameLayout ->
+            val drawingActive = annotationState.isDrawingMode
+            val overlay = frameLayout.getChildAt(1) as? androidx.compose.ui.platform.ComposeView
+            overlay?.apply {
+                isEnabled = drawingActive
+                isClickable = drawingActive
+                isFocusable = drawingActive
+                setOnTouchListener { _, _ -> false }
+            }
         },
         onRelease = {
             pdfViewRef.value?.recycle()
@@ -495,8 +536,7 @@ private fun loadPdfInternal(
     isHorizontal: Boolean,
     isContentUri: Boolean,
     onError: (String) -> Unit,
-    onStatusUpdate: (Int, Int) -> Unit,
-    onTransformUpdate: (zoom: Float, xOff: Float, yOff: Float, pageWidth: Float, pageHeight: Float) -> Unit
+    onStatusUpdate: (Int, Int) -> Unit
 ) {
     pdfView.minZoom = 0.7f
     pdfView.midZoom = 1.75f
@@ -513,20 +553,6 @@ private fun loadPdfInternal(
         .spacing(8)
         .scrollHandle(DefaultScrollHandle(pdfView.context))
         .onPageChange { p, total -> onStatusUpdate(p, total) }
-        .onPageScroll { _, _ -> 
-            // We rely on onDraw for precise page-relative coordinate syncing
-        }
-        .onDraw { canvas, pw, ph, dp ->
-            if (dp == pdfView.currentPage) {
-                val viewW = pdfView.width.toFloat()
-                val viewH = pdfView.height.toFloat()
-                
-                val offsetX = if (pw < viewW) (viewW - pw) / 2f else pdfView.currentXOffset
-                val offsetY = if (ph < viewH) (viewH - ph) / 2f else pdfView.currentYOffset
-                
-                onTransformUpdate(pdfView.zoom, offsetX, offsetY, pw, ph)
-            }
-        }
         .onError { it -> onError("Failed to load PDF: ${it.message}") }
         .pageFitPolicy(FitPolicy.WIDTH)
         .fitEachPage(true)

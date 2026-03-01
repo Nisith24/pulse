@@ -130,6 +130,18 @@ class LectureRepository(
         )
     }
 
+    suspend fun updatePdfState(lectureId: String, page: Int, isHorizontal: Boolean) {
+        val now = System.currentTimeMillis()
+        val hlc = hlcGenerator.generate()
+        lectureDao.updatePdfState(
+            id = lectureId,
+            page = page,
+            isHorizontal = isHorizontal,
+            updatedAt = now,
+            hlcTimestamp = hlc
+        )
+    }
+
     suspend fun toggleFavorite(lectureId: String) {
         val now = System.currentTimeMillis()
         val hlc = hlcGenerator.generate()

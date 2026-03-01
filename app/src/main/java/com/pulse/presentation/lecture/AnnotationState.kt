@@ -13,36 +13,43 @@ class AnnotationState {
     var activeTool by mutableStateOf(VisualType.DRAWING)
     var strokeColor by mutableStateOf(Color.Red)
     var strokeWidth by mutableStateOf(5f)
+    var isFocused by mutableStateOf(false)
     
     // PDF Transformation state for coordinate mapping
+    var pageWidth by mutableFloatStateOf(0f)
+    var pageHeight by mutableFloatStateOf(0f)
     var currentZoom by mutableFloatStateOf(1f)
     var currentXOffset by mutableFloatStateOf(0f)
     var currentYOffset by mutableFloatStateOf(0f)
-    var pageWidth by mutableFloatStateOf(0f)
-    var pageHeight by mutableFloatStateOf(0f)
+    var currentTool by mutableStateOf(VisualType.DRAWING)
+    
+    // Tick incremented by PDFView onDraw to force Canvas recomposition
+    var invalidationTick by mutableIntStateOf(0)
+    
+    // Injected by PDF Screen to handle coordinate mapping without direct dependency
+    var pdfToScreenMapper: ((Float, Float) -> android.graphics.PointF)? = null
+    var screenToPdfMapper: ((Float, Float) -> android.graphics.PointF)? = null
 
     /**
-     * Converts screen coordinates to normalized coordinates (0..1) relative to the current visible page dimensions.
+     * Converts screen coordinates to PDF page coordinates (unscaled points).
      */
-    fun toNormalized(screenX: Float, screenY: Float): Pair<Float, Float> {
-        if (pageWidth <= 0f || pageHeight <= 0f) return 0f to 0f
+    fun viewToPage(screenX: Float, screenY: Float): android.graphics.PointF {
+        val mapper = screenToPdfMapper
+        if (mapper != null) return mapper.invoke(screenX, screenY)
         
-        // (ScreenCoord - PageOffsetInView) / (CurrentPageDimension)
-        val normX = (screenX - currentXOffset) / pageWidth
-        val normY = (screenY - currentYOffset) / pageHeight
-        
-        return normX to normY
+        // Fallback: Default mapping if no mapper injected
+        return android.graphics.PointF(screenX, screenY)
     }
 
     /**
-     * Converts normalized coordinates (0..1) back to screen coordinates.
+     * Converts PDF page coordinates back to screen coordinates.
      */
-    fun fromNormalized(normX: Float, normY: Float): Pair<Float, Float> {
-        // (NormCoord * CurrentPageDimension) + PageOffsetInView
-        val screenX = (normX * pageWidth) + currentXOffset
-        val screenY = (normY * pageHeight) + currentYOffset
+    fun pageToView(pdfX: Float, pdfY: Float): android.graphics.PointF {
+        val mapper = pdfToScreenMapper
+        if (mapper != null) return mapper.invoke(pdfX, pdfY)
         
-        return screenX to screenY
+        // Fallback: Default mapping if no mapper injected
+        return android.graphics.PointF(pdfX, pdfY)
     }
 }
 

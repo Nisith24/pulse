@@ -38,5 +38,8 @@ enum class VisualType {
     DRAWING,
     HIGHLIGHT,
     BOX,
-    ERASER
+    ERASER,
+    RULER,
+    TEXT,
+    STICKY_NOTE
 }

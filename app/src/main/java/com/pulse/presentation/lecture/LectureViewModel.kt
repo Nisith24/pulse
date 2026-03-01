@@ -52,7 +52,7 @@ class LectureViewModel(
     val player = playerProvider.player
     
     val pdfHorizontalOrientation: StateFlow<Boolean> = settingsManager.pdfHorizontalOrientationFlow
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     private var periodicSaveJob: Job? = null
     private var playerListener: Player.Listener? = null
@@ -285,6 +285,24 @@ class LectureViewModel(
         }
     }
 
+    fun addVisualAtPos(type: VisualType, x: Float, y: Float, page: Int, color: Int) {
+        val currentPdfId = _lecture.value?.let { it.pdfLocalPath.ifEmpty { it.pdfId ?: it.id } } ?: lectureId
+        viewModelScope.launch {
+            noteVisualRepository.insert(
+                NoteVisual(
+                    lectureId = lectureId,
+                    pdfId = currentPdfId,
+                    timestamp = player.currentPosition,
+                    pageNumber = page,
+                    type = type,
+                    data = "$x,$y",
+                    color = color,
+                    strokeWidth = 1f
+                )
+            )
+        }
+    }
+
     fun deleteVisual(id: Long) {
         viewModelScope.launch { noteVisualRepository.delete(id) }
     }
@@ -310,6 +328,22 @@ class LectureViewModel(
                     repository.updatePageCount(l.id, 5)
                 }
                 repository.updateLocalPdfPath(l, path) 
+            }
+        }
+    }
+
+    fun updatePdfState(page: Int) {
+        _lecture.value?.let { l ->
+            viewModelScope.launch {
+                repository.updatePdfState(l.id, page, l.pdfIsHorizontal)
+            }
+        }
+    }
+
+    fun updatePdfOrientation(isHorizontal: Boolean) {
+        _lecture.value?.let { l ->
+            viewModelScope.launch {
+                repository.updatePdfState(l.id, l.lastPdfPage, isHorizontal)
             }
         }
     }

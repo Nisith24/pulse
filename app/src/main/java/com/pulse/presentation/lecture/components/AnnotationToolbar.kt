@@ -23,34 +23,36 @@ fun AnnotationToolbar(
     val tools = listOf(
         VisualType.DRAWING to Icons.Default.Edit,
         VisualType.HIGHLIGHT to Icons.Default.Gesture,
-        VisualType.ERASER to Icons.Default.Clear // Eraser icon
+        VisualType.TEXT to Icons.Default.TextFields,
+        VisualType.STICKY_NOTE to Icons.Default.Note, // Changed Icon for compatibility
+        VisualType.ERASER to Icons.Default.AutoFixNormal
     )
 
     val colors = listOf(Color.Red, Color.Blue, Color.Green, Color.Yellow, Color.Black)
 
     Surface(
-        modifier = modifier.padding(bottom = 16.dp),
-        shape = RoundedCornerShape(32.dp),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
-        tonalElevation = 8.dp,
-        shadowElevation = 4.dp
+        modifier = modifier.padding(bottom = 8.dp, end = 8.dp),
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.98f),
+        tonalElevation = 12.dp,
+        shadowElevation = 6.dp
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Tool Selection
+            // Row 1: Primary Tools
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 tools.forEach { (type, icon) ->
-                    val isSelected = state.activeTool == type
+                    val isSelected = state.currentTool == type
                     IconButton(
-                        onClick = { state.activeTool = type },
+                        onClick = { state.currentTool = type },
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(36.dp)
                             .background(
                                 if (isSelected) MaterialTheme.colorScheme.primaryContainer 
                                 else Color.Transparent, 
@@ -60,6 +62,7 @@ fun AnnotationToolbar(
                         Icon(
                             imageVector = icon,
                             contentDescription = type.name,
+                            modifier = Modifier.size(20.dp),
                             tint = if (isSelected) MaterialTheme.colorScheme.primary 
                                    else MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -67,36 +70,31 @@ fun AnnotationToolbar(
                 }
             }
 
-            // Color Selection
-            if (state.activeTool != VisualType.ERASER) {
+            // Row 2: Colors & Quick Actions (Hidden for Eraser)
+            if (state.currentTool != VisualType.ERASER) {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     colors.forEach { color ->
                         val isSelected = state.strokeColor == color
                         Surface(
                             onClick = { state.strokeColor = color },
-                            modifier = Modifier.size(28.dp),
+                            modifier = Modifier.size(22.dp),
                             shape = CircleShape,
                             color = color,
-                            border = if (isSelected) androidx.compose.foundation.BorderStroke(3.dp, MaterialTheme.colorScheme.primary) else null
+                            border = if (isSelected) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
                         ) {}
                     }
                 }
-
-                // Stroke Width
-                Row(
-                    modifier = Modifier.width(200.dp).padding(horizontal = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Slider(
-                        value = state.strokeWidth,
-                        onValueChange = { state.strokeWidth = it },
-                        valueRange = 2f..30f,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
+                
+                // Compact Width Slider
+                Slider(
+                    value = state.strokeWidth,
+                    onValueChange = { state.strokeWidth = it },
+                    valueRange = 2f..20f,
+                    modifier = Modifier.width(140.dp).height(24.dp)
+                )
             }
         }
     }

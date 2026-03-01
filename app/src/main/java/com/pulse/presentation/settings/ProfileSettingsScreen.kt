@@ -23,18 +23,23 @@ import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.launch
 import com.pulse.data.local.SettingsManager
 import com.pulse.domain.services.btr.IBtrAuthManager
+import com.pulse.presentation.theme.ThemeViewModel
+import com.pulse.presentation.theme.ThemeMode
 import org.koin.compose.koinInject
+import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileSettingsScreen(
-    onNavigateBack: () -> Unit,
+    onNavigateBack: () -> Unit = {},
     onNavigateToDownloads: () -> Unit = {},
-    onSignOut: () -> Unit
+    onSignOut: () -> Unit,
+    themeViewModel: ThemeViewModel = koinViewModel()
 ) {
     val settingsManager: SettingsManager = koinInject()
     val authManager: IBtrAuthManager = koinInject()
     val scrollState = rememberScrollState()
+    val themeMode by themeViewModel.themeMode.collectAsState()
 
     val scope = rememberCoroutineScope()
     
@@ -44,7 +49,6 @@ fun ProfileSettingsScreen(
     val backgroundPlayback by settingsManager.backgroundPlaybackFlow.collectAsState(initial = true)
     val defaultSpeed by settingsManager.defaultSpeedFlow.collectAsState(initial = 1.0f)
     var showSpeedDialog by remember { mutableStateOf(false) }
-    var darkModeOption by remember { mutableStateOf("System") }
     var showThemeDialog by remember { mutableStateOf(false) }
     var cloudSyncEnabled by remember { mutableStateOf(false) }
     var notificationsEnabled by remember { mutableStateOf(false) }
@@ -234,7 +238,11 @@ fun ProfileSettingsScreen(
             SettingsClickItem(
                 icon = Icons.Default.DarkMode,
                 title = "Theme",
-                subtitle = darkModeOption,
+                subtitle = when(themeMode) {
+                    ThemeMode.LIGHT -> "Light"
+                    ThemeMode.DARK -> "Dark"
+                    ThemeMode.SYSTEM -> "System"
+                },
                 onClick = { showThemeDialog = true }
             )
 
@@ -375,13 +383,17 @@ fun ProfileSettingsScreen(
 
 
     if (showThemeDialog) {
-        val themes = listOf("System", "Light", "Dark")
+        val themes = listOf(
+            "System" to ThemeMode.SYSTEM,
+            "Light" to ThemeMode.LIGHT,
+            "Dark" to ThemeMode.DARK
+        )
         AlertDialog(
             onDismissRequest = { showThemeDialog = false },
             title = { Text("Theme") },
             text = {
                 Column {
-                    themes.forEach { theme ->
+                    themes.forEach { (label, mode) ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -389,14 +401,14 @@ fun ProfileSettingsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             RadioButton(
-                                selected = darkModeOption == theme,
+                                selected = themeMode == mode,
                                 onClick = {
-                                    darkModeOption = theme
+                                    themeViewModel.setTheme(mode)
                                     showThemeDialog = false
                                 }
                             )
                             Spacer(Modifier.width(8.dp))
-                            Text(theme, style = MaterialTheme.typography.bodyLarge)
+                            Text(label, style = MaterialTheme.typography.bodyLarge)
                         }
                     }
                 }

@@ -18,6 +18,8 @@ data class Lecture(
     val speed: Float = 1.0f,
     val isFavorite: Boolean = false,
     val pdfPageCount: Int = 0,
+    val lastPdfPage: Int = 0,
+    val pdfIsHorizontal: Boolean = false,
     val hlcTimestamp: String = "",
     val isDeleted: Boolean = false,
     val updatedAt: Long = System.currentTimeMillis()

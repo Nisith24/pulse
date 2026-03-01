@@ -41,11 +41,14 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import com.pulse.presentation.theme.ThemeViewModel
+import com.pulse.presentation.theme.ThemeMode
 import kotlinx.coroutines.flow.MutableStateFlow
 
 class MainActivity : ComponentActivity() {
     private val authManager: IBtrAuthManager by inject()
     private val playerProvider: PlayerProvider by inject()
+    private val themeViewModel: ThemeViewModel by inject()
     private val repository: com.pulse.data.repository.LectureRepository by inject()
 
     private val externalPdfUri = MutableStateFlow<String?>(null)
@@ -55,7 +58,8 @@ class MainActivity : ComponentActivity() {
         handleIntent(intent)
         
         setContent {
-            PulseTheme {
+            val themeMode by themeViewModel.themeMode.collectAsState()
+            PulseTheme(themeMode = themeMode) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -78,7 +82,12 @@ class MainActivity : ComponentActivity() {
                                 }
                             } catch (e: Exception) {
                                 Log.e("MainActivity", "Google sign-in failed", e)
-                                android.widget.Toast.makeText(this@MainActivity, "Sign-in failed: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+                                val msg = if (e is com.google.android.gms.common.api.ApiException && e.statusCode == 10) {
+                                    "Developer Error (10): Add your SHA-1 key to Firebase Console!"
+                                } else {
+                                    "Sign-in failed: ${e.message}"
+                                }
+                                android.widget.Toast.makeText(this@MainActivity, msg, android.widget.Toast.LENGTH_LONG).show()
                             }
                         } else {
                             android.widget.Toast.makeText(this@MainActivity, "Sign-in cancelled or failed with result code: ${result.resultCode}", android.widget.Toast.LENGTH_LONG).show()

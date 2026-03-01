@@ -6,7 +6,7 @@ import com.pulse.core.data.db.Lecture
 import com.pulse.core.data.db.Note
 import com.pulse.core.data.db.NoteVisual
 
-@Database(entities = [Lecture::class, Note::class, NoteVisual::class], version = 11, exportSchema = false)
+@Database(entities = [Lecture::class, Note::class, NoteVisual::class], version = 12, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun lectureDao(): LectureDao
     abstract fun noteDao(): NoteDao

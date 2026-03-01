@@ -11,6 +11,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.*
+import androidx.compose.ui.graphics.toArgb
 import com.pulse.core.data.db.NoteVisual
 import com.pulse.core.data.db.VisualType
 import com.pulse.presentation.lecture.AnnotationState
@@ -18,8 +19,10 @@ import com.pulse.presentation.lecture.AnnotationState
 @Composable
 fun DrawingCanvas(
     annotationState: AnnotationState,
+    pdfView: com.github.barteksc.pdfviewer.PDFView? = null,
     visuals: List<NoteVisual>,
     onDrawComplete: (VisualType, String, Color, Float) -> Unit,
+    onAddVisualAtPos: (VisualType, Float, Float, Int) -> Unit,
     onDeleteVisual: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -30,75 +33,84 @@ fun DrawingCanvas(
     Canvas(
         modifier = modifier
             .fillMaxSize()
-            .pointerInput(annotationState.isDrawingMode) {
-                awaitPointerEventScope {
-                    while (true) {
-                        val down = awaitFirstDown(requireUnconsumed = false)
-                        
-                        val isStylus = down.type == PointerType.Stylus || down.type == PointerType.Eraser
-                        val isEraserHardware = down.type == PointerType.Eraser
-                        
-                        // ── INDUSTRY STANDARD INTERACTION LOGIC ──
-                        // Intercept events ONLY if we are explicitly in 'Drawing Mode'.
-                        // This allows fluid swiping/scrolling with both finger and stylus in normal mode.
-                        val shouldIntercept = annotationState.isDrawingMode
-                        
-                        if (!shouldIntercept) {
-                            // Let the event bubble down to PDFView for swiping/zooming
-                            continue
-                        }
+            .then(
+                if (annotationState.isDrawingMode) {
+                    Modifier.pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                val down = awaitFirstDown(requireUnconsumed = false)
+                                
+                                val isStylus = down.type == PointerType.Stylus || down.type == PointerType.Eraser
+                                val isEraserHardware = down.type == PointerType.Eraser
+                                
+                                // In Drawing Mode, we handle EVERYTHING.
+                                down.consume()
+                                val activePointerId = down.id
+                                currentDrawTool = if (isEraserHardware) VisualType.ERASER else annotationState.currentTool
 
-                        // We ARE drawing or erasing. From here, we consume to stop PDF from shifting.
-                        down.consume()
-                        val activePointerId = down.id
-                        currentDrawTool = if (isEraserHardware) VisualType.ERASER else annotationState.activeTool
-
-                        if (currentDrawTool == VisualType.ERASER) {
-                            findAndRemoveVisual(down.position, annotationState, visuals, onDeleteVisual)
-                        } else {
-                            val norm = annotationState.toNormalized(down.position.x, down.position.y)
-                            currentPathPoints.add(Triple(norm.first, norm.second, down.pressure))
-                        }
-                        
-                        while (true) {
-                            val event = awaitPointerEvent()
-                            val dragChange = event.changes.find { it.id == activePointerId }
-                            
-                            // Palm Rejection: If this is a stylus session, kill all secondary Touch pointers
-                            if (isStylus) {
-                                event.changes.forEach { if (it.type == PointerType.Touch) it.consume() }
-                            }
-
-                            if (dragChange == null || !dragChange.pressed) {
-                                // Session finished
-                                if (currentDrawTool != VisualType.ERASER && currentPathPoints.isNotEmpty()) {
-                                    // Serialize: x,y,p;x,y,p...
-                                    val data = currentPathPoints.joinToString(";") { "${it.first},${it.second},${it.third}" }
-                                    onDrawComplete(
-                                        currentDrawTool,
-                                        data,
-                                        annotationState.strokeColor,
-                                        annotationState.strokeWidth
-                                    )
-                                }
-                                currentPathPoints.clear()
-                                break
-                            } else {
-                                // Dragged
-                                dragChange.consume()
                                 if (currentDrawTool == VisualType.ERASER) {
-                                    findAndRemoveVisual(dragChange.position, annotationState, visuals, onDeleteVisual)
+                                    findAndRemoveVisual(down.position, annotationState, pdfView, visuals, onDeleteVisual)
+                                } else if (currentDrawTool == VisualType.TEXT || currentDrawTool == VisualType.STICKY_NOTE) {
+                                    val pdfPoint = if (pdfView != null) {
+                                        annotationState.viewToPage(down.position.x, down.position.y)
+                                    } else {
+                                        val w = annotationState.pageWidth.takeIf { it > 0 } ?: 1f
+                                        val h = annotationState.pageHeight.takeIf { it > 0 } ?: 1f
+                                        android.graphics.PointF(down.position.x / w, down.position.y / h)
+                                    }
+                                    onAddVisualAtPos(currentDrawTool, pdfPoint.x, pdfPoint.y, annotationState.strokeColor.toArgb())
                                 } else {
-                                    val norm = annotationState.toNormalized(dragChange.position.x, dragChange.position.y)
-                                    currentPathPoints.add(Triple(norm.first, norm.second, dragChange.pressure))
+                                    val pdfPoint = if (pdfView != null) {
+                                        annotationState.viewToPage(down.position.x, down.position.y)
+                                    } else {
+                                        val w = annotationState.pageWidth.takeIf { it > 0 } ?: 1f
+                                        val h = annotationState.pageHeight.takeIf { it > 0 } ?: 1f
+                                        android.graphics.PointF(down.position.x / w, down.position.y / h)
+                                    }
+                                    currentPathPoints.add(Triple(pdfPoint.x, pdfPoint.y, down.pressure))
+                                }
+                                
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    val dragChange = event.changes.find { it.id == activePointerId }
+                                    
+                                    if (isStylus) {
+                                        event.changes.forEach { if (it.type == PointerType.Touch) it.consume() }
+                                    }
+
+                                    if (dragChange == null || !dragChange.pressed) {
+                                        if (currentDrawTool != VisualType.ERASER && currentDrawTool != VisualType.TEXT && currentDrawTool != VisualType.STICKY_NOTE && currentPathPoints.isNotEmpty()) {
+                                            val data = currentPathPoints.joinToString(";") { "${it.first},${it.second},${it.third}" }
+                                            onDrawComplete(currentDrawTool, data, annotationState.strokeColor, annotationState.strokeWidth)
+                                        }
+                                        currentPathPoints.clear()
+                                        break
+                                    } else {
+                                        dragChange.consume()
+                                        if (currentDrawTool == VisualType.ERASER) {
+                                            findAndRemoveVisual(dragChange.position, annotationState, pdfView, visuals, onDeleteVisual)
+                                        } else if (currentDrawTool != VisualType.TEXT && currentDrawTool != VisualType.STICKY_NOTE) {
+                                            val pdfPoint = if (pdfView != null) {
+                                                annotationState.viewToPage(dragChange.position.x, dragChange.position.y)
+                                            } else {
+                                                val w = annotationState.pageWidth.takeIf { it > 0 } ?: 1f
+                                                val h = annotationState.pageHeight.takeIf { it > 0 } ?: 1f
+                                                android.graphics.PointF(dragChange.position.x / w, dragChange.position.y / h)
+                                            }
+                                            currentPathPoints.add(Triple(pdfPoint.x, pdfPoint.y, dragChange.pressure))
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
-                }
-            }
+                } else Modifier
+            )
     ) {
         // ── ADV RENDERING PIPELINE ──
+        // Read tick to force redraw when PDFView zoom/pan changes
+        @Suppress("UNUSED_VARIABLE")
+        val tick = annotationState.invalidationTick
         // We render segments individually to support variable pressure-based widths.
         
         fun drawVisualPath(pointsData: String, type: VisualType, baseColor: Color, baseWidth: Float) {
@@ -108,8 +120,13 @@ fun DrawingCanvas(
                     val pX = p[0].toFloat()
                     val pY = p[1].toFloat()
                     val pPress = if (p.size >= 3) p[2].toFloat() else 1f
-                    val screenPos = annotationState.fromNormalized(pX, pY)
-                    Triple(screenPos.first, screenPos.second, pPress)
+                    
+                    val screenPos = if (pdfView != null) {
+                        annotationState.pageToView(pX, pY)
+                    } else {
+                        android.graphics.PointF(pX * annotationState.pageWidth, pY * annotationState.pageHeight)
+                    }
+                    Triple(screenPos.x, screenPos.y, pPress)
                 } else null
             }
             
@@ -119,10 +136,9 @@ fun DrawingCanvas(
                 val p1 = rawPoints[i]
                 val p2 = rawPoints[i+1]
                 
-                // Pressure mapping: width scales between 0.5x and 1.5x of baseWidth based on 0..1 pressure
-                // Fallback to 1.0 if not a pressure-sensitive stylus
                 val pressureFact = if (p2.third > 0) 0.5f + p2.third else 1.0f
-                val segmentWidth = baseWidth * pressureFact * annotationState.currentZoom
+                val zoom = pdfView?.zoom ?: 1f
+                val segmentWidth = baseWidth * pressureFact * zoom
 
                 drawLine(
                     color = baseColor.copy(alpha = if (type == VisualType.HIGHLIGHT) 0.4f else 1f),
@@ -135,27 +151,47 @@ fun DrawingCanvas(
         }
 
         // 1. Draw Saved Visuals
-        visuals.forEach { visual ->
-            drawVisualPath(visual.data, visual.type, Color(visual.color), visual.strokeWidth)
-        }
-
-        // 2. Draw Real-time Path
-        if (currentPathPoints.isNotEmpty()) {
-            val screenPoints = currentPathPoints.map { 
-                val s = annotationState.fromNormalized(it.first, it.second)
-                Triple(s.first, s.second, it.third)
+        if (!annotationState.isFocused) {
+            visuals.forEach { visual ->
+                when (visual.type) {
+                    VisualType.TEXT -> {
+                        val pos = if (pdfView != null) annotationState.pageToView(visual.data.split(",")[0].toFloat(), visual.data.split(",")[1].toFloat())
+                        else android.graphics.PointF(0f, 0f)
+                        // Simple indicator for text for now
+                        drawCircle(Color(visual.color), radius = 10f, center = Offset(pos.x, pos.y))
+                    }
+                    VisualType.STICKY_NOTE -> {
+                        val pos = if (pdfView != null) annotationState.pageToView(visual.data.split(",")[0].toFloat(), visual.data.split(",")[1].toFloat())
+                        else android.graphics.PointF(0f, 0f)
+                        drawRect(Color(visual.color), topLeft = Offset(pos.x - 15f, pos.y - 15f), size = androidx.compose.ui.geometry.Size(30f, 30f))
+                    }
+                    else -> drawVisualPath(visual.data, visual.type, Color(visual.color), visual.strokeWidth)
+                }
             }
-            for (i in 0 until screenPoints.size - 1) {
-                val p1 = screenPoints[i]
-                val p2 = screenPoints[i+1]
-                val pressureFact = if (p2.third > 0) 0.5f + p2.third else 1.0f
-                drawLine(
-                    color = annotationState.strokeColor,
-                    start = Offset(p1.first, p1.second),
-                    end = Offset(p2.first, p2.second),
-                    strokeWidth = annotationState.strokeWidth * pressureFact * annotationState.currentZoom,
-                    cap = androidx.compose.ui.graphics.StrokeCap.Round
-                )
+
+            // 2. Draw Real-time Path
+            if (currentPathPoints.isNotEmpty() && currentDrawTool != VisualType.ERASER) {
+                val screenPoints = currentPathPoints.map { 
+                    val s = if (pdfView != null) {
+                        annotationState.pageToView(it.first, it.second)
+                    } else {
+                        android.graphics.PointF(it.first * (annotationState.pageWidth.takeIf { it > 0 } ?: 1f), it.second * (annotationState.pageHeight.takeIf { it > 0 } ?: 1f))
+                    }
+                    Triple(s.x, s.y, it.third)
+                }
+                val zoom = pdfView?.zoom ?: 1f
+                for (i in 0 until screenPoints.size - 1) {
+                    val p1 = screenPoints[i]
+                    val p2 = screenPoints[i+1]
+                    val pressureFact = if (p2.third > 0) 0.5f + p2.third else 1.0f
+                    drawLine(
+                        color = annotationState.strokeColor,
+                        start = Offset(p1.first, p1.second),
+                        end = Offset(p2.first, p2.second),
+                        strokeWidth = annotationState.strokeWidth * pressureFact * zoom,
+                        cap = androidx.compose.ui.graphics.StrokeCap.Round
+                    )
+                }
             }
         }
     }
@@ -164,17 +200,35 @@ fun DrawingCanvas(
 private fun findAndRemoveVisual(
     offset: Offset,
     state: AnnotationState,
+    pdfView: com.github.barteksc.pdfviewer.PDFView?,
     visuals: List<NoteVisual>,
     onDelete: (Long) -> Unit
 ) {
-    visuals.find { visual ->
-        visual.data.split(";").any { pStr ->
-            val p = pStr.split(",")
-            if (p.size >= 2) {
-                val screenPos = state.fromNormalized(p[0].toFloat(), p[1].toFloat())
-                val dist = (Offset(screenPos.first, screenPos.second) - offset).getDistance()
-                dist < 30f // 30px eraser radius
-            } else false
+    // Inverse zoom factor to keep eraser size consistent
+    val zoom = pdfView?.zoom ?: 1f
+    val hitRadius = 40f * zoom 
+
+    val target = visuals.find { visual ->
+        when (visual.type) {
+            VisualType.TEXT, VisualType.STICKY_NOTE -> {
+                val p = visual.data.split(",")
+                val screenPos = if (pdfView != null) state.pageToView(p[0].toFloat(), p[1].toFloat()) else android.graphics.PointF(0f, 0f)
+                (Offset(screenPos.x, screenPos.y) - offset).getDistance() < hitRadius
+            }
+            else -> {
+                visual.data.split(";").any { pStr ->
+                    val p = pStr.split(",")
+                    if (p.size >= 2) {
+                        val screenPos = if (pdfView != null) {
+                            state.pageToView(p[0].toFloat(), p[1].toFloat())
+                        } else {
+                            android.graphics.PointF(p[0].toFloat() * state.pageWidth, p[1].toFloat() * state.pageHeight)
+                        }
+                        (Offset(screenPos.x, screenPos.y) - offset).getDistance() < hitRadius
+                    } else false
+                }
+            }
         }
-    }?.let { onDelete(it.id) }
+    }
+    target?.let { onDelete(it.id) }
 }
