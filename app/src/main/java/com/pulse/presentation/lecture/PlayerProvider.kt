@@ -35,15 +35,7 @@ import java.util.concurrent.TimeUnit
  * Authorization header survives Google Drive's redirects to googlevideo.com.
  */
 class PlayerProvider(private val context: Context, fileStorageManager: FileStorageManager) {
-
     private val audioEngine = AudioEngine()
-
-    // ── Cache ──
-    private val cache = SimpleCache(
-        fileStorageManager.videoCacheDir,
-        LeastRecentlyUsedCacheEvictor(Constants.VIDEO_CACHE_SIZE),
-        StandaloneDatabaseProvider(context)
-    )
 
     // ── Auth-Pinning Interceptor ──
     // Keeps the Bearer token on redirects ONLY within Google's own domains.
@@ -73,6 +65,13 @@ class PlayerProvider(private val context: Context, fileStorageManager: FileStora
         chain.proceed(request)
     }
 
+    // ── Cache ──
+    private val cache = SimpleCache(
+        fileStorageManager.videoCacheDir,
+        LeastRecentlyUsedCacheEvictor(Constants.VIDEO_CACHE_SIZE),
+        StandaloneDatabaseProvider(context)
+    )
+
     // ── OkHttp client for streaming ──
     private val streamingClient = OkHttpClient.Builder()
         .addInterceptor(authInterceptor)
@@ -98,37 +97,27 @@ class PlayerProvider(private val context: Context, fileStorageManager: FileStora
         .setRenderersFactory(PlayerOptimizer.createRenderersFactory(context))
         .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
         .build().apply {
-            // 1. Connect Audio Engine
             addListener(object : Player.Listener {
                 override fun onAudioSessionIdChanged(audioSessionId: Int) {
                     audioEngine.attachToSession(audioSessionId)
                 }
-
                 override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                    // SMART FALLBACK: If the Video Engine (GL processing) fails due to hardware limits,
-                    // we catch it here, strip the effects, and retry playback to ensure "Video is not playing" never happens.
-                    val cause = error.cause
-                    if (cause is androidx.media3.common.VideoFrameProcessingException) {
-                        Log.e("PlayerProvider", "Video Engine hardware failure. Falling back to native rendering.", cause)
+                    if (error.cause is androidx.media3.common.VideoFrameProcessingException) {
+                        Log.e("PlayerProvider", "Falling back to native rendering.", error.cause)
                         setVideoEffects(emptyList())
                         prepare()
                         play()
                     }
                 }
             })
-
-            // 2. Connect Video Engine (Adaptive Sharpening & local contrast)
             try {
                 setVideoEffects(listOf(LectureVideoEffect()))
-                Log.d("PlayerProvider", "Video Engine (LectureVideoEffect) initialized successfully.")
             } catch (e: Exception) {
-                Log.e("PlayerProvider", "Video Engine not supported on this hardware. Fallback active.", e)
+                Log.e("PlayerProvider", "Video Engine hardware fallback active.", e)
             }
         }
 
     private val mediaSession = MediaSession.Builder(context, player).build()
-
-    // ── Session tracking ──
     private var currentSessionId: String? = null
     private var currentUrl: String? = null
 
@@ -157,13 +146,6 @@ class PlayerProvider(private val context: Context, fileStorageManager: FileStora
         _miniPlayerTitle.value = null
     }
 
-    fun getContext(): Context = context
-
-    /**
-     * Prepares the player for a new session.
-     * The token is injected into the OkHttp interceptor so it survives
-     * Drive redirects. No token-in-URL hack needed.
-     */
     fun prepareSession(
         sessionId: String,
         url: String,
@@ -174,28 +156,17 @@ class PlayerProvider(private val context: Context, fileStorageManager: FileStora
         fileId: String? = null
     ) {
         try {
-            Log.d("PlayerProvider", "prepareSession: id=$sessionId, url=${url.take(80)}, hasToken=${token != null}")
-
-            // Skip re-prepare if same URL is already playing
             if (currentUrl == url && currentSessionId == sessionId &&
                 player.playbackState != Player.STATE_IDLE &&
                 player.playbackState != Player.STATE_ENDED
-            ) {
-                Log.d("PlayerProvider", "Same URL already playing, skipping prepare")
-                return
-            }
+            ) return
 
-            // 1. Inject token into OkHttp interceptor
-            currentToken = token
-
-            // 2. Stop any previous session cleanly
             player.stop()
             player.clearMediaItems()
-
             currentSessionId = sessionId
             currentUrl = url
+            currentToken = token
 
-            // 3. Build MediaItem
             val mediaUri = when {
                 url.startsWith("/") -> Uri.fromFile(java.io.File(url))
                 url.startsWith("content://") || url.startsWith("file://") -> Uri.parse(url)
@@ -204,23 +175,14 @@ class PlayerProvider(private val context: Context, fileStorageManager: FileStora
 
             val mediaItem = MediaItem.Builder()
                 .setUri(mediaUri)
-                .setMediaMetadata(
-                    MediaMetadata.Builder()
-                        .setTitle(title)
-                        .setArtist("PULSE")
-                        .build()
-                )
+                .setMediaMetadata(MediaMetadata.Builder().setTitle(title).setArtist("PULSE").build())
                 .build()
 
-            // 4. Set & play (all on main thread via ExoPlayer contract)
             player.setMediaItem(mediaItem)
             player.setPlaybackSpeed(speed)
             if (seekTo > 0) player.seekTo(seekTo)
             player.prepare()
             player.playWhenReady = true
-
-            Log.d("PlayerProvider", "Session prepared: $sessionId at ${seekTo}ms, speed=${speed}x")
-
         } catch (e: Exception) {
             Log.e("PlayerProvider", "prepareSession FAILED", e)
         }
@@ -230,21 +192,17 @@ class PlayerProvider(private val context: Context, fileStorageManager: FileStora
 
     fun stopSession(sessionId: String) {
         if (currentSessionId != sessionId) return
-        Log.d("PlayerProvider", "Stopping session: $sessionId")
         player.playWhenReady = false
         player.stop()
         player.clearMediaItems()
         currentSessionId = null
         currentUrl = null
-        currentToken = null
     }
 
     fun release() {
-        Log.d("PlayerProvider", "Releasing player resources")
         audioEngine.release()
         mediaSession.release()
         player.release()
         cache.release()
-        currentToken = null
     }
 }

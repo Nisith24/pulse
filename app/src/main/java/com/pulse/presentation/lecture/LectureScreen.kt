@@ -29,6 +29,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.pulse.data.local.SettingsManager
 import kotlinx.coroutines.launch
@@ -69,20 +70,13 @@ fun LectureScreen(
 
     val hasVideo = remember(lecture) {
         val l = lecture
-        l != null && (l.videoId != null || (l.videoLocalPath != null && l.videoLocalPath != ""))
+        l != null && (l.videoId != null && l.videoId != "" || l.videoLocalPath != null && l.videoLocalPath != "")
     }
 
     LaunchedEffect(savedRatio, lecture) {
         if (!initialized && savedRatio > 0.1f) {
             splitRatio = savedRatio
             initialized = true
-        }
-        
-        // Standalone PDF Mode: If no video is present, expand PDF to full screen automatically
-        lecture?.let { l ->
-            if (!hasVideo && l.pdfLocalPath != "blank_note" && (l.pdfId != null || (l.pdfLocalPath != null && l.pdfLocalPath != ""))) {
-                splitRatio = 0f
-            }
         }
     }
 
@@ -120,6 +114,12 @@ fun LectureScreen(
             } catch (_: Exception) {}
             viewModel.updateLocalPdfPath(it.toString())
         }
+    }
+
+    val authLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) {
+        viewModel.playSessionIfNeeded()
     }
 
     val onAddLocalPdf = {
@@ -233,6 +233,24 @@ fun LectureScreen(
             color = if (isPip) Color.Black else MaterialTheme.colorScheme.background
         ) {
             when (val state = playerState) {
+                is PlayerUiState.PERMISSION_REQUIRED -> {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Default.PictureAsPdf, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.primary)
+                            Spacer(Modifier.height(16.dp))
+                            Text("Cloud Access Required", style = MaterialTheme.typography.titleMedium)
+                            Text("This video requires additional permission from Google Drive.", 
+                                style = MaterialTheme.typography.bodyMedium, 
+                                modifier = Modifier.padding(horizontal = 32.dp),
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(Modifier.height(24.dp))
+                            Button(onClick = { authLauncher.launch(state.intent) }) {
+                                Text("Grant Permission")
+                            }
+                        }
+                    }
+                }
                 is PlayerUiState.ERROR -> {
                     // Check if we actually HAVE a PDF, in which case we show it despite the Player Error
                     val hasPdf = lecture?.let { it.pdfId != null || it.pdfLocalPath.isNotEmpty() } ?: false
@@ -267,6 +285,10 @@ fun LectureScreen(
                                 Icon(Icons.Default.ErrorOutline, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.error)
                                 Spacer(Modifier.height(12.dp))
                                 Text(state.message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+                                Spacer(Modifier.height(16.dp))
+                                Button(onClick = { viewModel.playSessionIfNeeded() }) {
+                                    Text("Retry")
+                                }
                             }
                         }
                     }

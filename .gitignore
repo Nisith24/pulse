@@ -24,6 +24,5 @@
 /build_output*.txt
 /compile_out*.txt
 /logcat_*.txt
-/context.md
 /crash_log.txt
 /task.md

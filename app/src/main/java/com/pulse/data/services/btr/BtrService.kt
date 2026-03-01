@@ -34,11 +34,7 @@ class GoogleDriveBtrService(
             if (processedFolders.contains(currentFolderId)) continue
             processedFolders.add(currentFolderId)
 
-            val url = "https://www.googleapis.com/drive/v3/files" +
-                    "?q='${currentFolderId}'+in+parents+and+trashed=false" +
-                    "&fields=files(id,name,mimeType,size)" +
-                    "&pageSize=1000"
-
+            val url = "https://www.googleapis.com/drive/v3/files?q='${currentFolderId}'+in+parents+and+trashed=false&fields=files(id,name,mimeType,size)&pageSize=1000"
             val request = Request.Builder()
                 .url(url)
                 .addHeader("Authorization", "Bearer $accessToken")
@@ -46,48 +42,30 @@ class GoogleDriveBtrService(
                 .build()
 
             try {
+                logger.d("BtrService", "Listing folder: $currentFolderName ($currentFolderId) at $url")
                 client.newCall(request).execute().use { response ->
                     val body = response.body?.string() ?: ""
-                    if (response.code == 401) {
-                        // Attempt token refresh once
-                        val newToken = authManager.getToken()
-                        val retryRequest = request.newBuilder()
-                            .header("Authorization", "Bearer $newToken")
-                            .build()
-                        client.newCall(retryRequest).execute().use { retryResponse ->
-                            if (retryResponse.isSuccessful) {
-                                val retryBody = retryResponse.body?.string() ?: ""
-                                val files = parseBtrFiles(retryBody)
-                                handleFiles(files, rootList, foldersToProcess, currentFolderName, recursive)
-                            }
-                        }
-                    } else if (response.isSuccessful) {
+                    logger.d("BtrService", "Response [${response.code}] for $currentFolderName: ${if (body.length > 200) body.take(200) + "..." else body}")
+                    
+                    if (response.isSuccessful) {
                         val files = parseBtrFiles(body)
+                        logger.d("BtrService", "Parsed ${files.size} files from $currentFolderName")
                         handleFiles(files, rootList, foldersToProcess, currentFolderName, recursive)
                     } else {
-                        logger.e("BtrService", "Drive API error: ${response.code} for folder $currentFolderId")
+                        logger.e("BtrService", "API Error [${response.code}]: $body")
                     }
                 }
             } catch (e: Exception) {
-                logger.e("BtrService", "Failed to list folder $currentFolderId", e)
+                logger.e("BtrService", "Network/API exception for $currentFolderId", e)
             }
         }
-        logger.d("BtrService", "Completed listing ${rootList.size} files from $folderId")
         rootList
     }
 
-    private fun handleFiles(
-        files: List<BtrFile>,
-        rootList: MutableList<BtrFile>,
-        foldersToProcess: MutableList<Pair<String, String>>,
-        parentName: String,
-        recursive: Boolean
-    ) {
+    private fun handleFiles(files: List<BtrFile>, rootList: MutableList<BtrFile>, foldersToProcess: MutableList<Pair<String, String>>, parentName: String, recursive: Boolean) {
         for (file in files) {
             if (file.mimeType == "application/vnd.google-apps.folder") {
-                if (recursive) {
-                    foldersToProcess.add(Pair(file.id, file.name))
-                }
+                if (recursive) foldersToProcess.add(Pair(file.id, file.name))
             } else {
                 rootList.add(file.copy(parentName = parentName))
             }
@@ -98,82 +76,56 @@ class GoogleDriveBtrService(
         "https://www.googleapis.com/drive/v3/files/$fileId?alt=media"
 
     override suspend fun downloadFile(fileId: String, accessToken: String): ByteArray = withContext(Dispatchers.IO) {
-        val url = "https://www.googleapis.com/drive/v3/files/$fileId?alt=media"
+        val url = streamUrl(fileId)
         val request = Request.Builder()
             .url(url)
             .addHeader("Authorization", "Bearer $accessToken")
-            .addHeader("User-Agent", "Pulse/1.0")
             .build()
-
         client.newCall(request).execute().use { response ->
-            if (response.code == 401) {
-                val newToken = authManager.getToken()
-                val retryRequest = request.newBuilder()
-                    .header("Authorization", "Bearer $newToken")
-                    .build()
-                client.newCall(retryRequest).execute().use { retryResponse ->
-                    if (!retryResponse.isSuccessful) error("Download failed after refresh: ${retryResponse.code}")
-                    retryResponse.body!!.bytes()
-                }
-            } else if (!response.isSuccessful) {
-                error("Download failed: ${response.code}")
-            } else {
-                response.body!!.bytes()
-            }
+            if (!response.isSuccessful) error("Download failed: ${response.code}")
+            response.body!!.bytes()
         }
     }
 
-    override suspend fun downloadToStream(
-        fileId: String,
-        outputStream: OutputStream,
-        accessToken: String,
-        onProgress: (bytesRead: Long, totalBytes: Long) -> Unit
-    ) = withContext(Dispatchers.IO) {
-        val downloadClient = client.newBuilder()
-            .readTimeout(0, TimeUnit.SECONDS)
-            .build()
-            
-        val url = "https://www.googleapis.com/drive/v3/files/$fileId?alt=media"
+    override suspend fun downloadToStream(fileId: String, outputStream: OutputStream, accessToken: String, onProgress: (Long, Long) -> Unit) = withContext(Dispatchers.IO) {
+        val url = streamUrl(fileId)
         val request = Request.Builder()
             .url(url)
             .addHeader("Authorization", "Bearer $accessToken")
-            .addHeader("User-Agent", "Pulse/1.0")
             .build()
-            
-        downloadClient.newCall(request).execute().use { response ->
-            if (response.code == 401) {
-                val newToken = authManager.getToken()
-                val retryReq = request.newBuilder()
-                    .header("Authorization", "Bearer $newToken")
-                    .build()
-                downloadClient.newCall(retryReq).execute().use { retryResp ->
-                    if (!retryResp.isSuccessful) error("Failed to download after refresh: ${retryResp.code}")
-                    streamBody(retryResp, outputStream, onProgress)
-                }
-            } else if (!response.isSuccessful) {
-                error("Failed to download: ${response.code}")
-            } else {
-                streamBody(response, outputStream, onProgress)
-            }
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) error("Fetch failed: ${response.code}")
+            streamBody(response, outputStream, onProgress)
         }
     }
 
-    private suspend fun streamBody(response: okhttp3.Response, outputStream: OutputStream, onProgress: (Long, Long) -> Unit) {
-        val body = response.body ?: error("No response body")
+    private fun parseBtrFiles(json: String): List<BtrFile> {
+        val list = mutableListOf<BtrFile>()
+        try {
+            val arr = JSONObject(json).optJSONArray("files") ?: return list
+            for (i in 0 until arr.length()) {
+                val o = arr.getJSONObject(i)
+                list.add(BtrFile(id = o.getString("id"), name = o.getString("name"), mimeType = o.getString("mimeType"), size = if (o.has("size")) o.getLong("size") else null))
+            }
+        } catch (e: Exception) { e.printStackTrace() }
+        return list
+    }
+
+    private suspend fun streamBody(response: Response, outputStream: OutputStream, onProgress: (Long, Long) -> Unit) {
+        val body = response.body ?: return
         val contentLen = body.contentLength()
         body.byteStream().use { input ->
             outputStream.use { output ->
-                val buffer = ByteArray(64 * 1024) // Increased to 64KB for high-speed streaming
+                val buffer = ByteArray(65536)
                 var totalRead = 0L
                 var read: Int
                 var lastUpdate = System.currentTimeMillis()
-                
                 while (input.read(buffer).also { read = it } != -1) {
-                    kotlinx.coroutines.yield() // Support cancellation
+                    kotlinx.coroutines.yield()
                     output.write(buffer, 0, read)
                     totalRead += read
                     val now = System.currentTimeMillis()
-                    if (now - lastUpdate > 250 || totalRead == contentLen) {
+                    if (now - lastUpdate > 300) {
                         onProgress(totalRead, contentLen)
                         lastUpdate = now
                     }
@@ -181,28 +133,5 @@ class GoogleDriveBtrService(
                 onProgress(totalRead, contentLen)
             }
         }
-    }
-    private fun parseBtrFiles(json: String): List<BtrFile> {
-        val rootList = mutableListOf<BtrFile>()
-        try {
-            val jsonObject = JSONObject(json)
-            val filesArray = jsonObject.optJSONArray("files")
-            if (filesArray != null) {
-                for (i in 0 until filesArray.length()) {
-                    val fileObj = filesArray.getJSONObject(i)
-                    rootList.add(
-                        BtrFile(
-                            id = fileObj.getString("id"),
-                            name = fileObj.getString("name"),
-                            mimeType = fileObj.getString("mimeType"),
-                            size = if (fileObj.has("size")) fileObj.getLong("size") else null
-                        )
-                    )
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        return rootList
     }
 }

@@ -38,10 +38,10 @@ fun DrawingCanvas(
                         val isStylus = down.type == PointerType.Stylus || down.type == PointerType.Eraser
                         val isEraserHardware = down.type == PointerType.Eraser
                         
-                        // ── ADVANCED STYLUS LOGIC ──
-                        // Finger ('Touch') only draws if explicitly in 'Drawing Mode'.
-                        // Stylus/Eraser ALWAYS draws/erased, providing native-feel pen support.
-                        val shouldIntercept = isStylus || annotationState.isDrawingMode
+                        // ── INDUSTRY STANDARD INTERACTION LOGIC ──
+                        // Intercept events ONLY if we are explicitly in 'Drawing Mode'.
+                        // This allows fluid swiping/scrolling with both finger and stylus in normal mode.
+                        val shouldIntercept = annotationState.isDrawingMode
                         
                         if (!shouldIntercept) {
                             // Let the event bubble down to PDFView for swiping/zooming

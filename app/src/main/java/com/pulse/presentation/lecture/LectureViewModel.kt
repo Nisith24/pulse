@@ -141,6 +141,9 @@ class LectureViewModel(
             } else {
                 _playerState.value = PlayerUiState.ERROR("No media available in this lecture")
             }
+        } catch (e: com.pulse.data.services.btr.PulseAuthException.PermissionRequired) {
+            Log.w("LectureViewModel", "Permission required for Drive")
+            _playerState.value = PlayerUiState.PERMISSION_REQUIRED(e.intent)
         } catch (e: Exception) {
             Log.e("LectureViewModel", "Failed to process playback", e)
             _playerState.value = PlayerUiState.ERROR("Init failed: ${e.localizedMessage}")
@@ -348,5 +351,6 @@ class LectureViewModel(
 sealed class PlayerUiState {
     object LOADING : PlayerUiState()
     object READY : PlayerUiState()
+    data class PERMISSION_REQUIRED(val intent: android.content.Intent) : PlayerUiState()
     data class ERROR(val message: String) : PlayerUiState()
 }

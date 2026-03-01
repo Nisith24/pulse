@@ -1,26 +1,44 @@
 {
   "project_info": {
-    "project_number": "367492827169",
-    "project_id": "pulse-443a0",
-    "storage_bucket": "pulse-443a0.firebasestorage.app"
+    "project_number": "729410937683",
+    "project_id": "pulse-6fc9c",
+    "storage_bucket": "pulse-6fc9c.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:367492827169:android:45cfbfb5abb2d955d83b60",
+        "mobilesdk_app_id": "1:729410937683:android:66137435c5613b0a90b7a6",
         "android_client_info": {
           "package_name": "com.pulse"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "729410937683-3nc1g3rmpcnveu4nsu5j58tlpfic4fsj.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.pulse",
+            "certificate_hash": "2dbeb2b7c05d989082a374711c241fbea0ee1cf0"
+          }
+        },
+        {
+          "client_id": "729410937683-2l3904g7unlqjakdcdajtteplm3cdldb.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyAv47XnC0MeEoBBigYd3pgxYNrGYbnd9Zs"
+          "current_key": "AIzaSyAXk8ILuHtwSn4UPNNp25oxo8te3RubQr0"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "729410937683-2l3904g7unlqjakdcdajtteplm3cdldb.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

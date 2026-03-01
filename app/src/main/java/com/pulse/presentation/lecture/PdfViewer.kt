@@ -399,6 +399,18 @@ private fun PdfMode(
             frameLayout.addView(pdfView)
             frameLayout.addView(composeOverlay)
             
+            // ── INDUSTRY STANDARD HYBRID TOUCH HANDLING ──
+            // If we are NOT in drawing mode, we must ensure the native PDFView receives 100% of touches.
+            // We use an onTouchListener on the overlay to 'swallow' or 'pass-through' events.
+            composeOverlay.setOnTouchListener { _, _ -> 
+                !annotationState.isDrawingMode // If NOT drawing mode, return true (Wait, returning true consumes it)
+                // Actually, if we return true, it's consumed. We want to return false to let FrameLayout pass it down.
+                false 
+            }
+            
+            // Actually, a better native approach is to disable the view so FrameLayout skips it during touch dispatch.
+            // We'll handle this in the update block for reactivity.
+            
             loadPdfInternal(
                 pdfView = pdfView,
                 path = pdfPath,
@@ -417,7 +429,15 @@ private fun PdfMode(
             )
             frameLayout
         },
-        update = { /* Updates handled via SideEffect above */ },
+        update = { _ ->
+            // ── REACTIVE INTERACTION SYNC ──
+            // If we are NOT in drawing mode, we disable input on the overlay entirely.
+            // This is the cleanest way in Android for FrameLayout to bypass the top view
+            // and deliver 100% of touches to the native PDFView underneath.
+            composeOverlay.isEnabled = annotationState.isDrawingMode
+            composeOverlay.isFocusable = annotationState.isDrawingMode
+            composeOverlay.isClickable = annotationState.isDrawingMode
+        },
         onRelease = {
             pdfViewRef.value?.recycle()
             pdfViewRef.value = null

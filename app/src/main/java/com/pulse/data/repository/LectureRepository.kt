@@ -143,6 +143,7 @@ class LectureRepository(
         }
         logger.d("LectureSync", "Starting sync with folder: ${Constants.DRIVE_FOLDER_ID}")
         val files = btrService.listFolder(Constants.DRIVE_FOLDER_ID, token)
+        logger.d("LectureSync", "Found ${files.size} files in public Drive folder")
         logger.d("LectureSync", "Found ${files.size} files in Drive folder")
 
         val grouped = syncLecturesUseCase(files)

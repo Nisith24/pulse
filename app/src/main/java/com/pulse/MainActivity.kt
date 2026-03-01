@@ -5,6 +5,8 @@ import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import android.util.Rational
+import android.util.Log
+import androidx.lifecycle.lifecycleScope
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -63,22 +65,32 @@ class MainActivity : ComponentActivity() {
                     val signInLauncher = rememberLauncherForActivityResult(
                         contract = ActivityResultContracts.StartActivityForResult()
                     ) { result ->
-                        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-                        try {
-                            task.getResult(com.google.android.gms.common.api.ApiException::class.java)
-                            isSignedIn = true
-                        } catch (e: com.google.android.gms.common.api.ApiException) {
-                            e.printStackTrace()
-                            android.widget.Toast.makeText(this@MainActivity, "Sign-in failed: ${e.statusCode}", android.widget.Toast.LENGTH_LONG).show()
+                        if (result.resultCode == RESULT_OK) {
+                            val task = com.google.android.gms.auth.api.signin.GoogleSignIn.getSignedInAccountFromIntent(result.data)
+                            try {
+                                val account = task.getResult(com.google.android.gms.common.api.ApiException::class.java)
+                                if (account != null) {
+                                    lifecycleScope.launch {
+                                        val firebaseAuth = authManager as? com.pulse.data.services.btr.FirebasePulseAuthManager
+                                        firebaseAuth?.signInWithGoogle(account)
+                                        isSignedIn = true
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                Log.e("MainActivity", "Google sign-in failed", e)
+                                android.widget.Toast.makeText(this@MainActivity, "Sign-in failed: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+                            }
+                        } else {
+                            android.widget.Toast.makeText(this@MainActivity, "Sign-in cancelled or failed with result code: ${result.resultCode}", android.widget.Toast.LENGTH_LONG).show()
                         }
                     }
 
                     val scope = rememberCoroutineScope()
                     if (!isSignedIn) {
                         LoginScreen(onSignInClick = {
-                            val googleAuth = authManager as? com.pulse.data.services.btr.GoogleAuthManager
-                            if (googleAuth != null) {
-                                val intent = GoogleSignIn.getClient(this, googleAuth.getSignInOptions()).signInIntent
+                            val firebaseAuth = authManager as? com.pulse.data.services.btr.FirebasePulseAuthManager
+                            if (firebaseAuth != null) {
+                                val intent = com.google.android.gms.auth.api.signin.GoogleSignIn.getClient(this, firebaseAuth.getSignInOptions()).signInIntent
                                 signInLauncher.launch(intent)
                             }
                         })

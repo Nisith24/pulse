@@ -2,7 +2,7 @@ package com.pulse.di
 
 import androidx.room.Room
 import com.pulse.data.db.AppDatabase
-import com.pulse.data.services.btr.GoogleAuthManager
+import com.pulse.data.services.btr.FirebasePulseAuthManager
 import com.pulse.data.services.btr.GoogleDriveBtrService
 import com.pulse.data.local.FileStorageManager
 import com.pulse.data.local.SettingsManager
@@ -63,8 +63,8 @@ val appModule = module {
     }
     
     // Services
-    single { GoogleAuthManager(androidContext()) }
-    single<IBtrAuthManager> { get<GoogleAuthManager>() }
+    single { FirebasePulseAuthManager(androidContext()) }
+    single<IBtrAuthManager> { get<FirebasePulseAuthManager>() }
     
     single {
         OkHttpClient.Builder()

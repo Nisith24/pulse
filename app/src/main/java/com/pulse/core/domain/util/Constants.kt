@@ -5,5 +5,5 @@ object Constants {
     const val VIDEO_CACHE_SIZE: Long = 500 * 1024 * 1024L // 500 MB
     
     // Auth
-    const val GOOGLE_SIGN_IN_WEB_CLIENT_ID = "YOUR_CLIENT_ID" // Placeholder
+    const val GOOGLE_SIGN_IN_WEB_CLIENT_ID = "729410937683-2l3904g7unlqjakdcdajtteplm3cdldb.apps.googleusercontent.com"
 }

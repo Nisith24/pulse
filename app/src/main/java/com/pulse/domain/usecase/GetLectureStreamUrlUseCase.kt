@@ -10,14 +10,7 @@ class GetLectureStreamUrlUseCase(
     suspend operator fun invoke(videoId: String?): Pair<String, String?>? {
         if (videoId == null) return null
         
-        // TODO: Future bit-rate selection (e.g., driveService.getStreamingManifest(videoId))
-        val token = try {
-            authManager.getToken()
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
-        }
-        
+        val token = authManager.getToken()
         return Pair(btrService.streamUrl(videoId), token)
     }
 
