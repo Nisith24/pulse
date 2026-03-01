@@ -68,6 +68,7 @@ dependencies {
     implementation("androidx.media3:media3-ui:$media3Version")
     implementation("androidx.media3:media3-session:$media3Version")
     implementation("androidx.media3:media3-effect:$media3Version")
+    implementation("androidx.media3:media3-datasource-okhttp:$media3Version")
 
     // Database (Room)
     val roomVersion = "2.6.1"

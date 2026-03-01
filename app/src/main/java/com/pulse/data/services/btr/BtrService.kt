@@ -1,14 +1,13 @@
 package com.pulse.data.services.btr
 
+import com.pulse.core.domain.util.ILogger
 import com.pulse.domain.services.btr.IBtrAuthManager
 import com.pulse.domain.services.btr.IBtrService
 import java.io.File
 import java.io.OutputStream
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -18,7 +17,8 @@ import org.json.JSONObject
 
 class GoogleDriveBtrService(
     private val client: OkHttpClient,
-    private val authManager: IBtrAuthManager
+    private val authManager: IBtrAuthManager,
+    private val logger: ILogger
 ) : IBtrService {
     override suspend fun listFolder(
         folderId: String,
@@ -42,6 +42,7 @@ class GoogleDriveBtrService(
             val request = Request.Builder()
                 .url(url)
                 .addHeader("Authorization", "Bearer $accessToken")
+                .addHeader("User-Agent", "Pulse/1.0")
                 .build()
 
             try {
@@ -64,13 +65,14 @@ class GoogleDriveBtrService(
                         val files = parseBtrFiles(body)
                         handleFiles(files, rootList, foldersToProcess, currentFolderName, recursive)
                     } else {
-                        android.util.Log.e("DriveService", "Drive error: ${response.code} for folder $currentFolderId")
+                        logger.e("BtrService", "Drive API error: ${response.code} for folder $currentFolderId")
                     }
                 }
             } catch (e: Exception) {
-                android.util.Log.e("DriveService", "Failed to list folder $currentFolderId: ${e.message}")
+                logger.e("BtrService", "Failed to list folder $currentFolderId", e)
             }
         }
+        logger.d("BtrService", "Completed listing ${rootList.size} files from $folderId")
         rootList
     }
 
@@ -100,6 +102,7 @@ class GoogleDriveBtrService(
         val request = Request.Builder()
             .url(url)
             .addHeader("Authorization", "Bearer $accessToken")
+            .addHeader("User-Agent", "Pulse/1.0")
             .build()
 
         client.newCall(request).execute().use { response ->
@@ -134,6 +137,7 @@ class GoogleDriveBtrService(
         val request = Request.Builder()
             .url(url)
             .addHeader("Authorization", "Bearer $accessToken")
+            .addHeader("User-Agent", "Pulse/1.0")
             .build()
             
         downloadClient.newCall(request).execute().use { response ->
@@ -159,7 +163,7 @@ class GoogleDriveBtrService(
         val contentLen = body.contentLength()
         body.byteStream().use { input ->
             outputStream.use { output ->
-                val buffer = ByteArray(8 * 1024)
+                val buffer = ByteArray(64 * 1024) // Increased to 64KB for high-speed streaming
                 var totalRead = 0L
                 var read: Int
                 var lastUpdate = System.currentTimeMillis()

@@ -16,10 +16,14 @@ object PlayerOptimizer {
     fun createLoadControl(): DefaultLoadControl {
         return DefaultLoadControl.Builder()
             .setBufferDurationsMs(
-                45_000,  // Min Buffer 45s
-                90_000,  // Max Buffer 90s (Smooth out network jitter)
-                2_500,   // playback start after rebuffer
-                4_000    // playback start buffer
+                // Min Buffer 15s (safe for standard bitrates without exceeding DefaultAllocator memory cap)
+                15_000,  
+                // Max Buffer 50s
+                50_000,  
+                // playback start after rebuffer
+                1_500,   
+                // playback start buffer
+                2_000    
             )
             .setPrioritizeTimeOverSizeThresholds(true)
             .build()

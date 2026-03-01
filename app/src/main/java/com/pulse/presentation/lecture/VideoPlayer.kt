@@ -145,7 +145,7 @@ fun VideoPlayer(
                     .pointerInput(Unit) {
                         detectVerticalDragGestures(
                             onDragStart = { offset ->
-                                gestureType = if (offset.x < constraints.maxWidth / 2f) "brightness" else "volume"
+                                gestureType = if (offset.x < size.width / 2f) "brightness" else "volume"
                             },
                             onDragEnd = { gestureType = "" },
                             onDragCancel = { gestureType = "" },
@@ -184,7 +184,8 @@ fun VideoPlayer(
                             },
                             onDoubleTap = { offset ->
                                 val seekOffset = 15000L
-                                if (offset.x < constraints.maxWidth / 2f) {
+                                val currentWidth = size.width
+                                if (offset.x < currentWidth / 2f) {
                                     player.seekTo((player.currentPosition - seekOffset).coerceAtLeast(0))
                                     gestureType = "rw"
                                 } else {
@@ -192,7 +193,7 @@ fun VideoPlayer(
                                     gestureType = "ff"
                                 }
                                 scope.launch {
-                                    delay(600)
+                                    delay(650)
                                     if (gestureType == "rw" || gestureType == "ff") gestureType = ""
                                 }
                             }

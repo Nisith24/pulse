@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="gcm_defaultSenderId" translatable="false">367492827169</string>
-    <string name="google_api_key" translatable="false">AIzaSyAv47XnC0MeEoBBigYd3pgxYNrGYbnd9Zs</string>
-    <string name="google_app_id" translatable="false">1:367492827169:android:45cfbfb5abb2d955d83b60</string>
-    <string name="google_crash_reporting_api_key" translatable="false">AIzaSyAv47XnC0MeEoBBigYd3pgxYNrGYbnd9Zs</string>
-    <string name="google_storage_bucket" translatable="false">pulse-443a0.firebasestorage.app</string>
-    <string name="project_id" translatable="false">pulse-443a0</string>
-</resources>

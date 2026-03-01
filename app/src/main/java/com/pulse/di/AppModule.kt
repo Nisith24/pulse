@@ -74,7 +74,7 @@ val appModule = module {
             .build()
     }
     
-    single<IBtrService> { GoogleDriveBtrService(get(), get()) }
+    single<IBtrService> { GoogleDriveBtrService(get(), get(), get()) }
     
     // UseCases
     single { SyncLecturesUseCase(get(), get(), get()) }

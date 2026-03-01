@@ -23,120 +23,140 @@ fun DrawingCanvas(
     onDeleteVisual: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var currentPath by remember { mutableStateOf<Path?>(null) }
-    var currentPoints = remember { mutableStateListOf<Offset>() }
+    // Current drawing session coordinates: List of (NormalizedX, NormalizedY, Pressure)
+    var currentPathPoints = remember { mutableStateListOf<Triple<Float, Float, Float>>() }
+    var currentDrawTool by remember { mutableStateOf(VisualType.DRAWING) }
 
     Canvas(
         modifier = modifier
             .fillMaxSize()
-            .pointerInput(Unit) {
+            .pointerInput(annotationState.isDrawingMode) {
                 awaitPointerEventScope {
                     while (true) {
-                        // 1. Wait for ANY pointer to go down
                         val down = awaitFirstDown(requireUnconsumed = false)
                         
                         val isStylus = down.type == PointerType.Stylus || down.type == PointerType.Eraser
                         val isEraserHardware = down.type == PointerType.Eraser
-                        val shouldDraw = isStylus || annotationState.isDrawingMode
                         
-                        if (!shouldDraw) {
+                        // ── ADVANCED STYLUS LOGIC ──
+                        // Finger ('Touch') only draws if explicitly in 'Drawing Mode'.
+                        // Stylus/Eraser ALWAYS draws/erased, providing native-feel pen support.
+                        val shouldIntercept = isStylus || annotationState.isDrawingMode
+                        
+                        if (!shouldIntercept) {
+                            // Let the event bubble down to PDFView for swiping/zooming
                             continue
                         }
 
+                        // We ARE drawing or erasing. From here, we consume to stop PDF from shifting.
+                        down.consume()
                         val activePointerId = down.id
-                        val effectiveTool = if (isEraserHardware) VisualType.ERASER else annotationState.activeTool
+                        currentDrawTool = if (isEraserHardware) VisualType.ERASER else annotationState.activeTool
 
-                        // Start Drawing/Erasing
-                        if (effectiveTool == VisualType.ERASER) {
+                        if (currentDrawTool == VisualType.ERASER) {
                             findAndRemoveVisual(down.position, annotationState, visuals, onDeleteVisual)
                         } else {
-                            currentPath = Path().apply { moveTo(down.position.x, down.position.y) }
-                            val normPos = annotationState.toNormalized(down.position.x, down.position.y)
-                            currentPoints.add(Offset(normPos.first, normPos.second))
+                            val norm = annotationState.toNormalized(down.position.x, down.position.y)
+                            currentPathPoints.add(Triple(norm.first, norm.second, down.pressure))
                         }
-                        down.consume()
                         
-                        // 2. Track that specific pointer until it's released
                         while (true) {
                             val event = awaitPointerEvent()
                             val dragChange = event.changes.find { it.id == activePointerId }
                             
-                            // Palm Rejection: If current session is a stylus, ignore and consume all touch changes
+                            // Palm Rejection: If this is a stylus session, kill all secondary Touch pointers
                             if (isStylus) {
-                                event.changes.filter { it.type == PointerType.Touch }.forEach { it.consume() }
+                                event.changes.forEach { if (it.type == PointerType.Touch) it.consume() }
                             }
 
                             if (dragChange == null || !dragChange.pressed) {
-                                // Released or Lost
-                                if (effectiveTool != VisualType.ERASER && currentPoints.isNotEmpty()) {
-                                    val data = currentPoints.joinToString(";") { "${it.x},${it.y}" }
+                                // Session finished
+                                if (currentDrawTool != VisualType.ERASER && currentPathPoints.isNotEmpty()) {
+                                    // Serialize: x,y,p;x,y,p...
+                                    val data = currentPathPoints.joinToString(";") { "${it.first},${it.second},${it.third}" }
                                     onDrawComplete(
-                                        effectiveTool,
+                                        currentDrawTool,
                                         data,
                                         annotationState.strokeColor,
                                         annotationState.strokeWidth
                                     )
                                 }
-                                currentPath = null
-                                currentPoints.clear()
+                                currentPathPoints.clear()
                                 break
                             } else {
                                 // Dragged
                                 dragChange.consume()
-                                if (effectiveTool == VisualType.ERASER) {
+                                if (currentDrawTool == VisualType.ERASER) {
                                     findAndRemoveVisual(dragChange.position, annotationState, visuals, onDeleteVisual)
                                 } else {
-                                    val normPos = annotationState.toNormalized(dragChange.position.x, dragChange.position.y)
-                                    currentPoints.add(Offset(normPos.first, normPos.second))
-                                    currentPath?.lineTo(dragChange.position.x, dragChange.position.y)
+                                    val norm = annotationState.toNormalized(dragChange.position.x, dragChange.position.y)
+                                    currentPathPoints.add(Triple(norm.first, norm.second, dragChange.pressure))
                                 }
                             }
                         }
                     }
                 }
             }
-    )
- {
-        // Draw existing visuals
-        visuals.forEach { visual ->
-            val points = visual.data.split(";").mapNotNull { 
+    ) {
+        // ── ADV RENDERING PIPELINE ──
+        // We render segments individually to support variable pressure-based widths.
+        
+        fun drawVisualPath(pointsData: String, type: VisualType, baseColor: Color, baseWidth: Float) {
+            val rawPoints = pointsData.split(";").mapNotNull { 
                 val p = it.split(",")
-                if (p.size == 2) {
-                    val screenPos = annotationState.fromNormalized(p[0].toFloat(), p[1].toFloat())
-                    Offset(screenPos.first, screenPos.second)
+                if (p.size >= 2) {
+                    val pX = p[0].toFloat()
+                    val pY = p[1].toFloat()
+                    val pPress = if (p.size >= 3) p[2].toFloat() else 1f
+                    val screenPos = annotationState.fromNormalized(pX, pY)
+                    Triple(screenPos.first, screenPos.second, pPress)
                 } else null
             }
             
-            if (points.size > 1) {
-                val path = Path().apply {
-                    moveTo(points[0].x, points[0].y)
-                    for (i in 1 until points.size) {
-                        lineTo(points[i].x, points[i].y)
-                    }
-                }
-                drawPath(
-                    path = path,
-                    color = Color(visual.color).copy(alpha = if (visual.type == VisualType.HIGHLIGHT) 0.4f else 1f),
-                    style = Stroke(
-                        width = visual.strokeWidth * annotationState.currentZoom, 
-                        cap = androidx.compose.ui.graphics.StrokeCap.Round,
-                        join = androidx.compose.ui.graphics.StrokeJoin.Round
-                    )
+            if (rawPoints.size < 2) return
+
+            for (i in 0 until rawPoints.size - 1) {
+                val p1 = rawPoints[i]
+                val p2 = rawPoints[i+1]
+                
+                // Pressure mapping: width scales between 0.5x and 1.5x of baseWidth based on 0..1 pressure
+                // Fallback to 1.0 if not a pressure-sensitive stylus
+                val pressureFact = if (p2.third > 0) 0.5f + p2.third else 1.0f
+                val segmentWidth = baseWidth * pressureFact * annotationState.currentZoom
+
+                drawLine(
+                    color = baseColor.copy(alpha = if (type == VisualType.HIGHLIGHT) 0.4f else 1f),
+                    start = Offset(p1.first, p1.second),
+                    end = Offset(p2.first, p2.second),
+                    strokeWidth = segmentWidth,
+                    cap = androidx.compose.ui.graphics.StrokeCap.Round
                 )
             }
         }
 
-        // Draw current path in real-time
-        currentPath?.let {
-            drawPath(
-                path = it,
-                color = annotationState.strokeColor,
-                style = Stroke(
-                    width = annotationState.strokeWidth * annotationState.currentZoom,
-                    cap = androidx.compose.ui.graphics.StrokeCap.Round,
-                    join = androidx.compose.ui.graphics.StrokeJoin.Round
+        // 1. Draw Saved Visuals
+        visuals.forEach { visual ->
+            drawVisualPath(visual.data, visual.type, Color(visual.color), visual.strokeWidth)
+        }
+
+        // 2. Draw Real-time Path
+        if (currentPathPoints.isNotEmpty()) {
+            val screenPoints = currentPathPoints.map { 
+                val s = annotationState.fromNormalized(it.first, it.second)
+                Triple(s.first, s.second, it.third)
+            }
+            for (i in 0 until screenPoints.size - 1) {
+                val p1 = screenPoints[i]
+                val p2 = screenPoints[i+1]
+                val pressureFact = if (p2.third > 0) 0.5f + p2.third else 1.0f
+                drawLine(
+                    color = annotationState.strokeColor,
+                    start = Offset(p1.first, p1.second),
+                    end = Offset(p2.first, p2.second),
+                    strokeWidth = annotationState.strokeWidth * pressureFact * annotationState.currentZoom,
+                    cap = androidx.compose.ui.graphics.StrokeCap.Round
                 )
-            )
+            }
         }
     }
 }
@@ -150,7 +170,7 @@ private fun findAndRemoveVisual(
     visuals.find { visual ->
         visual.data.split(";").any { pStr ->
             val p = pStr.split(",")
-            if (p.size == 2) {
+            if (p.size >= 2) {
                 val screenPos = state.fromNormalized(p[0].toFloat(), p[1].toFloat())
                 val dist = (Offset(screenPos.first, screenPos.second) - offset).getDistance()
                 dist < 30f // 30px eraser radius

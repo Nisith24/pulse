@@ -1,5 +1,41 @@
+package com.pulse.presentation.lecture
+
+import android.net.Uri
+import android.view.ViewGroup
+import android.widget.FrameLayout
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.VerticalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import com.github.barteksc.pdfviewer.PDFView
+import com.github.barteksc.pdfviewer.scroll.DefaultScrollHandle
+import com.github.barteksc.pdfviewer.util.FitPolicy
+import java.io.File
+import com.pulse.core.data.db.NoteVisual
+import com.pulse.core.data.db.VisualType
+import com.pulse.core.presentation.components.DrawingCanvas
 import com.pulse.presentation.lecture.components.PdfPageIndicator
 import com.pulse.presentation.lecture.components.PdfSettingsMenu
+import com.pulse.presentation.lecture.components.AnnotationToolbar
+import com.pulse.presentation.lecture.components.AnnotationToggleButton
 
 @Composable
 fun PdfViewer(
@@ -22,7 +58,6 @@ fun PdfViewer(
     onPageSelected: (Int) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
     var currentPage by remember { mutableIntStateOf(initialPage) }
     var pdfTotalPages by remember { mutableIntStateOf(0) }
     val displayTotalPages = if (pdfPath == "blank_note") totalPages else pdfTotalPages
@@ -32,10 +67,11 @@ fun PdfViewer(
     val pdfViewRef = remember { mutableStateOf<PDFView?>(null) }
 
     val isContentUri = pdfPath.startsWith("content://")
-    val fileExists = if (isContentUri) true else File(pdfPath).exists()
-    var loadError by remember { mutableStateOf<String?>(null) }
+    val fileExists = if (isContentUri) true else (pdfPath.isNotEmpty() && File(pdfPath).exists())
     
     key(pdfPath, isHorizontal) {
+        var loadError by remember { mutableStateOf<String?>(null) }
+        
         Box(
             modifier = modifier
                 .fillMaxSize()
@@ -43,7 +79,7 @@ fun PdfViewer(
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
             // ── PROFESSIONAL CONTENT VALIDATION ──
-            val shouldRenderPdf = pdfPath == "blank_note" || (pdfPath.isNotEmpty() && (isContentUri || fileExists || pdfPath.contains("/data/user/0/")))
+            val shouldRenderPdf = (pdfPath == "blank_note" || (pdfPath.isNotEmpty() && (isContentUri || fileExists))) && loadError == null
             
             if (!shouldRenderPdf) {
                 PdfPlaceholder(
@@ -87,14 +123,6 @@ fun PdfViewer(
                     }
                 }
 
-                loadError?.let { error ->
-                    Text(
-                        text = error,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(16.dp).align(Alignment.Center)
-                    )
-                }
-
                 // ── INDUSTRY OVERLAYS ──
                 PdfSettingsMenu(
                     state = annotationState,
@@ -102,6 +130,14 @@ fun PdfViewer(
                     isHorizontal = isHorizontal,
                     onOrientationChange = onOrientationChange,
                     modifier = Modifier.align(Alignment.TopEnd).padding(16.dp)
+                )
+
+                AnnotationToggleButton(
+                    isEditing = annotationState.isDrawingMode,
+                    onClick = { annotationState.isDrawingMode = !annotationState.isDrawingMode },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(bottom = 80.dp, end = 16.dp) // Above indicator/bottom area
                 )
 
                 PdfPageIndicator(
@@ -115,6 +151,18 @@ fun PdfViewer(
                     },
                     modifier = Modifier.align(Alignment.BottomStart).padding(16.dp)
                 )
+
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = annotationState.isDrawingMode,
+                    enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.expandVertically { it },
+                    exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.shrinkVertically { it },
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                ) {
+                    AnnotationToolbar(
+                        state = annotationState,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+                }
             }
 
             // ── PAGE NAV DIALOG ──
@@ -158,7 +206,7 @@ private fun PdfPlaceholder(
         )
         Spacer(Modifier.height(16.dp))
         Text(
-            text = if (pdfPath.isEmpty()) "Loading PDF content..." else "PDF document not ready",
+            text = if (pdfPath.isEmpty()) "Ready to add content" else "Unable to open PDF document",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
         )
@@ -169,7 +217,7 @@ private fun PdfPlaceholder(
         ) {
             Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
-            Text("Select PDF File")
+            Text("Select PDF")
         }
         Spacer(Modifier.height(12.dp))
         OutlinedButton(
@@ -178,7 +226,7 @@ private fun PdfPlaceholder(
         ) {
             Icon(Icons.Default.NoteAdd, null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
-            Text("Create Blank Note")
+            Text("Blank Note")
         }
     }
 }
@@ -296,64 +344,85 @@ private fun PdfMode(
     onError: (String) -> Unit,
     pdfViewRef: MutableState<PDFView?>
 ) {
-    Box(Modifier.fillMaxSize()) {
-        AndroidView(
-            modifier = Modifier.fillMaxSize(),
-            factory = { ctx ->
-                val frameLayout = FrameLayout(ctx).apply {
-                    layoutParams = ViewGroup.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.MATCH_PARENT
-                    )
-                }
-                val pdfView = PDFView(ctx, null).apply {
-                    id = android.view.View.generateViewId()
-                    layoutParams = FrameLayout.LayoutParams(
-                        FrameLayout.LayoutParams.MATCH_PARENT,
-                        FrameLayout.LayoutParams.MATCH_PARENT
-                    )
-                }
-                pdfViewRef.value = pdfView
-                frameLayout.addView(pdfView)
-                
-                loadPdfInternal(
-                    pdfView = pdfView,
-                    path = pdfPath,
-                    page = initialPage,
-                    isHorizontal = isHorizontal,
-                    isContentUri = isContentUri,
-                    onError = onError,
-                    onStatusUpdate = onStatusUpdate,
-                    onTransformUpdate = { zoom, xOff, yOff, w, h ->
-                        annotationState.currentZoom = zoom
-                        annotationState.currentXOffset = xOff
-                        annotationState.currentYOffset = yOff
-                        annotationState.pageWidth = w
-                        annotationState.pageHeight = h
-                    }
-                )
-                frameLayout
-            },
-            update = { view ->
-                 val pdfView = (view as? FrameLayout)?.getChildAt(0) as? PDFView
-                 pdfView?.setSwipeEnabled(!annotationState.isDrawingMode)
-            },
-            onRelease = { view ->
-                (view.getChildAt(0) as? PDFView)?.recycle()
-                pdfViewRef.value = null
-            }
-        )
-
-        DrawingCanvas(
-            annotationState = annotationState,
-            visuals = visuals.filter { it.pageNumber == currentPage },
-            onDrawComplete = { type, data, color, width ->
-                onAddVisual(type, data, currentPage, color.toArgb(), width)
-            },
-            onDeleteVisual = onDeleteVisual,
-            modifier = Modifier.fillMaxSize()
-        )
+    val context = androidx.compose.ui.platform.LocalContext.current
+    
+    // ── NATIVE-OVERLAY INTEGRATION ──
+    // We use a FrameLayout to host both the PDFView and a ComposeView.
+    // This ensures that when the ComposeView doesn't consume a 'Touch' (e.g., swiping),
+    // the native FrameLayout correctly passes the event to the PDFView underneath.
+    val composeOverlay = remember { 
+        androidx.compose.ui.platform.ComposeView(context).apply {
+            layoutParams = android.view.ViewGroup.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        } 
     }
+
+    // Sync the Compose overlay content
+    SideEffect {
+        composeOverlay.setContent {
+            DrawingCanvas(
+                annotationState = annotationState,
+                visuals = visuals.filter { it.pageNumber == currentPage },
+                onDrawComplete = { type, data, color, width ->
+                    onAddVisual(type, data, currentPage, color.toArgb(), width)
+                },
+                onDeleteVisual = onDeleteVisual,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+    }
+
+    AndroidView(
+        modifier = Modifier.fillMaxSize(),
+        factory = { ctx ->
+            val frameLayout = FrameLayout(ctx).apply {
+                layoutParams = ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                )
+            }
+            
+            val pdfView = PDFView(ctx, null).apply {
+                id = android.view.View.generateViewId()
+                layoutParams = FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT
+                )
+                // Fix for native swipe/zoom when overlaid
+                isFocusableInTouchMode = true
+            }
+            pdfViewRef.value = pdfView
+            
+            // Add PDF (Bottom) then Compose Overlay (Top)
+            frameLayout.addView(pdfView)
+            frameLayout.addView(composeOverlay)
+            
+            loadPdfInternal(
+                pdfView = pdfView,
+                path = pdfPath,
+                page = initialPage,
+                isHorizontal = isHorizontal,
+                isContentUri = isContentUri,
+                onError = onError,
+                onStatusUpdate = onStatusUpdate,
+                onTransformUpdate = { zoom, xOff, yOff, w, h ->
+                    annotationState.currentZoom = zoom
+                    annotationState.currentXOffset = xOff
+                    annotationState.currentYOffset = yOff
+                    annotationState.pageWidth = w
+                    annotationState.pageHeight = h
+                }
+            )
+            frameLayout
+        },
+        update = { /* Updates handled via SideEffect above */ },
+        onRelease = {
+            pdfViewRef.value?.recycle()
+            pdfViewRef.value = null
+        }
+    )
 }
 
 @Composable
@@ -425,17 +494,20 @@ private fun loadPdfInternal(
         .scrollHandle(DefaultScrollHandle(pdfView.context))
         .onPageChange { p, total -> onStatusUpdate(p, total) }
         .onPageScroll { _, _ -> 
-            val z = pdfView.zoom
-            onTransformUpdate(z, pdfView.currentXOffset, pdfView.currentYOffset, pdfView.width * z, pdfView.height * z)
+            // We rely on onDraw for precise page-relative coordinate syncing
         }
-        .onDraw { _, pw, ph, dp ->
+        .onDraw { canvas, pw, ph, dp ->
             if (dp == pdfView.currentPage) {
-                val cx = (pdfView.width - pw).coerceAtLeast(0f) / 2f
-                val cy = (pdfView.height - ph).coerceAtLeast(0f) / 2f
-                onTransformUpdate(pdfView.zoom, pdfView.currentXOffset + cx, pdfView.currentYOffset + cy, pw, ph)
+                val viewW = pdfView.width.toFloat()
+                val viewH = pdfView.height.toFloat()
+                
+                val offsetX = if (pw < viewW) (viewW - pw) / 2f else pdfView.currentXOffset
+                val offsetY = if (ph < viewH) (viewH - ph) / 2f else pdfView.currentYOffset
+                
+                onTransformUpdate(pdfView.zoom, offsetX, offsetY, pw, ph)
             }
         }
-        .onError { onError("Failed to load PDF: ${it.message}") }
+        .onError { it -> onError("Failed to load PDF: ${it.message}") }
         .pageFitPolicy(FitPolicy.WIDTH)
         .fitEachPage(true)
         .load()
