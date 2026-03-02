@@ -6,6 +6,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -22,6 +26,31 @@ fun LectureCard(
     onToggleFavorite: (String) -> Unit,
     onDelete: (Lecture) -> Unit = {}
 ) {
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text(text = "Confirm Deletion") },
+            text = { Text(text = "Are you sure you want to delete this lecture? This action cannot be undone.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                        onDelete(lecture)
+                    }
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth().clickable { onLectureSelected(lecture.id) },
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -42,14 +71,14 @@ fun LectureCard(
                         }
                     }
                     IconButton(onClick = { onToggleFavorite(lecture.id) }, modifier = Modifier.size(32.dp)) {
-                        Icon(imageVector = if (lecture.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder, contentDescription = "Favorite", modifier = Modifier.size(20.dp), tint = if (lecture.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
+                        Icon(imageVector = if (lecture.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder, contentDescription = if (lecture.isFavorite) "Remove from favorites" else "Add to favorites", modifier = Modifier.size(20.dp), tint = if (lecture.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
                     }
-                    IconButton(onClick = { onDelete(lecture) }, modifier = Modifier.size(32.dp)) {
-                        Icon(imageVector = Icons.Default.Delete, contentDescription = "Remove", modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f))
+                    IconButton(onClick = { showDeleteDialog = true }, modifier = Modifier.size(32.dp)) {
+                        Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete lecture", modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f))
                     }
                 } else {
                     IconButton(onClick = { onToggleFavorite(lecture.id) }, modifier = Modifier.size(32.dp)) {
-                        Icon(imageVector = if (lecture.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder, contentDescription = "Favorite", modifier = Modifier.size(20.dp), tint = if (lecture.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
+                        Icon(imageVector = if (lecture.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder, contentDescription = if (lecture.isFavorite) "Remove from favorites" else "Add to favorites", modifier = Modifier.size(20.dp), tint = if (lecture.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
                     }
                 }
             }

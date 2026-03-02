@@ -1,0 +1,3 @@
+## 2024-05-24 - Dynamic ARIA & Destructive Actions
+**Learning:** Found that Android Compose `Icon` and `IconButton` components across the app were using static content descriptions like "Favorite" instead of dynamic action-oriented descriptions ("Add to favorites"). Additionally, destructive actions like "Delete" on cards were immediate, risking accidental data loss.
+**Action:** When adding or updating interactive icons in Compose, always tie the `contentDescription` to the state to describe the *action* that will occur, not the *object*. For destructive actions (like removing a downloaded file or card), always wrap the action in an `AlertDialog` to confirm the user's intent.
