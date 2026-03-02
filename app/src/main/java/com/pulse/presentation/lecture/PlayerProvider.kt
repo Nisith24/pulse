@@ -98,10 +98,14 @@ class PlayerProvider(private val context: Context, fileStorageManager: FileStora
         .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
         .build().apply {
             addListener(object : Player.Listener {
+                override fun onPlaybackStateChanged(state: Int) {
+                    _playbackState.value = state
+                }
                 override fun onAudioSessionIdChanged(audioSessionId: Int) {
                     audioEngine.attachToSession(audioSessionId)
                 }
                 override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                    _playerError.value = error
                     if (error.cause is androidx.media3.common.VideoFrameProcessingException) {
                         Log.e("PlayerProvider", "Falling back to native rendering.", error.cause)
                         setVideoEffects(emptyList())
@@ -120,6 +124,13 @@ class PlayerProvider(private val context: Context, fileStorageManager: FileStora
     private val mediaSession = MediaSession.Builder(context, player).build()
     private var currentSessionId: String? = null
     private var currentUrl: String? = null
+
+    // ── ExoPlayer State ──
+    private val _playbackState = MutableStateFlow<Int>(Player.STATE_IDLE)
+    val playbackState: StateFlow<Int> = _playbackState
+
+    private val _playerError = MutableStateFlow<androidx.media3.common.PlaybackException?>(null)
+    val playerError: StateFlow<androidx.media3.common.PlaybackException?> = _playerError
 
     // ── Mini-player state ──
     private val _miniPlayerLectureId = MutableStateFlow<String?>(null)

@@ -63,4 +63,10 @@ interface LectureDao {
 
     @Query("UPDATE lectures SET lastPdfPage = :page, pdfIsHorizontal = :isHorizontal, updatedAt = :updatedAt, hlcTimestamp = :hlcTimestamp WHERE id = :id")
     suspend fun updatePdfState(id: String, page: Int, isHorizontal: Boolean, updatedAt: Long, hlcTimestamp: String)
+
+    @Query("SELECT * FROM lectures WHERE updatedAt > :since")
+    suspend fun getModifiedSince(since: Long): List<Lecture>
+
+    @Query("SELECT * FROM lectures")
+    suspend fun getAllLecturesAsList(): List<Lecture>
 }

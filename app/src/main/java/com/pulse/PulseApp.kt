@@ -11,6 +11,7 @@ import java.util.concurrent.TimeUnit
 import org.koin.androidx.workmanager.factory.KoinWorkerFactory
 import org.koin.android.ext.android.getKoin
 import org.koin.core.context.GlobalContext
+import android.content.ComponentCallbacks2
 
 class PulseApp : Application(), Configuration.Provider {
     
@@ -31,6 +32,8 @@ class PulseApp : Application(), Configuration.Provider {
         if (GlobalContext.getOrNull() == null) {
             initKoin()
         }
+        // Start periodic Firestore sync (every 30 min when connected)
+        com.pulse.data.sync.FirestoreSyncWorker.enqueuePeriodicSync(this)
     }
 
     private fun initKoin() {
@@ -38,6 +41,23 @@ class PulseApp : Application(), Configuration.Provider {
             androidContext(this@PulseApp)
             workManagerFactory()
             modules(appModule)
+        }
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN) {
+            GlobalContext.getOrNull()?.let { koin ->
+                try {
+                    val playerProvider = koin.get<com.pulse.presentation.lecture.PlayerProvider>()
+                    if (!playerProvider.player.playWhenReady) {
+                        playerProvider.player.stop()
+                        playerProvider.player.clearMediaItems()
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("PulseApp", "Trim memory player clear failed", e)
+                }
+            }
         }
     }
 }

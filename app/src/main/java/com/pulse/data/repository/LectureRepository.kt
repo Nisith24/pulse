@@ -37,7 +37,9 @@ class LectureRepository(
     private val fileStorage: FileStorageManager,
     private val syncLecturesUseCase: SyncLecturesUseCase,
     private val hlcGenerator: HlcGenerator,
-    private val logger: ILogger
+    private val logger: ILogger,
+    private val context: android.content.Context,
+    private val syncManager: com.pulse.data.sync.FirestoreSyncManager
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val _activeDownloads = MutableStateFlow<Map<String, DownloadStatus>>(emptyMap())
@@ -49,6 +51,30 @@ class LectureRepository(
     val cloudOnlyLectures: Flow<List<Lecture>> = lectureDao.getCloudOnlyLectures()
 
     fun getLectureById(id: String): Flow<Lecture?> = lectureDao.getById(id)
+
+    // --- Sync: push single lecture to Firestore (fire-and-forget) ---
+    private fun firebasePush(lectureId: String) {
+        scope.launch {
+            try {
+                val lecture = lectureDao.getById(lectureId).first() ?: return@launch
+                syncManager.pushSingleLecture(lecture)
+            } catch (e: Exception) {
+                logger.e("FirebaseSync", "Push failed for $lectureId: ${e.message}")
+            }
+        }
+    }
+
+    /** Called on video exit — pushes current state to Firestore */
+    fun syncPushOnExit(lectureId: String) = firebasePush(lectureId)
+
+    /** Pull all lectures from Firestore (called on BTR refresh) */
+    suspend fun pullFromFirestore() {
+        try {
+            syncManager.pullAndMergeAll()
+        } catch (e: Exception) {
+            logger.e("FirebaseSync", "Pull failed: ${e.message}")
+        }
+    }
 
     suspend fun deleteOfflineVideo(lectureId: String) = withContext(Dispatchers.IO) {
         val lecture = lectureDao.getById(lectureId).first()
@@ -69,16 +95,10 @@ class LectureRepository(
         val now = System.currentTimeMillis()
         val hlc = hlcGenerator.generate()
         val lecture = Lecture(
-            id = id,
-            name = name,
-            videoId = null,
-            pdfId = null,
-            pdfLocalPath = pdfPath ?: "",
-            videoLocalPath = videoPath,
-            isPdfDownloaded = pdfPath != null,
-            isLocal = true,
-            hlcTimestamp = hlc,
-            updatedAt = now
+            id = id, name = name, videoId = null, pdfId = null,
+            pdfLocalPath = pdfPath ?: "", videoLocalPath = videoPath,
+            isPdfDownloaded = pdfPath != null, isLocal = true,
+            hlcTimestamp = hlc, updatedAt = now
         )
         lectureDao.insert(lecture)
     }
@@ -89,91 +109,111 @@ class LectureRepository(
         val now = System.currentTimeMillis()
         val hlc = hlcGenerator.generate()
         lectureDao.updateProgress(
-            id = lecture.id,
-            lastPosition = finalPosition,
-            duration = duration,
-            updatedAt = now,
-            hlcTimestamp = hlc
+            id = lecture.id, lastPosition = finalPosition,
+            duration = duration, updatedAt = now, hlcTimestamp = hlc
         )
+        // No push here — pushed on video exit only
     }
 
     suspend fun updateLectureSpeed(lecture: Lecture, speed: Float) {
         val now = System.currentTimeMillis()
         val hlc = hlcGenerator.generate()
         lectureDao.updateSpeed(
-            id = lecture.id,
-            speed = speed,
-            updatedAt = now,
-            hlcTimestamp = hlc
+            id = lecture.id, speed = speed, updatedAt = now, hlcTimestamp = hlc
         )
+        // Local-only, no sync needed
     }
 
     suspend fun updateLocalPdfPath(lecture: Lecture, path: String) {
         val now = System.currentTimeMillis()
         val hlc = hlcGenerator.generate()
         lectureDao.updatePdfPath(
-            id = lecture.id,
-            path = path,
-            updatedAt = now,
-            hlcTimestamp = hlc
+            id = lecture.id, path = path, updatedAt = now, hlcTimestamp = hlc
         )
+        // Local-only, no sync needed
     }
 
     suspend fun updatePageCount(lectureId: String, count: Int) {
         val now = System.currentTimeMillis()
         val hlc = hlcGenerator.generate()
         lectureDao.updatePageCount(
-            id = lectureId,
-            count = count,
-            updatedAt = now,
-            hlcTimestamp = hlc
+            id = lectureId, count = count, updatedAt = now, hlcTimestamp = hlc
         )
+        // Local-only, no sync needed
     }
 
     suspend fun updatePdfState(lectureId: String, page: Int, isHorizontal: Boolean) {
         val now = System.currentTimeMillis()
         val hlc = hlcGenerator.generate()
         lectureDao.updatePdfState(
-            id = lectureId,
-            page = page,
-            isHorizontal = isHorizontal,
-            updatedAt = now,
-            hlcTimestamp = hlc
+            id = lectureId, page = page, isHorizontal = isHorizontal,
+            updatedAt = now, hlcTimestamp = hlc
         )
+        // Local-only, no sync needed
     }
 
     suspend fun toggleFavorite(lectureId: String) {
         val now = System.currentTimeMillis()
         val hlc = hlcGenerator.generate()
         lectureDao.toggleFavorite(lectureId, now, hlc)
+        firebasePush(lectureId) // Infrequent user action
     }
 
     suspend fun sync() {
+        // Step 1: Pull from Firestore first (get latest from other devices)
+        pullFromFirestore()
+
+        // Step 2: Sync from Google Drive (BTR files)
         val token = try { authManager.getToken() } catch (e: Exception) { 
             logger.e("LectureSync", "Failed to get token: ${e.message}")
             throw e 
         }
         logger.d("LectureSync", "Starting sync with folder: ${Constants.DRIVE_FOLDER_ID}")
         val files = btrService.listFolder(Constants.DRIVE_FOLDER_ID, token)
-        logger.d("LectureSync", "Found ${files.size} files in public Drive folder")
         logger.d("LectureSync", "Found ${files.size} files in Drive folder")
 
         val grouped = syncLecturesUseCase(files)
         
-        // For CRDT sync from Drive, we need to be careful not to overwrite local-only progress
-        // if the lecture already exists.
+        val existingLectures = lectureDao.getAllLecturesAsList().associateBy { it.id }
+        
         val hlc = hlcGenerator.generate()
-        val lecturesToInsert = grouped.map { it.copy(hlcTimestamp = hlc) }
+        val lecturesToInsert = grouped.map { newLecture ->
+            val existing = existingLectures[newLecture.id]
+            if (existing != null) {
+                newLecture.copy(
+                    lastPosition = existing.lastPosition,
+                    videoDuration = existing.videoDuration,
+                    speed = existing.speed,
+                    isFavorite = existing.isFavorite,
+                    pdfPageCount = existing.pdfPageCount,
+                    lastPdfPage = existing.lastPdfPage,
+                    pdfIsHorizontal = existing.pdfIsHorizontal,
+                    pdfLocalPath = existing.pdfLocalPath.ifEmpty { newLecture.pdfLocalPath },
+                    videoLocalPath = existing.videoLocalPath,
+                    isPdfDownloaded = existing.isPdfDownloaded,
+                    isDeleted = existing.isDeleted,
+                    updatedAt = existing.updatedAt,
+                    hlcTimestamp = existing.hlcTimestamp
+                )
+            } else {
+                newLecture.copy(hlcTimestamp = hlc)
+            }
+        }
         
         lectureDao.insertAll(lecturesToInsert)
         lectureDao.markMissingBtrDeleted(grouped.map { it.id }, hlc)
 
-        // Auto-download PDFs that aren't local yet
+        // Step 3: Push all BTR lectures to Firestore
+        val btrToSync = lecturesToInsert.filter { !it.isLocal }
+        if (btrToSync.isNotEmpty()) {
+            syncManager.pushLectures(btrToSync)
+            logger.d("LectureSync", "Pushed ${btrToSync.size} BTR lectures to Firestore")
+        }
+
+        // Auto-download PDFs
         for (lecture in grouped) {
             if (lecture.pdfId != null && !lecture.isPdfDownloaded) {
-                try {
-                    downloadPdf(lecture, token)
-                } catch (e: Exception) {
+                try { downloadPdf(lecture, token) } catch (e: Exception) {
                     logger.e("LectureSync", "Failed to download PDF for ${lecture.name}: ${e.message}")
                 }
             }
@@ -239,6 +279,7 @@ class LectureRepository(
     suspend fun deleteLecture(id: String) {
         val hlc = hlcGenerator.generate()
         lectureDao.markDeleted(id, hlc)
+        firebasePush(id)
     }
 
     private fun formatSize(bytes: Long): String {

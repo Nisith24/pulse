@@ -1,16 +1,16 @@
 package com.pulse.presentation.lecture.components
 
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.padding
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DriveFileRenameOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -21,22 +21,32 @@ fun AnnotationToggleButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    FloatingActionButton(
+    val containerColor by animateColorAsState(
+        if (isEditing) MaterialTheme.colorScheme.errorContainer
+        else MaterialTheme.colorScheme.primaryContainer,
+        tween(250),
+        label = "toggle_bg"
+    )
+    val contentColor by animateColorAsState(
+        if (isEditing) MaterialTheme.colorScheme.onErrorContainer
+        else MaterialTheme.colorScheme.onPrimaryContainer,
+        tween(250),
+        label = "toggle_content"
+    )
+
+    SmallFloatingActionButton(
         onClick = onClick,
-        containerColor = if (isEditing) MaterialTheme.colorScheme.errorContainer 
-                        else MaterialTheme.colorScheme.primaryContainer,
-        contentColor = if (isEditing) MaterialTheme.colorScheme.onErrorContainer 
-                       else MaterialTheme.colorScheme.onPrimaryContainer,
-        modifier = modifier.size(56.dp)
+        containerColor = containerColor,
+        contentColor = contentColor,
+        shape = CircleShape,
+        modifier = modifier.size(48.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Box(contentAlignment = Alignment.Center) {
             Icon(
-                imageVector = if (isEditing) Icons.Default.Close else Icons.Default.DriveFileRenameOutline,
-                contentDescription = "Toggle Annotation Tool",
-                modifier = Modifier.size(24.dp)
+                imageVector = if (isEditing) Icons.Default.Close
+                else Icons.Default.DriveFileRenameOutline,
+                contentDescription = if (isEditing) "Stop Annotating" else "Start Annotating",
+                modifier = Modifier.size(22.dp)
             )
         }
     }

@@ -1,6 +1,10 @@
 package com.pulse.presentation.lecture.components
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -10,15 +14,17 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.pulse.core.data.db.VisualType
 import com.pulse.presentation.lecture.AnnotationState
 
 /**
- * Standard Page Indicator for PDF viewing
+ * Compact page indicator pill — tap to jump
  */
 @Composable
 fun PdfPageIndicator(
@@ -32,33 +38,45 @@ fun PdfPageIndicator(
     Surface(
         onClick = onClick,
         modifier = modifier,
-        shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f),
         tonalElevation = 4.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        shadowElevation = 4.dp
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
+            Icon(
+                Icons.Default.Description,
+                contentDescription = null,
+                modifier = Modifier.size(14.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
             Text(
                 text = "${currentPage + 1} / $totalPages",
                 style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
             )
-            
+
             if (isNotebook) {
+                Box(
+                    modifier = Modifier
+                        .size(1.dp)
+                        .height(14.dp)
+                        .background(MaterialTheme.colorScheme.outlineVariant)
+                )
                 IconButton(
                     onClick = onAddPage,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(22.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
-                        contentDescription = "Add Pages",
+                        contentDescription = "Add Page",
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(14.dp)
                     )
                 }
             }
@@ -67,7 +85,8 @@ fun PdfPageIndicator(
 }
 
 /**
- * Premium Dropdown Settings Menu for PDF Stack
+ * Compact settings action bar — replaces the dropdown menu.
+ * Top-right row of icon buttons with an expandable bottom sheet for settings.
  */
 @Composable
 fun PdfSettingsMenu(
@@ -77,143 +96,84 @@ fun PdfSettingsMenu(
     onOrientationChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    
-    val tools = listOf(
-        VisualType.DRAWING to Icons.Default.Edit,
-        VisualType.HIGHLIGHT to Icons.Default.Gesture,
-        VisualType.ERASER to Icons.Default.Delete
-    )
-    
-    val colors = listOf(Color.Red, Color.Blue, Color.Green, Color.Yellow, Color.Black)
+    val haptic = LocalHapticFeedback.current
 
-    Box(modifier = modifier) {
-        FloatingActionButton(
-            onClick = { expanded = true },
-            modifier = Modifier.size(48.dp),
-            containerColor = MaterialTheme.colorScheme.surface,
-            contentColor = if (state.isDrawingMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Focus mode
+        CompactActionChip(
+            icon = if (state.isFocused) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+            label = "Focus",
+            isActive = state.isFocused,
+            onClick = {
+                state.isFocused = !state.isFocused
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            }
+        )
+
+        // Orientation toggle
+        CompactActionChip(
+            icon = if (isHorizontal) Icons.Default.ViewDay else Icons.Default.ViewWeek,
+            label = if (isHorizontal) "V" else "H",
+            isActive = false,
+            onClick = {
+                onOrientationChange(!isHorizontal)
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            }
+        )
+
+        // Close
+        Surface(
+            onClick = {
+                onClose()
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            },
+            modifier = Modifier.size(36.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.85f),
+            contentColor = MaterialTheme.colorScheme.onErrorContainer
         ) {
-            Icon(
-                imageVector = Icons.Default.Settings,
-                contentDescription = "PDF Overlay Settings"
-            )
-        }
-
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            modifier = Modifier.width(220.dp)
-        ) {
-            // ── ANNOTATION MODE TOGGLE ──
-            DropdownMenuItem(
-                text = { Text("Annotate") },
-                onClick = { 
-                    state.isDrawingMode = !state.isDrawingMode
-                    expanded = false
-                },
-                leadingIcon = { 
-                    Icon(if (state.isDrawingMode) Icons.Default.Close else Icons.Default.Edit, contentDescription = null) 
-                }
-            )
-
-            if (state.isDrawingMode) {
-                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                
-                // ── TOOL SELECTION ──
-                ListItem(
-                    headlineContent = { Text("Tools", style = MaterialTheme.typography.labelSmall) },
-                    supportingContent = {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                            tools.forEach { (type, icon) ->
-                                InputChip(
-                                    selected = state.activeTool == type,
-                                    onClick = { state.activeTool = type },
-                                    label = { Icon(icon, null, Modifier.size(16.dp)) }
-                                )
-                            }
-                        }
-                    }
-                )
-
-                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                
-                // ── COLOR SELECTION ──
-                ListItem(
-                    headlineContent = { Text("Colors", style = MaterialTheme.typography.labelSmall) },
-                    supportingContent = {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                            colors.forEach { color ->
-                                Surface(
-                                    onClick = { state.strokeColor = color },
-                                    modifier = Modifier.size(28.dp),
-                                    shape = CircleShape,
-                                    color = color,
-                                    border = if (state.strokeColor == color) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
-                                ) {}
-                            }
-                        }
-                    }
-                )
-
-                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                
-                // ── STROKE WIDTH ──
-                Text(
-                    "Weight: ${state.strokeWidth.toInt()}", 
-                    style = MaterialTheme.typography.labelSmall, 
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                )
-                Slider(
-                    value = state.strokeWidth,
-                    onValueChange = { state.strokeWidth = it },
-                    valueRange = 2f..25f,
-                    modifier = Modifier.padding(horizontal = 12.dp)
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "Close",
+                    modifier = Modifier.size(18.dp)
                 )
             }
+        }
+    }
+}
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-
-            // ── ORIENTATION ──
-            DropdownMenuItem(
-                text = { Text(if (isHorizontal) "Vertical" else "Horizontal") },
-                onClick = { 
-                    onOrientationChange(!isHorizontal)
-                    expanded = false
-                },
-                leadingIcon = { 
-                    Icon(if (isHorizontal) Icons.Default.ViewDay else Icons.Default.ViewWeek, contentDescription = null) 
-                }
-            )
-
-            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-            
-            // ── FOCUS MODE ──
-            DropdownMenuItem(
-                text = { Text("Focus Mode") },
-                onClick = { 
-                    state.isFocused = !state.isFocused
-                    expanded = false
-                },
-                leadingIcon = { 
-                    Icon(
-                        imageVector = if (state.isFocused) Icons.Default.CheckBox else Icons.Default.CheckBoxOutlineBlank,
-                        contentDescription = null,
-                        tint = if (state.isFocused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                    ) 
-                }
-            )
-
-            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-
-            // ── ACTIONS ──
-            DropdownMenuItem(
-                text = { Text("Close", color = MaterialTheme.colorScheme.error) },
-                onClick = { 
-                    onClose()
-                    expanded = false
-                },
-                leadingIcon = { Icon(Icons.Default.Close, null, tint = MaterialTheme.colorScheme.error) }
+@Composable
+private fun CompactActionChip(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    isActive: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.height(36.dp),
+        shape = RoundedCornerShape(18.dp),
+        color = if (isActive) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f)
+        else MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f),
+        contentColor = if (isActive) MaterialTheme.colorScheme.primary
+        else MaterialTheme.colorScheme.onSurfaceVariant,
+        tonalElevation = 2.dp,
+        shadowElevation = 2.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                modifier = Modifier.size(16.dp)
             )
         }
     }

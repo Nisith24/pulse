@@ -41,4 +41,10 @@ interface NoteVisualDao {
 
     @Query("SELECT * FROM note_visuals WHERE hlcTimestamp > :since AND isDeleted = 0")
     fun observeUpdatesSince(since: String): Flow<List<NoteVisual>>
+
+    @Query("SELECT * FROM note_visuals WHERE updatedAt > :since")
+    suspend fun getModifiedSince(since: Long): List<NoteVisual>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(visuals: List<NoteVisual>)
 }

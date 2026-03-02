@@ -214,12 +214,19 @@ fun LectureScreen(
                             Icon(imageVector = Icons.Default.PictureAsPdf, contentDescription = "Show PDF", modifier = Modifier.size(20.dp))
                         }
                     }
-                    FloatingActionButton(
-                        onClick = { showNotes = true },
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
+
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = !annotationState.isDrawingMode,
+                        enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.slideInHorizontally { it },
+                        exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.slideOutHorizontally { it }
                     ) {
-                        Icon(imageVector = Icons.AutoMirrored.Filled.Notes, contentDescription = "Notes")
+                        FloatingActionButton(
+                            onClick = { showNotes = true },
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        ) {
+                            Icon(imageVector = Icons.AutoMirrored.Filled.Notes, contentDescription = "Notes")
+                        }
                     }
                 }
             }

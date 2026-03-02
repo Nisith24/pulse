@@ -29,8 +29,6 @@ import com.github.barteksc.pdfviewer.PDFView
 import com.github.barteksc.pdfviewer.scroll.DefaultScrollHandle
 import com.github.barteksc.pdfviewer.util.FitPolicy
 import java.io.File
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.graphics.toArgb
 import com.pulse.core.data.db.NoteVisual
 import com.pulse.core.data.db.VisualType
 import com.pulse.core.presentation.components.DrawingCanvas
@@ -140,7 +138,7 @@ fun PdfViewer(
                     onClose = onClose,
                     isHorizontal = isHorizontal,
                     onOrientationChange = onOrientationChange,
-                    modifier = Modifier.align(Alignment.TopEnd).padding(16.dp)
+                    modifier = Modifier.align(Alignment.TopEnd).padding(12.dp)
                 )
 
                 Column(
@@ -400,15 +398,17 @@ private fun PdfMode(
         // Direct coordinate mapping using PDFView's public zoom/offset API
         pdfViewRef.value?.let { pdfView ->
             annotationState.pdfToScreenMapper = { x, y ->
+                val w = pdfView.width.toFloat().takeIf { it > 0 } ?: 1f
                 android.graphics.PointF(
-                    x * pdfView.zoom + pdfView.currentXOffset,
-                    y * pdfView.zoom + pdfView.currentYOffset
+                    (x * w) * pdfView.zoom + pdfView.currentXOffset,
+                    (y * w) * pdfView.zoom + pdfView.currentYOffset
                 )
             }
             annotationState.screenToPdfMapper = { x, y ->
+                val w = pdfView.width.toFloat().takeIf { it > 0 } ?: 1f
                 android.graphics.PointF(
-                    (x - pdfView.currentXOffset) / pdfView.zoom,
-                    (y - pdfView.currentYOffset) / pdfView.zoom
+                    ((x - pdfView.currentXOffset) / pdfView.zoom) / w,
+                    ((y - pdfView.currentYOffset) / pdfView.zoom) / w
                 )
             }
         }

@@ -20,4 +20,13 @@ interface NoteDao {
 
     @Query("SELECT * FROM notes WHERE hlcTimestamp > :since")
     suspend fun getUpdatesSince(since: String): List<Note>
+
+    @Query("SELECT * FROM notes WHERE createdAt > :since")
+    suspend fun getModifiedSince(since: Long): List<Note>
+
+    @Query("SELECT * FROM notes")
+    suspend fun getAllNotesAsList(): List<Note>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(notes: List<Note>)
 }

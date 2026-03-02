@@ -55,11 +55,10 @@ class LectureViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     private var periodicSaveJob: Job? = null
-    private var playerListener: Player.Listener? = null
     private var hasStartedPlayback = false
 
     init {
-        setupPlayerListener()
+        observePlayerState()
         loadLectureAndPlay()
         startPeriodicSave()
     }
@@ -150,17 +149,16 @@ class LectureViewModel(
         }
     }
 
-    private fun setupPlayerListener() {
-        playerListener = object : Player.Listener {
-            override fun onPlaybackStateChanged(state: Int) {
-                if (!playerProvider.isSessionActive(lectureId)) return
+    private fun observePlayerState() {
+        viewModelScope.launch {
+            playerProvider.playbackState.collect { state ->
+                if (!playerProvider.isSessionActive(lectureId)) return@collect
                 
                 Log.d("LectureViewModel", "ExoPlayer State: $state")
                 when (state) {
                     Player.STATE_BUFFERING -> _playerState.value = PlayerUiState.LOADING
                     Player.STATE_READY -> {
                         _playerState.value = PlayerUiState.READY
-                        // Production fix: Force play if it was pending and we are ready
                         if (player.playWhenReady && !player.isPlaying) {
                             player.play()
                         }
@@ -174,9 +172,11 @@ class LectureViewModel(
                     } 
                 }
             }
+        }
 
-            override fun onPlayerError(error: PlaybackException) {
-                if (!playerProvider.isSessionActive(lectureId)) return
+        viewModelScope.launch {
+            playerProvider.playerError.collect { error ->
+                if (error == null || !playerProvider.isSessionActive(lectureId)) return@collect
                 logger.e("LectureVM", "Playback error: ${error.errorCodeName} (${error.errorCode})")
 
                 val isNetworkError = error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED ||
@@ -186,47 +186,40 @@ class LectureViewModel(
                         error.errorCode == PlaybackException.ERROR_CODE_IO_CLEARTEXT_NOT_PERMITTED
 
                 val lecture = _lecture.value
-                // If it's a network error or potential token expiry (Bad HTTP Status usually covers 401/403)
                 if (isNetworkError && lecture?.videoId != null) {
                     val currentPos = player.currentPosition
-                    viewModelScope.launch {
-                        try {
-                            _playerState.value = PlayerUiState.LOADING
-                            Log.d("LectureViewModel", "Network/Auth error detected. Invalidating token and retrying...")
-                            
-                            // 1. Invalidate current token
-                            getLectureStreamUrlUseCase.invalidateToken()
-                            
-                            // 2. Fetch fresh URL and token
-                            val freshResult = getLectureStreamUrlUseCase(lecture.videoId)
-                            val freshUrl = freshResult?.first
-                            val freshToken = freshResult?.second
-                            
-                            if (freshUrl != null) {
-                                // 3. Re-prepare with the fresh credentials at the exact same spot
-                                playerProvider.prepareSession(
-                                    sessionId = lectureId,
-                                    url = freshUrl,
-                                    token = freshToken,
-                                    title = lecture.name,
-                                    seekTo = currentPos,
-                                    speed = player.playbackParameters.speed,
-                                    fileId = lecture?.videoId
-                                )
-                            } else {
-                                _playerState.value = PlayerUiState.ERROR("Failed to refresh stream")
-                            }
-                        } catch (e: Exception) {
-                            Log.e("LectureViewModel", "Token/URL refresh failed", e)
-                            _playerState.value = PlayerUiState.ERROR("Link expired. Sign in again.")
+                    try {
+                        _playerState.value = PlayerUiState.LOADING
+                        Log.d("LectureViewModel", "Network/Auth error detected. Invalidating token and retrying...")
+                        
+                        getLectureStreamUrlUseCase.invalidateToken()
+                        
+                        val freshResult = getLectureStreamUrlUseCase(lecture.videoId)
+                        val freshUrl = freshResult?.first
+                        val freshToken = freshResult?.second
+                        
+                        if (freshUrl != null) {
+                            playerProvider.prepareSession(
+                                sessionId = lectureId,
+                                url = freshUrl,
+                                token = freshToken,
+                                title = lecture.name,
+                                seekTo = currentPos,
+                                speed = player.playbackParameters.speed,
+                                fileId = lecture?.videoId
+                            )
+                        } else {
+                            _playerState.value = PlayerUiState.ERROR("Failed to refresh stream")
                         }
+                    } catch (e: Exception) {
+                        Log.e("LectureViewModel", "Token/URL refresh failed", e)
+                        _playerState.value = PlayerUiState.ERROR("Link expired. Sign in again.")
                     }
                 } else {
                     _playerState.value = PlayerUiState.ERROR(error.message ?: "Player Error")
                 }
             }
         }
-        player.addListener(playerListener!!)
     }
 
     private fun startPeriodicSave() {
@@ -359,6 +352,7 @@ class LectureViewModel(
     fun onExit() {
         Log.d("LectureViewModel", "Exiting session: $lectureId")
         saveProgress()
+        repository.syncPushOnExit(lectureId)
         playerProvider.stopSession(lectureId)
     }
 
@@ -371,10 +365,8 @@ class LectureViewModel(
     override fun onCleared() {
         Log.d("LectureViewModel", "ViewModel cleared for $lectureId")
         periodicSaveJob?.cancel()
-        saveProgress() // Final flush
-        playerListener?.let { player.removeListener(it) }
-        playerListener = null
-        // Only stop session if NOT going to mini-player
+        saveProgress()
+        repository.syncPushOnExit(lectureId)
         if (!playerProvider.isMiniPlayerActive || playerProvider.miniPlayerLectureId != lectureId) {
             playerProvider.stopSession(lectureId)
         }

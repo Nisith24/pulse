@@ -83,7 +83,7 @@ val appModule = module {
     // Repositories
     single<INoteRepository> { NoteRepository(get(), get()) }
     single { NoteVisualRepository(get(), get()) }
-    single { LectureRepository(get(), get(), get(), get(), get(), get(), get()) }
+    single { LectureRepository(get(), get(), get(), get(), get(), get(), get(), androidContext(), get()) }
     
     // Player — MUST be singleton (SimpleCache uses exclusive DB lock)
     single { PlayerProvider(androidContext(), get()) }
@@ -99,4 +99,8 @@ val appModule = module {
     
     // Workers
     worker { com.pulse.data.services.btr.BtrSyncWorker(get(), get(), get()) }
+    worker { com.pulse.data.sync.FirestoreSyncWorker(get(), get(), get(), get(), get(), get(), get(), get()) }
+
+    // Firestore Sync
+    single { com.pulse.data.sync.FirestoreSyncManager(get(), get()) }
 }

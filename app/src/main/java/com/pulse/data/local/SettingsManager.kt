@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -22,6 +23,7 @@ class SettingsManager(private val context: Context) {
         val DEFAULT_SPEED_KEY = floatPreferencesKey("default_speed")
         val VIDEO_QUALITY_KEY = stringPreferencesKey("video_quality")
         val PDF_HORIZONTAL_ORIENTATION_KEY = booleanPreferencesKey("pdf_horizontal_orientation")
+        val LAST_SYNC_TIME_KEY = longPreferencesKey("last_sync_time")
     }
 
     val splitRatioFlow: Flow<Float> = context.dataStore.data
@@ -35,6 +37,7 @@ class SettingsManager(private val context: Context) {
     val defaultSpeedFlow: Flow<Float> = context.dataStore.data.map { it[DEFAULT_SPEED_KEY] ?: 1.0f }
     val videoQualityFlow: Flow<String> = context.dataStore.data.map { it[VIDEO_QUALITY_KEY] ?: "Auto" }
     val pdfHorizontalOrientationFlow: Flow<Boolean> = context.dataStore.data.map { it[PDF_HORIZONTAL_ORIENTATION_KEY] ?: false }
+    val lastSyncTimeFlow: Flow<Long> = context.dataStore.data.map { it[LAST_SYNC_TIME_KEY] ?: 0L }
 
     suspend fun saveSplitRatio(value: Float) {
         context.dataStore.edit { preferences ->
@@ -48,4 +51,5 @@ class SettingsManager(private val context: Context) {
     suspend fun saveDefaultSpeed(value: Float) { context.dataStore.edit { it[DEFAULT_SPEED_KEY] = value } }
     suspend fun saveVideoQuality(value: String) { context.dataStore.edit { it[VIDEO_QUALITY_KEY] = value } }
     suspend fun savePdfHorizontalOrientation(value: Boolean) { context.dataStore.edit { it[PDF_HORIZONTAL_ORIENTATION_KEY] = value } }
+    suspend fun saveLastSyncTime(value: Long) { context.dataStore.edit { it[LAST_SYNC_TIME_KEY] = value } }
 }
