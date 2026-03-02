@@ -46,10 +46,10 @@ class PlayerProvider(private val context: Context, fileStorageManager: FileStora
         val original = chain.request()
         val host = original.url.host.lowercase()
 
-        val isGoogleDomain = host.endsWith("googleapis.com") ||
-                host.endsWith("googlevideo.com") ||
-                host.endsWith("googleusercontent.com") ||
-                host.endsWith("google.com")
+        // Only googleapis.com requires the Bearer token. 
+        // googleusercontent.com and googlevideo.com URLs already contain an access token in the query params.
+        // Sending an Authorization header to them causes a 401/403 error.
+        val isGoogleDomain = host.endsWith("googleapis.com")
 
         val token = currentToken
         val needsAuth = token != null && isGoogleDomain &&
@@ -106,14 +106,24 @@ class PlayerProvider(private val context: Context, fileStorageManager: FileStora
                 }
                 override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
                     _playerError.value = error
-                    if (error.cause is androidx.media3.common.VideoFrameProcessingException) {
-                        Log.e("PlayerProvider", "Falling back to native rendering.", error.cause)
-                        setVideoEffects(emptyList())
-                        prepare()
-                        play()
+                    Log.e("PlayerProvider", "Playback Error: ${error.errorCodeName}", error)
+                    
+                    if (error.cause is androidx.media3.datasource.HttpDataSource.HttpDataSourceException) {
+                        val httpError = error.cause as androidx.media3.datasource.HttpDataSource.HttpDataSourceException
+                        Log.e("PlayerProvider", "HTTP Error: ${httpError.message}")
+                        if (httpError is androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException) {
+                            Log.e("PlayerProvider", "Response Code: ${httpError.responseCode}")
+                            Log.e("PlayerProvider", "Headers: ${httpError.headerFields}")
+                        }
+                    } else if (error.cause is androidx.media3.common.VideoFrameProcessingException) {
+                        Log.e("PlayerProvider", "Effects failed. Falling back to native rendering.", error.cause)
+                        this@apply.setVideoEffects(emptyList())
+                        this@apply.prepare()
+                        this@apply.play()
                     }
                 }
             })
+            
             try {
                 setVideoEffects(listOf(LectureVideoEffect()))
             } catch (e: Exception) {

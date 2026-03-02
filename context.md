@@ -42,7 +42,8 @@ Timestamped user annotations.
 - **Services Architecture**: The app uses a modular services architecture located in `com.pulse.data.services`.
 - **BTR Service**: The primary cloud service for lecture management.
     - **`BtrAuthManager`**: Manages Cloud/OAuth2 tokens via Play Services (agnostic abstraction).
-    - **`BtrService`**: Low-level REST API calls for file listing and generating secure `streamUrl` for BTR content.
+    - **`BtrService`**: Low-level REST API calls for file listing and generating secure `streamUrl` for BTR content. Uses `supportsAllDrives=true` and `includeItemsFromAllDrives=true` to seamlessly support Shared Google Drive folders without requiring multiple account logins.
+- **Firestore Sync**: Cross-device synchronization using `FirestoreSyncManager` and WorkManager (`FirestoreSyncWorker`). Pushes local viewing progress and favorites to Firestore and pulls them to keep multiple devices in sync.
 - **Naming Convention Strategy**: The system automatically pairs Videos and PDFs by parsing file names for matching prefixes/module numbers during sync.
 - **Connectivity Monitoring**: A `NetworkMonitor` utility tracks real-time internet availability using Kotlin Flows, powering the "Offline Mode" indicators in the Cloud/BTR sections.
 
@@ -50,14 +51,16 @@ Timestamped user annotations.
 
 ### Library Screen (`LibraryScreen.kt`)
 - **Tabbed Interface**: "Home" (Local Media) and "**SERVICES**" (Modular Cloud Library).
-- **Service Directory**: The SERVICES tab features a hierarchical menu (e.g., BTR service list) allowing for future expansion of cloud capabilities.
+- **Service Directory**: The SERVICES tab features a hierarchical menu allowing for future expansion of cloud capabilities.
+    - **BTR Section**: Links to the main synchronized drive folder.
+    - **SUBJECTS Section**: A dedicated grid-layout displaying 19 NEET PG subjects. Supports deeper navigation to specific provider folders (e.g., "PREPLADDER - Dr.Preeti Sharma" inside Microbiology), parsing Drive files dynamically.
 - **Advanced Searching**: Reactive `combine` filter that processes queries across `StateFlow` streams without UI lag.
 - **Smart Grouping logic**:
     - **Grouping**: Uses Regex `\d+` to extract module numbers from lecture names.
     - **Sections**: Renders `StickyHeader`-style labels ("Module X", "Other Files").
     - **Natural Sorting**: Implements custom sorting where numbers are compared numerically (Module 2 < Module 10), preventing alphabetical errors.
 - **Premium UI Components**: 
-    - **3D Service Cards**: High-elevation, premium cards for BTR services with prominent iconography.
+    - **3D Service Cards**: High-elevation, premium cards for BTR and Subjects with prominent iconography.
     - **Large Actions**: Enhanced `LargeFloatingActionButton` in the Home tab for better ergonomics.
     - **Offline Indicators**: Real-time status bar in the Cloud tab when connectivity is lost.
 - **Favoriting Engine**: 

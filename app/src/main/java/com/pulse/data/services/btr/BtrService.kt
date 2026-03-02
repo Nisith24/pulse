@@ -34,7 +34,7 @@ class GoogleDriveBtrService(
             if (processedFolders.contains(currentFolderId)) continue
             processedFolders.add(currentFolderId)
 
-            val url = "https://www.googleapis.com/drive/v3/files?q='${currentFolderId}'+in+parents+and+trashed=false&fields=files(id,name,mimeType,size)&pageSize=1000"
+            val url = "https://www.googleapis.com/drive/v3/files?q='${currentFolderId}'+in+parents+and+trashed=false&fields=files(id,name,mimeType,size)&pageSize=1000&supportsAllDrives=true&includeItemsFromAllDrives=true"
             val request = Request.Builder()
                 .url(url)
                 .addHeader("Authorization", "Bearer $accessToken")
@@ -73,7 +73,7 @@ class GoogleDriveBtrService(
     }
 
     override fun streamUrl(fileId: String): String =
-        "https://www.googleapis.com/drive/v3/files/$fileId?alt=media"
+        "https://www.googleapis.com/drive/v3/files/$fileId?alt=media&supportsAllDrives=true"
 
     override suspend fun downloadFile(fileId: String, accessToken: String): ByteArray = withContext(Dispatchers.IO) {
         val url = streamUrl(fileId)

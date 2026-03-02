@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface LectureDao {
-    @Query("SELECT * FROM lectures WHERE isLocal = 0 AND isDeleted = 0 ORDER BY updatedAt DESC")
+    @Query("SELECT * FROM lectures WHERE isLocal = 0 AND (subject IS NULL OR subject = '') AND isDeleted = 0 ORDER BY updatedAt DESC")
     fun getBtrLectures(): Flow<List<Lecture>>
 
     @Query("SELECT * FROM lectures WHERE isLocal = 1 AND isDeleted = 0 ORDER BY updatedAt DESC")
@@ -21,6 +21,9 @@ interface LectureDao {
 
     @Query("SELECT * FROM lectures WHERE videoId IS NOT NULL AND (videoLocalPath IS NULL OR videoLocalPath = '') AND isLocal = 0 AND isDeleted = 0 ORDER BY updatedAt DESC")
     fun getCloudOnlyLectures(): Flow<List<Lecture>>
+
+    @Query("SELECT * FROM lectures WHERE subject = :subject AND isDeleted = 0 ORDER BY updatedAt DESC")
+    fun getLecturesBySubject(subject: String): Flow<List<Lecture>>
 
     @Query("SELECT * FROM lectures WHERE id = :id AND isDeleted = 0")
     fun getById(id: String): Flow<Lecture?>
@@ -69,4 +72,7 @@ interface LectureDao {
 
     @Query("SELECT * FROM lectures")
     suspend fun getAllLecturesAsList(): List<Lecture>
+
+    @Query("SELECT * FROM lectures WHERE lastPosition > 1000 AND isDeleted = 0 ORDER BY updatedAt DESC LIMIT 1")
+    fun getRecentLecture(): Flow<Lecture?>
 }

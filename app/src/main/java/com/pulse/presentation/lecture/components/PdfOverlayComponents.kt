@@ -97,52 +97,84 @@ fun PdfSettingsMenu(
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
+    var expanded by remember { mutableStateOf(false) }
 
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Focus mode
-        CompactActionChip(
-            icon = if (state.isFocused) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-            label = "Focus",
-            isActive = state.isFocused,
-            onClick = {
-                state.isFocused = !state.isFocused
-                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-            }
-        )
-
-        // Orientation toggle
-        CompactActionChip(
-            icon = if (isHorizontal) Icons.Default.ViewDay else Icons.Default.ViewWeek,
-            label = if (isHorizontal) "V" else "H",
-            isActive = false,
-            onClick = {
-                onOrientationChange(!isHorizontal)
-                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-            }
-        )
-
-        // Close
-        Surface(
-            onClick = {
-                onClose()
-                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-            },
-            modifier = Modifier.size(36.dp),
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.85f),
-            contentColor = MaterialTheme.colorScheme.onErrorContainer
-        ) {
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                Icon(
-                    Icons.Default.Close,
-                    contentDescription = "Close",
-                    modifier = Modifier.size(18.dp)
+    Box(modifier = modifier) {
+        IconButton(
+            onClick = { expanded = true },
+            modifier = Modifier
+                .size(36.dp)
+                .background(
+                    MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f),
+                    CircleShape
                 )
-            }
+        ) {
+            Icon(
+                Icons.Default.Settings,
+                contentDescription = "Settings",
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
+
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh)
+        ) {
+            // Focus Mode
+            DropdownMenuItem(
+                text = { Text(if (state.isFocused) "Disable Focus" else "Enable Focus") },
+                leadingIcon = {
+                    Icon(
+                        if (state.isFocused) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                },
+                onClick = {
+                    state.isFocused = !state.isFocused
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    expanded = false
+                }
+            )
+
+            // Orientation
+            DropdownMenuItem(
+                text = { Text(if (isHorizontal) "Vertical Scroll" else "Horizontal Scroll") },
+                leadingIcon = {
+                    Icon(
+                        if (isHorizontal) Icons.Default.ViewDay else Icons.Default.ViewWeek,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                },
+                onClick = {
+                    onOrientationChange(!isHorizontal)
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    expanded = false
+                }
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant)
+
+            // Close
+            DropdownMenuItem(
+                text = { Text("Close PDF", color = MaterialTheme.colorScheme.error) },
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                },
+                onClick = {
+                    onClose()
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    expanded = false
+                }
+            )
         }
     }
 }

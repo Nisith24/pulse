@@ -11,8 +11,13 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 
 enum class LibraryTab {
     HOME, SERVICES
@@ -85,6 +90,25 @@ class LibraryViewModel(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = emptyList()
     )
+
+    val recentLecture = repository.recentLecture
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    fun syncAndResume(onLectureReady: (String) -> Unit) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                // Sync latest position before resuming
+                repository.syncWithCloud()
+                val recent = repository.recentLecture.first()
+                recent?.let { onLectureReady(it.id) }
+            } catch (e: Exception) {
+                _error.value = "Failed to sync: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
 
 
     fun setSearchQuery(query: String) {

@@ -239,7 +239,24 @@ fun PulseAppContent(
                         navController.navigate(LectureRoute(id))
                     },
                     onNavigateToSettings = { navController.navigate(SettingsRoute) },
-                    onNavigateToDownloads = { navController.navigate(DownloadsRoute) }
+                    onNavigateToDownloads = { navController.navigate(DownloadsRoute) },
+                    onNavigateToSubjects = { navController.navigate(SubjectsRoute) }
+                )
+            }
+            composable<SubjectsRoute> {
+                com.pulse.presentation.subjects.SubjectsScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onSubjectClick = { subjectName ->
+                        navController.navigate(SubjectDetailRoute(subjectName))
+                    }
+                )
+            }
+            composable<SubjectDetailRoute> { backStackEntry ->
+                val route = backStackEntry.toRoute<SubjectDetailRoute>()
+                com.pulse.presentation.subjects.SubjectDetailScreen(
+                    subjectName = route.subjectName,
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToLecture = { id -> navController.navigate(LectureRoute(id)) }
                 )
             }
             composable<DownloadsRoute> {

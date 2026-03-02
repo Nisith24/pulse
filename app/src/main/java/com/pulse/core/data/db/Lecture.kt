@@ -22,5 +22,6 @@ data class Lecture(
     val pdfIsHorizontal: Boolean = false,
     val hlcTimestamp: String = "",
     val isDeleted: Boolean = false,
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    val subject: String? = null
 )

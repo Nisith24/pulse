@@ -80,6 +80,12 @@ fun LectureScreen(
         }
     }
 
+    LaunchedEffect(playerState) {
+        if (playerState is PlayerUiState.ERROR) {
+            isFullscreen = false
+        }
+    }
+
     // ── Industry Standard PiP: Observe system PiP state ──
     var isPip by remember { mutableStateOf(false) }
     val annotationState = rememberAnnotationState()
@@ -239,80 +245,34 @@ fun LectureScreen(
                 .statusBarsPadding(),
             color = if (isPip) Color.Black else MaterialTheme.colorScheme.background
         ) {
-            when (val state = playerState) {
-                is PlayerUiState.PERMISSION_REQUIRED -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Default.PictureAsPdf, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.primary)
-                            Spacer(Modifier.height(16.dp))
-                            Text("Cloud Access Required", style = MaterialTheme.typography.titleMedium)
-                            Text("This video requires additional permission from Google Drive.", 
-                                style = MaterialTheme.typography.bodyMedium, 
-                                modifier = Modifier.padding(horizontal = 32.dp),
-                                textAlign = TextAlign.Center
-                            )
-                            Spacer(Modifier.height(24.dp))
-                            Button(onClick = { authLauncher.launch(state.intent) }) {
-                                Text("Grant Permission")
-                            }
+            val state = playerState
+            if (state is PlayerUiState.PERMISSION_REQUIRED) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.PictureAsPdf, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.height(16.dp))
+                        Text("Cloud Access Required", style = MaterialTheme.typography.titleMedium)
+                        Text("This video requires additional permission from Google Drive.", 
+                            style = MaterialTheme.typography.bodyMedium, 
+                            modifier = Modifier.padding(horizontal = 32.dp),
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(Modifier.height(24.dp))
+                        Button(onClick = { authLauncher.launch(state.intent) }) {
+                            Text("Grant Permission")
                         }
                     }
                 }
-                is PlayerUiState.ERROR -> {
-                    // Check if we actually HAVE a PDF, in which case we show it despite the Player Error
-                    val hasPdf = lecture?.let { it.pdfId != null || it.pdfLocalPath.isNotEmpty() } ?: false
-                    
-                    if (hasPdf) {
-                         Box(Modifier.fillMaxSize()) {
-                            PdfViewer(
-                                pdfPath = lecture?.pdfLocalPath ?: "",
-                                title = lecture?.name ?: "Lecture",
-                                initialPage = 0,
-                                isPdfDownloaded = lecture?.isPdfDownloaded ?: true,
-                                visuals = visuals,
-                                annotationState = annotationState,
-                                onPageChanged = { },
-                                onAddVisual = { type, data, page, color, width ->
-                                    viewModel.addVisual(type, data, page, color, width)
-                                },
-                                onAddVisualAtPos = { type, x, y, page, color ->
-                                    viewModel.addVisualAtPos(type, x, y, page, color)
-                                },
-                                onDeleteVisual = { id -> viewModel.deleteVisual(id) },
-                                onAddLocalPdf = onAddLocalPdf,
-                                onCreateBlankNote = onCreateBlankNote,
-                                onAddPage = { viewModel.addPage() },
-                                totalPages = lecture?.pdfPageCount ?: 0,
-                                onClose = onClosePdf,
-                                isHorizontal = pdfHorizontalOrientation,
-                                onOrientationChange = { viewModel.savePdfOrientation(it) },
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        }
-                    } else {
+            } else {
+                val l = lecture
+                if (l == null) {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(Icons.Default.ErrorOutline, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.error)
-                                Spacer(Modifier.height(12.dp))
-                                Text(state.message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                                Spacer(Modifier.height(16.dp))
-                                Button(onClick = { viewModel.playSessionIfNeeded() }) {
-                                    Text("Retry")
-                                }
-                            }
+                            CircularProgressIndicator()
                         }
-                    }
-                }
-                else -> {
-                    val l = lecture
-                    if (l == null) {
-                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                             CircularProgressIndicator()
-                         }
-                    } else {
-                        BoxWithConstraints(Modifier.fillMaxSize()) {
-                            val totalWidth = constraints.maxWidth.toFloat()
-                            val isTablet = maxWidth > 840.dp
+                } else {
+                    BoxWithConstraints(Modifier.fillMaxSize()) {
+                        val totalWidth = constraints.maxWidth.toFloat()
+                        val isTablet = maxWidth > 840.dp
                             
                             val isStandalonePdf = !hasVideo && l.pdfLocalPath.isNotEmpty() && l.pdfLocalPath != "blank_note"
 
@@ -356,16 +316,30 @@ fun LectureScreen(
                                             else -> Modifier.fillMaxSize()
                                         }.clipToBounds()
                                     ) {
-                                        VideoPlayer(
-                                            player = viewModel.player,
-                                            title = if (isPip) "" else (lecture?.name ?: ""),
-                                            modifier = Modifier.fillMaxSize(),
-                                            isFullscreen = isFullscreen,
-                                            isPip = isPip,
-                                            onFullscreenToggle = { isFullscreen = !isFullscreen },
-                                            onPipClick = onPipClick,
-                                            onSpeedChanged = { viewModel.setPlaybackSpeed(it) }
-                                        )
+                                        if (state is PlayerUiState.ERROR) {
+                                            Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+                                                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
+                                                    Icon(Icons.Default.ErrorOutline, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.error)
+                                                    Spacer(Modifier.height(12.dp))
+                                                    Text(state.message, style = MaterialTheme.typography.bodyMedium, color = Color.White, textAlign = TextAlign.Center)
+                                                    Spacer(Modifier.height(16.dp))
+                                                    Button(onClick = { viewModel.playSessionIfNeeded() }) {
+                                                        Text("Retry Video")
+                                                    }
+                                                }
+                                            }
+                                        } else {
+                                            VideoPlayer(
+                                                player = viewModel.player,
+                                                title = if (isPip) "" else (lecture?.name ?: ""),
+                                                modifier = Modifier.fillMaxSize(),
+                                                isFullscreen = isFullscreen,
+                                                isPip = isPip,
+                                                onFullscreenToggle = { isFullscreen = !isFullscreen },
+                                                onPipClick = onPipClick,
+                                                onSpeedChanged = { viewModel.setPlaybackSpeed(it) }
+                                            )
+                                        }
                                     }
                                 }
 
@@ -484,7 +458,6 @@ fun LectureScreen(
                                             Icon(Icons.Default.DragHandle, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f), modifier = Modifier.size(16.dp))
                                         }
                                     }
-                                }
                             }
                         }
                     }

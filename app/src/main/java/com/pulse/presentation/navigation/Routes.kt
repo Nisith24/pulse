@@ -16,3 +16,9 @@ object SettingsRoute
 
 @Serializable
 object DownloadsRoute
+
+@Serializable
+object SubjectsRoute
+
+@Serializable
+data class SubjectDetailRoute(val subjectName: String)

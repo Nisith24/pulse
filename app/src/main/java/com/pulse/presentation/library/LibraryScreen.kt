@@ -34,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.pulse.domain.services.btr.IBtrAuthManager
+import com.pulse.presentation.components.LectureCard
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
@@ -43,7 +44,8 @@ fun LibraryScreen(
     viewModel: LibraryViewModel = koinViewModel(),
     onLectureSelected: (String) -> Unit,
     onNavigateToSettings: () -> Unit = {},
-    onNavigateToDownloads: () -> Unit = {}
+    onNavigateToDownloads: () -> Unit = {},
+    onNavigateToSubjects: () -> Unit = {}
 ) {
     val currentTab by viewModel.currentTab.collectAsState()
     val btrLectures by viewModel.btrLectures.collectAsState()
@@ -55,6 +57,7 @@ fun LibraryScreen(
     val isBtrViewActive by viewModel.isBtrViewActive.collectAsState()
     val isOnline by viewModel.connectivityStatus.collectAsState()
     val showFavoritesOnly by viewModel.showFavoritesOnly.collectAsState()
+    val recentLecture by viewModel.recentLecture.collectAsState()
     var isSearching by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -273,23 +276,66 @@ fun LibraryScreen(
             )
         },
         floatingActionButton = {
-            if (currentTab == LibraryTab.HOME) {
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
                 var showFabMenu by remember { mutableStateOf(false) }
-                Column(horizontalAlignment = Alignment.End) {
-                    if (showFabMenu) {
-                        SmallFloatingActionButton(
-                            onClick = { showFabMenu = false; requestLocalAccess(isPdf = true) },
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                        ) { Icon(Icons.Default.PictureAsPdf, contentDescription = "Add PDF") }
-                        Spacer(Modifier.height(8.dp))
-                        SmallFloatingActionButton(
-                            onClick = { showFabMenu = false; requestLocalAccess(isPdf = false) },
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                        ) { Icon(Icons.Default.VideoLibrary, contentDescription = "Add Video") }
-                        Spacer(Modifier.height(16.dp))
+
+                if (currentTab == LibraryTab.HOME && showFabMenu) {
+                    FloatingActionButton(
+                        onClick = { showFabMenu = false; requestLocalAccess(isPdf = true) },
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                    ) { Icon(Icons.Default.PictureAsPdf, contentDescription = "Add PDF") }
+                    
+                    FloatingActionButton(
+                        onClick = { showFabMenu = false; requestLocalAccess(isPdf = false) },
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                    ) { Icon(Icons.Default.VideoLibrary, contentDescription = "Add Video") }
+                }
+
+                // Resume Playback FAB with inline Tooltip
+                recentLecture?.let { lecture ->
+                    var showTooltip by remember { mutableStateOf(true) }
+
+                    LaunchedEffect(lecture.id) {
+                        showTooltip = true
+                        kotlinx.coroutines.delay(4000)
+                        showTooltip = false
                     }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (showTooltip) {
+                            Surface(
+                                shape = MaterialTheme.shapes.medium,
+                                color = MaterialTheme.colorScheme.inverseSurface,
+                                contentColor = MaterialTheme.colorScheme.inverseOnSurface
+                            ) {
+                                Text(
+                                    "Resume: ${lecture.name.take(20)}",
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
+                        }
+
+                        FloatingActionButton(
+                            onClick = { viewModel.syncAndResume(onLectureSelected) },
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            shape = CircleShape
+                        ) {
+                            Icon(Icons.Default.PlayArrow, contentDescription = "Resume ${lecture.name}")
+                        }
+                    }
+                }
+
+                if (currentTab == LibraryTab.HOME) {
                     LargeFloatingActionButton(
                         onClick = { showFabMenu = !showFabMenu },
                         containerColor = MaterialTheme.colorScheme.primary,
@@ -355,6 +401,18 @@ fun LibraryScreen(
                             Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
                         }
                     }
+                    Card(modifier = Modifier.fillMaxWidth().height(110.dp).clickable { onNavigateToSubjects() }, shape = MaterialTheme.shapes.extraLarge, elevation = CardDefaults.cardElevation(defaultElevation = 8.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
+                        Row(Modifier.fillMaxSize().padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                            Surface(modifier = Modifier.size(64.dp), shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.secondary, shadowElevation = 12.dp) {
+                                Box(contentAlignment = Alignment.Center) { Icon(imageVector = Icons.Default.MenuBook, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondary, modifier = Modifier.size(32.dp)) }
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("SUBJECTS", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                                Text("19 Subjects NEET PG", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha=0.7f), fontWeight = FontWeight.Bold)
+                            }
+                            Icon(imageVector = Icons.Default.ArrowForwardIos, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(24.dp))
+                        }
+                    }
                     Card(modifier = Modifier.fillMaxWidth().height(100.dp).alpha(0.6f), shape = MaterialTheme.shapes.extraLarge, border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.outlineVariant), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
                         Row(Modifier.fillMaxSize().padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                             Icon(imageVector = Icons.Default.History, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(40.dp))
@@ -386,7 +444,13 @@ fun LibraryScreen(
                 ) {
                     if (currentTab == LibraryTab.HOME) {
                         items(currentLectures, key = { it.id }) { lecture ->
-                            LectureCard(lecture = lecture, currentTab = currentTab, onLectureSelected = onLectureSelected, viewModel = viewModel)
+                            LectureCard(
+                                lecture = lecture, 
+                                isLibraryHome = currentTab == LibraryTab.HOME, 
+                                onLectureSelected = onLectureSelected, 
+                                onToggleFavorite = { viewModel.toggleFavorite(it) },
+                                onDelete = { viewModel.deleteLecture(it) }
+                            )
                         }
                     } else {
                         val groupedLectures = currentLectures.groupBy { lecture ->
@@ -402,7 +466,13 @@ fun LibraryScreen(
                                 )
                             }
                             items(lectures, key = { it.id }) { lecture ->
-                                LectureCard(lecture = lecture, currentTab = currentTab, onLectureSelected = onLectureSelected, viewModel = viewModel)
+                                LectureCard(
+                                    lecture = lecture, 
+                                    isLibraryHome = currentTab == LibraryTab.HOME, 
+                                    onLectureSelected = onLectureSelected, 
+                                    onToggleFavorite = { viewModel.toggleFavorite(it) },
+                                    onDelete = { viewModel.deleteLecture(it) }
+                                )
                             }
                         }
                     }
@@ -412,74 +482,6 @@ fun LibraryScreen(
     }
 }
 
-@Composable
-private fun LectureCard(
-    lecture: com.pulse.core.data.db.Lecture,
-    currentTab: LibraryTab,
-    onLectureSelected: (String) -> Unit,
-    viewModel: LibraryViewModel
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth().clickable { onLectureSelected(lecture.id) },
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        shape = MaterialTheme.shapes.extraLarge
-    ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
-            Row(modifier = Modifier.align(Alignment.TopEnd).padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (currentTab == LibraryTab.HOME) {
-                    val isBtrDownloaded = !lecture.isLocal && (lecture.videoLocalPath?.isNotEmpty() == true)
-                    if (isBtrDownloaded) {
-                        Surface(color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f), shape = CircleShape, modifier = Modifier.padding(end = 4.dp)) {
-                            Icon(Icons.Default.CloudDownload, contentDescription = "Downloaded BTR", modifier = Modifier.padding(6.dp).size(14.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
-                        }
-                    } else if (lecture.isLocal) {
-                        Surface(color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f), shape = CircleShape, modifier = Modifier.padding(end = 4.dp)) {
-                            Icon(if (lecture.videoLocalPath?.isNotEmpty() == true) Icons.Default.VideoLibrary else Icons.Default.Description, contentDescription = "Local File", modifier = Modifier.padding(6.dp).size(14.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
-                        }
-                    }
-                    IconButton(onClick = { viewModel.toggleFavorite(lecture.id) }, modifier = Modifier.size(32.dp)) {
-                        Icon(imageVector = if (lecture.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder, contentDescription = "Favorite", modifier = Modifier.size(20.dp), tint = if (lecture.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
-                    }
-                    IconButton(onClick = { viewModel.deleteLecture(lecture) }, modifier = Modifier.size(32.dp)) {
-                        Icon(imageVector = Icons.Default.Delete, contentDescription = "Remove", modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f))
-                    }
-                } else {
-                    IconButton(onClick = { viewModel.toggleFavorite(lecture.id) }, modifier = Modifier.size(32.dp)) {
-                        Icon(imageVector = if (lecture.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder, contentDescription = "Favorite", modifier = Modifier.size(20.dp), tint = if (lecture.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
-                    }
-                }
-            }
-            Column(modifier = Modifier.padding(20.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    val hasVideo = lecture.videoId != null || (lecture.videoLocalPath?.isNotEmpty() == true)
-                    if (hasVideo) Icon(Icons.Default.PlayCircle, contentDescription = "Video", modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
-                    val isPdfAvailable = if (lecture.isLocal) lecture.pdfLocalPath.isNotEmpty() else (lecture.isPdfDownloaded || lecture.pdfId != null)
-                    if (isPdfAvailable) {
-                        Icon(Icons.Default.PictureAsPdf, contentDescription = "PDF", modifier = Modifier.size(20.dp), tint = if (lecture.isPdfDownloaded || lecture.isLocal) MaterialTheme.colorScheme.secondary.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
-                        if (!hasVideo) Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)) { Text("STANDALONE PDF", modifier = Modifier.padding(2.dp), style = MaterialTheme.typography.labelSmall) }
-                    }
-                }
-                Spacer(Modifier.height(12.dp))
-                Text(text = lecture.name, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), maxLines = 2, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(end = if (currentTab == LibraryTab.HOME) 28.dp else 0.dp))
-                Spacer(Modifier.height(8.dp))
-                if (lecture.lastPosition > 0) {
-                    Spacer(Modifier.height(8.dp))
-                    val progress = if (lecture.videoDuration > 0) lecture.lastPosition.toFloat() / lecture.videoDuration.toFloat() else 0f
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().height(6.dp), color = MaterialTheme.colorScheme.primary, trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), strokeCap = androidx.compose.ui.graphics.StrokeCap.Round)
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Text(text = "${((progress * 100).toInt()).coerceIn(0, 100)}% viewed", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                            val minutes = (lecture.lastPosition / 1000 / 60)
-                            val seconds = (lecture.lastPosition / 1000 % 60)
-                            Text(text = "At ${minutes}:${seconds.toString().padStart(2, '0')}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
 
 private fun getFileName(context: Context, uri: Uri): String? {
     var result: String? = null

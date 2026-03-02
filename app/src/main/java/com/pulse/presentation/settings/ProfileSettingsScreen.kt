@@ -1,6 +1,8 @@
 package com.pulse.presentation.settings
 
+import androidx.compose.animation.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -153,191 +155,211 @@ fun ProfileSettingsScreen(
                 }
             }
 
+            var playbackExpanded by remember { mutableStateOf(true) }
+            var cloudExpanded by remember { mutableStateOf(false) }
+            var appearanceExpanded by remember { mutableStateOf(false) }
+            var notificationsExpanded by remember { mutableStateOf(false) }
+            var storageExpanded by remember { mutableStateOf(false) }
+            var aboutExpanded by remember { mutableStateOf(false) }
+            var accountExpanded by remember { mutableStateOf(false) }
+
             // ══════════════════════════════════════════════
             // PLAYBACK SETTINGS
             // ══════════════════════════════════════════════
-            SettingsSectionHeader("Playback")
-
-            SettingsToggleItem(
-                icon = Icons.Default.PictureInPicture,
-                title = "Auto Picture-in-Picture",
-                subtitle = "Enter PiP when leaving the app during playback",
-                checked = autoPipEnabled,
-                onCheckedChange = { scope.launch { settingsManager.saveAutoPipEnabled(it) } }
-            )
-
-            SettingsToggleItem(
-                icon = Icons.Default.Replay,
-                title = "Resume Playback",
-                subtitle = "Continue from where you left off",
-                checked = resumePlayback,
-                onCheckedChange = { scope.launch { settingsManager.saveResumePlayback(it) } }
-            )
-
-            SettingsToggleItem(
-                icon = Icons.Default.Headphones,
-                title = "Background Playback",
-                subtitle = "Continue audio when the app is in background",
-                checked = backgroundPlayback,
-                onCheckedChange = { scope.launch { settingsManager.saveBackgroundPlayback(it) } }
-            )
-
-            SettingsClickItem(
-                icon = Icons.Default.Speed,
-                title = "Default Playback Speed",
-                subtitle = "${defaultSpeed}x",
-                onClick = { showSpeedDialog = true }
-            )
-
-            val currentContext = LocalContext.current
-            SettingsClickItem(
-                icon = Icons.Default.HighQuality,
-                title = "Video Quality",
-                subtitle = "Auto (Locked for now)",
-                onClick = { 
-                    android.widget.Toast.makeText(currentContext, "Only Auto quality is supported in this version", android.widget.Toast.LENGTH_SHORT).show()
-                }
-            )
-
-            SettingsDivider()
+            CollapsibleSettingsSection(
+                title = "Playback",
+                icon = Icons.Default.PlayCircle,
+                expanded = playbackExpanded,
+                onExpandedChange = { playbackExpanded = it }
+            ) {
+                SettingsToggleItem(
+                    icon = Icons.Default.PictureInPicture,
+                    title = "Auto Picture-in-Picture",
+                    subtitle = "Enter PiP when leaving the app during playback",
+                    checked = autoPipEnabled,
+                    onCheckedChange = { scope.launch { settingsManager.saveAutoPipEnabled(it) } }
+                )
+                SettingsToggleItem(
+                    icon = Icons.Default.Replay,
+                    title = "Resume Playback",
+                    subtitle = "Continue from where you left off",
+                    checked = resumePlayback,
+                    onCheckedChange = { scope.launch { settingsManager.saveResumePlayback(it) } }
+                )
+                SettingsToggleItem(
+                    icon = Icons.Default.Headphones,
+                    title = "Background Playback",
+                    subtitle = "Continue audio when the app is in background",
+                    checked = backgroundPlayback,
+                    onCheckedChange = { scope.launch { settingsManager.saveBackgroundPlayback(it) } }
+                )
+                SettingsClickItem(
+                    icon = Icons.Default.Speed,
+                    title = "Default Playback Speed",
+                    subtitle = "${defaultSpeed}x",
+                    onClick = { showSpeedDialog = true }
+                )
+                val currentContext = LocalContext.current
+                SettingsClickItem(
+                    icon = Icons.Default.HighQuality,
+                    title = "Video Quality",
+                    subtitle = "Auto (Locked for now)",
+                    onClick = { 
+                        android.widget.Toast.makeText(currentContext, "Only Auto quality is supported in this version", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                )
+            }
 
             // ══════════════════════════════════════════════
             // SYNC & CLOUD
             // ══════════════════════════════════════════════
-            SettingsSectionHeader("Cloud & Sync")
-
-            SettingsToggleItem(
+            CollapsibleSettingsSection(
+                title = "Cloud & Sync",
                 icon = Icons.Default.CloudSync,
-                title = "Cross-Device Sync",
-                subtitle = "Sync progress, notes & settings across devices",
-                checked = cloudSyncEnabled,
-                onCheckedChange = { cloudSyncEnabled = it }
-            )
-
-            SettingsClickItem(
-                icon = Icons.Default.Backup,
-                title = "Backup Notes",
-                subtitle = "Backup all notes to cloud",
-                onClick = { /* TODO: Firestore backup */ }
-            )
-
-            SettingsClickItem(
-                icon = Icons.Default.Restore,
-                title = "Restore Data",
-                subtitle = "Restore progress & notes from cloud",
-                onClick = { /* TODO: Firestore restore */ }
-            )
-
-            SettingsDivider()
+                expanded = cloudExpanded,
+                onExpandedChange = { cloudExpanded = it }
+            ) {
+                SettingsToggleItem(
+                    icon = Icons.Default.CloudSync,
+                    title = "Cross-Device Sync",
+                    subtitle = "Sync progress, notes & settings across devices",
+                    checked = cloudSyncEnabled,
+                    onCheckedChange = { cloudSyncEnabled = it }
+                )
+                SettingsClickItem(
+                    icon = Icons.Default.Backup,
+                    title = "Backup Notes",
+                    subtitle = "Backup all notes to cloud",
+                    onClick = { /* TODO: Firestore backup */ }
+                )
+                SettingsClickItem(
+                    icon = Icons.Default.Restore,
+                    title = "Restore Data",
+                    subtitle = "Restore progress & notes from cloud",
+                    onClick = { /* TODO: Firestore restore */ }
+                )
+            }
 
             // ══════════════════════════════════════════════
             // APPEARANCE
             // ══════════════════════════════════════════════
-            SettingsSectionHeader("Appearance")
-
-            SettingsClickItem(
-                icon = Icons.Default.DarkMode,
-                title = "Theme",
-                subtitle = when(themeMode) {
-                    ThemeMode.LIGHT -> "Light"
-                    ThemeMode.DARK -> "Dark"
-                    ThemeMode.SYSTEM -> "System"
-                },
-                onClick = { showThemeDialog = true }
-            )
-
-            SettingsDivider()
+            CollapsibleSettingsSection(
+                title = "Appearance",
+                icon = Icons.Default.Palette,
+                expanded = appearanceExpanded,
+                onExpandedChange = { appearanceExpanded = it }
+            ) {
+                SettingsClickItem(
+                    icon = Icons.Default.DarkMode,
+                    title = "Theme",
+                    subtitle = when(themeMode) {
+                        ThemeMode.LIGHT -> "Light"
+                        ThemeMode.DARK -> "Dark"
+                        ThemeMode.SYSTEM -> "System"
+                    },
+                    onClick = { showThemeDialog = true }
+                )
+            }
 
             // ══════════════════════════════════════════════
             // NOTIFICATIONS
             // ══════════════════════════════════════════════
-            SettingsSectionHeader("Notifications")
-
-            SettingsToggleItem(
+            CollapsibleSettingsSection(
+                title = "Notifications",
                 icon = Icons.Default.Notifications,
-                title = "Study Reminders",
-                subtitle = "Get reminded to continue studying",
-                checked = notificationsEnabled,
-                onCheckedChange = { notificationsEnabled = it }
-            )
-
-            SettingsDivider()
+                expanded = notificationsExpanded,
+                onExpandedChange = { notificationsExpanded = it }
+            ) {
+                SettingsToggleItem(
+                    icon = Icons.Default.Notifications,
+                    title = "Study Reminders",
+                    subtitle = "Get reminded to continue studying",
+                    checked = notificationsEnabled,
+                    onCheckedChange = { notificationsEnabled = it }
+                )
+            }
 
             // ══════════════════════════════════════════════
             // STORAGE
             // ══════════════════════════════════════════════
-            SettingsSectionHeader("Storage")
-
-            SettingsClickItem(
-                icon = Icons.Default.CloudDownload,
-                title = "Downloads Manager",
-                subtitle = "Manage offline videos and save to device",
-                onClick = onNavigateToDownloads
-            )
-
-            SettingsClickItem(
-                icon = Icons.Default.CleaningServices,
-                title = "Clear Video Cache",
-                subtitle = "Free up space by clearing cached video data",
-                onClick = { /* TODO: Clear cache */ }
-            )
-
-            SettingsClickItem(
-                icon = Icons.Default.FolderDelete,
-                title = "Clear Downloaded PDFs",
-                subtitle = "Remove offline PDF copies",
-                onClick = { /* TODO: Clear PDFs */ }
-            )
-
-            SettingsDivider()
+            CollapsibleSettingsSection(
+                title = "Storage",
+                icon = Icons.Default.Storage,
+                expanded = storageExpanded,
+                onExpandedChange = { storageExpanded = it }
+            ) {
+                SettingsClickItem(
+                    icon = Icons.Default.CloudDownload,
+                    title = "Downloads Manager",
+                    subtitle = "Manage offline videos and save to device",
+                    onClick = onNavigateToDownloads
+                )
+                SettingsClickItem(
+                    icon = Icons.Default.CleaningServices,
+                    title = "Clear Video Cache",
+                    subtitle = "Free up space by clearing cached video data",
+                    onClick = { /* TODO: Clear cache */ }
+                )
+                SettingsClickItem(
+                    icon = Icons.Default.FolderDelete,
+                    title = "Clear Downloaded PDFs",
+                    subtitle = "Remove offline PDF copies",
+                    onClick = { /* TODO: Clear PDFs */ }
+                )
+            }
 
             // ══════════════════════════════════════════════
             // ABOUT & SUPPORT
             // ══════════════════════════════════════════════
-            SettingsSectionHeader("About")
-
-            SettingsClickItem(
+            CollapsibleSettingsSection(
+                title = "About",
                 icon = Icons.Default.Info,
-                title = "App Version",
-                subtitle = "1.0.0",
-                onClick = { }
-            )
-
-            SettingsClickItem(
-                icon = Icons.Default.Policy,
-                title = "Privacy Policy",
-                subtitle = "View our privacy policy",
-                onClick = { /* TODO: Open web link */ }
-            )
-
-            SettingsClickItem(
-                icon = Icons.Default.Description,
-                title = "Terms of Service",
-                subtitle = "View terms of service",
-                onClick = { /* TODO: Open web link */ }
-            )
-
-            SettingsClickItem(
-                icon = Icons.Default.BugReport,
-                title = "Report a Bug",
-                subtitle = "Help us improve Pulse",
-                onClick = { /* TODO: Open feedback form */ }
-            )
-
-            SettingsDivider()
+                expanded = aboutExpanded,
+                onExpandedChange = { aboutExpanded = it }
+            ) {
+                SettingsClickItem(
+                    icon = Icons.Default.Info,
+                    title = "App Version",
+                    subtitle = "1.0.0",
+                    onClick = { }
+                )
+                SettingsClickItem(
+                    icon = Icons.Default.Policy,
+                    title = "Privacy Policy",
+                    subtitle = "View our privacy policy",
+                    onClick = { /* TODO: Open web link */ }
+                )
+                SettingsClickItem(
+                    icon = Icons.Default.Description,
+                    title = "Terms of Service",
+                    subtitle = "View terms of service",
+                    onClick = { /* TODO: Open web link */ }
+                )
+                SettingsClickItem(
+                    icon = Icons.Default.BugReport,
+                    title = "Report a Bug",
+                    subtitle = "Help us improve Pulse",
+                    onClick = { /* TODO: Open feedback form */ }
+                )
+            }
 
             // ══════════════════════════════════════════════
             // ACCOUNT ACTIONS
             // ══════════════════════════════════════════════
-            SettingsSectionHeader("Account")
-
-            SettingsClickItem(
-                icon = Icons.AutoMirrored.Filled.Logout,
-                title = "Sign Out",
-                subtitle = authManager.email ?: "",
-                onClick = { showSignOutDialog = true },
-                tintColor = MaterialTheme.colorScheme.error
-            )
+            CollapsibleSettingsSection(
+                title = "Account",
+                icon = Icons.Default.Person,
+                expanded = accountExpanded,
+                onExpandedChange = { accountExpanded = it }
+            ) {
+                SettingsClickItem(
+                    icon = Icons.AutoMirrored.Filled.Logout,
+                    title = "Sign Out",
+                    subtitle = authManager.email ?: "",
+                    onClick = { showSignOutDialog = true },
+                    tintColor = MaterialTheme.colorScheme.error
+                )
+            }
 
             Spacer(Modifier.height(32.dp))
         }
@@ -452,6 +474,66 @@ fun ProfileSettingsScreen(
 // ══════════════════════════════════════════════
 
 @Composable
+fun CollapsibleSettingsSection(
+    title: String,
+    icon: ImageVector,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onExpandedChange(!expanded) }
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                        Icon(imageVector = icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                    }
+                }
+                Spacer(Modifier.width(16.dp))
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f)
+                )
+                Icon(
+                    imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = "Expand",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            AnimatedVisibility(
+                visible = expanded,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Column(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+                    content()
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun SettingsSectionHeader(title: String) {
     Text(
         text = title.uppercase(),
@@ -473,7 +555,7 @@ fun SettingsToggleItem(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface
+        color = androidx.compose.ui.graphics.Color.Transparent
     ) {
         Row(
             modifier = Modifier
@@ -524,7 +606,7 @@ fun SettingsClickItem(
     Surface(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface
+        color = androidx.compose.ui.graphics.Color.Transparent
     ) {
         Row(
             modifier = Modifier

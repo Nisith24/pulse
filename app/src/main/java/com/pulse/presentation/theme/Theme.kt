@@ -84,22 +84,26 @@ private val DarkColorScheme = darkColorScheme(
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Color(0xFF00796B),
+    primary = Color(0xFF00796B),           // Elegant dark teal
     onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFFB2DFDB),
+    primaryContainer = Color(0xFF80CBC4),  // Soft aqua container
     onPrimaryContainer = Color(0xFF002019),
     secondary = Color(0xFF4DB6AC),
     onSecondary = Color(0xFFFFFFFF),
-    background = Color(0xFFFAFAFA),
-    onBackground = Color(0xFF1A1C1E),
-    surface = Color(0xFFFFFFFF),
-    onSurface = Color(0xFF1A1C1E),
-    surfaceVariant = Color(0xFFE8EDF2),
-    onSurfaceVariant = Color(0xFF44474F),
-    error = Color(0xFFBA1A1A),
-    errorContainer = Color(0xFFFFDAD6),
-    onErrorContainer = Color(0xFF410002),
-    outline = Color(0xFFCBD5E0),
+    secondaryContainer = Color(0xFFB2DFDB),
+    onSecondaryContainer = Color(0xFF00332E),
+    tertiary = Color(0xFFB0BEC5),
+    background = Color(0xFFF8F9FA),        // Soft off-white background
+    onBackground = Color(0xFF1E293B),      // Elegant dark slate for text
+    surface = Color(0xFFFFFFFF),           // Pure white cards
+    onSurface = Color(0xFF1E293B),
+    surfaceVariant = Color(0xFFF1F5F9),    // Very light grey-blue for elevated variants
+    onSurfaceVariant = Color(0xFF475569),  // Subtle slate text
+    error = Color(0xFFE53E3E),
+    errorContainer = Color(0xFFFED7D7),
+    onErrorContainer = Color(0xFF742A2A),
+    outline = Color(0xFFCBD5E1),           // Elegant soft border
+    outlineVariant = Color(0xFFE2E8F0),
 )
 
 @Composable

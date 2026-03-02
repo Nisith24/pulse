@@ -49,8 +49,10 @@ class LectureRepository(
     val localLectures: Flow<List<Lecture>> = lectureDao.getLocalLectures()
     val downloadedLectures: Flow<List<Lecture>> = lectureDao.getDownloadedLectures()
     val cloudOnlyLectures: Flow<List<Lecture>> = lectureDao.getCloudOnlyLectures()
+    val recentLecture: Flow<Lecture?> = lectureDao.getRecentLecture()
 
     fun getLectureById(id: String): Flow<Lecture?> = lectureDao.getById(id)
+    fun getLecturesBySubject(subject: String): Flow<List<Lecture>> = lectureDao.getLecturesBySubject(subject)
 
     // --- Sync: push single lecture to Firestore (fire-and-forget) ---
     private fun firebasePush(lectureId: String) {
@@ -58,6 +60,7 @@ class LectureRepository(
             try {
                 val lecture = lectureDao.getById(lectureId).first() ?: return@launch
                 syncManager.pushSingleLecture(lecture)
+                com.pulse.data.sync.FirestoreSyncWorker.enqueueDebouncedSync(context)
             } catch (e: Exception) {
                 logger.e("FirebaseSync", "Push failed for $lectureId: ${e.message}")
             }
@@ -74,6 +77,10 @@ class LectureRepository(
         } catch (e: Exception) {
             logger.e("FirebaseSync", "Pull failed: ${e.message}")
         }
+    }
+
+    suspend fun syncWithCloud() = withContext(Dispatchers.IO) {
+        pullFromFirestore()
     }
 
     suspend fun deleteOfflineVideo(lectureId: String) = withContext(Dispatchers.IO) {
@@ -99,6 +106,19 @@ class LectureRepository(
             pdfLocalPath = pdfPath ?: "", videoLocalPath = videoPath,
             isPdfDownloaded = pdfPath != null, isLocal = true,
             hlcTimestamp = hlc, updatedAt = now
+        )
+        lectureDao.insert(lecture)
+    }
+
+    suspend fun addDriveLecture(id: String, name: String, subject: String, topic: String, videoId: String?, pdfId: String?) {
+        val now = System.currentTimeMillis()
+        val hlc = hlcGenerator.generate()
+        val lecture = Lecture(
+            id = id, name = name, videoId = videoId, pdfId = pdfId,
+            pdfLocalPath = "", videoLocalPath = null,
+            isPdfDownloaded = false, isLocal = false,
+            hlcTimestamp = hlc, updatedAt = now,
+            subject = subject
         )
         lectureDao.insert(lecture)
     }
@@ -188,6 +208,7 @@ class LectureRepository(
                     pdfPageCount = existing.pdfPageCount,
                     lastPdfPage = existing.lastPdfPage,
                     pdfIsHorizontal = existing.pdfIsHorizontal,
+                    subject = existing.subject,
                     pdfLocalPath = existing.pdfLocalPath.ifEmpty { newLecture.pdfLocalPath },
                     videoLocalPath = existing.videoLocalPath,
                     isPdfDownloaded = existing.isPdfDownloaded,
@@ -216,6 +237,52 @@ class LectureRepository(
                 try { downloadPdf(lecture, token) } catch (e: Exception) {
                     logger.e("LectureSync", "Failed to download PDF for ${lecture.name}: ${e.message}")
                 }
+            }
+        }
+    }
+
+    suspend fun syncSubjectFolder(folderId: String, subjectName: String) = withContext(Dispatchers.IO) {
+        val token = authManager.getToken()
+        val files = btrService.listFolder(folderId, token)
+        val grouped = syncLecturesUseCase(files)
+        
+        val existingLectures = lectureDao.getAllLecturesAsList().associateBy { it.id }
+        val hlc = hlcGenerator.generate()
+        
+        val lecturesToInsert = grouped.map { newLecture ->
+            val existing = existingLectures[newLecture.id]
+            if (existing != null) {
+                newLecture.copy(
+                    lastPosition = existing.lastPosition,
+                    videoDuration = existing.videoDuration,
+                    speed = existing.speed,
+                    isFavorite = existing.isFavorite,
+                    pdfPageCount = existing.pdfPageCount,
+                    lastPdfPage = existing.lastPdfPage,
+                    pdfIsHorizontal = existing.pdfIsHorizontal,
+                    subject = existing.subject ?: subjectName,
+                    pdfLocalPath = existing.pdfLocalPath.ifEmpty { newLecture.pdfLocalPath },
+                    videoLocalPath = existing.videoLocalPath,
+                    isPdfDownloaded = existing.isPdfDownloaded,
+                    isDeleted = existing.isDeleted,
+                    updatedAt = existing.updatedAt,
+                    hlcTimestamp = existing.hlcTimestamp
+                )
+            } else {
+                newLecture.copy(subject = subjectName, hlcTimestamp = hlc)
+            }
+        }
+        
+        lectureDao.insertAll(lecturesToInsert)
+        
+        val btrToSync = lecturesToInsert.filter { !it.isLocal }
+        if (btrToSync.isNotEmpty()) {
+            syncManager.pushLectures(btrToSync)
+        }
+        
+        for (lecture in grouped) {
+            if (lecture.pdfId != null && !lecture.isPdfDownloaded) {
+                try { downloadPdf(lecture, token) } catch (e: Exception) {}
             }
         }
     }

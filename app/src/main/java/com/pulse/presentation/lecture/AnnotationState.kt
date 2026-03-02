@@ -37,8 +37,11 @@ class AnnotationState {
         val mapper = screenToPdfMapper
         if (mapper != null) return mapper.invoke(screenX, screenY)
         
-        // Fallback: Default mapping if no mapper injected
-        return android.graphics.PointF(screenX, screenY)
+        // Notebook mapping with zoom/pan
+        return android.graphics.PointF(
+            (screenX - currentXOffset) / currentZoom,
+            (screenY - currentYOffset) / currentZoom
+        )
     }
 
     /**
@@ -48,8 +51,11 @@ class AnnotationState {
         val mapper = pdfToScreenMapper
         if (mapper != null) return mapper.invoke(pdfX, pdfY)
         
-        // Fallback: Default mapping if no mapper injected
-        return android.graphics.PointF(pdfX, pdfY)
+        // Notebook mapping with zoom/pan
+        return android.graphics.PointF(
+            pdfX * currentZoom + currentXOffset,
+            pdfY * currentZoom + currentYOffset
+        )
     }
 }
 

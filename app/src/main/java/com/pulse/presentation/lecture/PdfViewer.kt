@@ -319,9 +319,9 @@ private fun NotebookPage(
             Spacer(Modifier.height(40.dp))
             Text(
                 text = title,
-                style = MaterialTheme.typography.displaySmall.copy(
-                    fontWeight = FontWeight.Light,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
                 ),
                 modifier = Modifier.padding(horizontal = 24.dp),
                 textAlign = TextAlign.Center

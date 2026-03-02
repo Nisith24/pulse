@@ -45,7 +45,8 @@ val appModule = module {
             androidContext(),
             AppDatabase::class.java,
             "Pulse.db"
-        ).fallbackToDestructiveMigration()
+        ).addMigrations(AppDatabase.MIGRATION_12_13)
+         .fallbackToDestructiveMigration()
          .build()
     }
     
@@ -89,13 +90,14 @@ val appModule = module {
     single { PlayerProvider(androidContext(), get()) }
     
     // ViewModels
-    viewModel { com.pulse.presentation.theme.ThemeViewModel() }
+    viewModel { com.pulse.presentation.theme.ThemeViewModel(get()) }
     viewModel { LibraryViewModel(get(), get(), get()) }
     viewModel { DownloadsViewModel(get()) }
     
     viewModel { (lectureId: String) -> 
         LectureViewModel(lectureId, get(), get(), get(), get(), get(), get(), get()) 
     }
+    viewModel { com.pulse.presentation.subjects.SubjectDetailViewModel(get(), get()) }
     
     // Workers
     worker { com.pulse.data.services.btr.BtrSyncWorker(get(), get(), get()) }

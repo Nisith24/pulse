@@ -109,7 +109,7 @@ class LectureViewModel(
 
             if (hasVideo) {
                 val result = getLectureStreamUrlUseCase(lecture.videoId)
-                val url = lecture.videoLocalPath ?: result?.first
+                val url = lecture.videoLocalPath.takeIf { !it.isNullOrBlank() } ?: result?.first
                 val token = result?.second
 
                 if (url != null) {

@@ -29,11 +29,13 @@ class FirestoreSyncWorker(
             // --- PUSH: Local changes -> Firestore ---
             val modifiedLectures = lectureDao.getModifiedSince(lastSync)
             val modifiedNotes = noteDao.getModifiedSince(lastSync)
+            val modifiedVisuals = noteVisualDao.getModifiedSince(lastSync)
 
             val filteredLectures = modifiedLectures.filter { !it.isLocal }
             
             syncManager.pushLectures(filteredLectures)
             syncManager.pushNotes(modifiedNotes)
+            syncManager.pushNoteVisuals(modifiedVisuals)
 
             // --- PULL: Firestore -> Local (with HLC conflict resolution) ---
             val remoteLectures = syncManager.pullLectures(lastSync)
@@ -70,9 +72,16 @@ class FirestoreSyncWorker(
                 if (toInsert.isNotEmpty()) noteDao.insertAll(toInsert)
             }
 
+            val remoteVisuals = syncManager.pullNoteVisuals(lastSync)
+            if (remoteVisuals.isNotEmpty()) {
+                // To avoid loading the entire DB for visuals, we just insert. Room's onConflictStrategy will handle it
+                // Or we can query the specific IDs if needed, but assuming a reasonable amount for now.
+                noteVisualDao.insertAll(remoteVisuals)
+            }
+
             settingsManager.saveLastSyncTime(System.currentTimeMillis())
             
-            Log.d("FirestoreSyncWorker", "Sync OK. Push: ${filteredLectures.size}L/${modifiedNotes.size}N. Pull: ${remoteLectures.size}L/${remoteNotes.size}N")
+            Log.d("FirestoreSyncWorker", "Sync OK. Push: ${filteredLectures.size}L/${modifiedNotes.size}N/${modifiedVisuals.size}V. Pull: ${remoteLectures.size}L/${remoteNotes.size}N/${remoteVisuals.size}V")
             Result.success()
         } catch (e: Exception) {
             Log.e("FirestoreSyncWorker", "Sync failed", e)
