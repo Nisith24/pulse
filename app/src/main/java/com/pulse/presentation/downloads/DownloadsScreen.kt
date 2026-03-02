@@ -84,6 +84,13 @@ fun DownloadsScreen(
             )
         }
     ) { padding ->
+        val activeItems = remember(cloudOnly, downloaded, activeDownloads) {
+            (cloudOnly + downloaded).filter { activeDownloads.containsKey(it.id) }.distinctBy { it.id }
+        }
+        val availableItems = remember(cloudOnly, activeDownloads) {
+            cloudOnly.filter { !activeDownloads.containsKey(it.id) }
+        }
+
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -111,7 +118,6 @@ fun DownloadsScreen(
             // ═══════════════════════════════════
             // ACTIVE DOWNLOADS
             // ═══════════════════════════════════
-            val activeItems = (cloudOnly + downloaded).filter { activeDownloads.containsKey(it.id) }.distinctBy { it.id }
             if (activeItems.isNotEmpty()) {
                 item { SectionHeader("Active Downloads", Icons.Default.Downloading) }
                 items(activeItems, key = { "active-${it.id}" }) { lecture ->
@@ -164,7 +170,6 @@ fun DownloadsScreen(
             // ═══════════════════════════════════
             // AVAILABLE FOR DOWNLOAD
             // ═══════════════════════════════════
-            val availableItems = cloudOnly.filter { !activeDownloads.containsKey(it.id) }
             if (availableItems.isNotEmpty()) {
                 item { SectionHeader("Available for Download", Icons.Default.CloudDownload) }
                 items(availableItems, key = { "cloud-${it.id}" }) { lecture ->
