@@ -44,6 +44,7 @@ import androidx.navigation.toRoute
 import com.pulse.presentation.theme.ThemeViewModel
 import com.pulse.presentation.theme.ThemeMode
 import kotlinx.coroutines.flow.MutableStateFlow
+import androidx.activity.enableEdgeToEdge
 
 class MainActivity : ComponentActivity() {
     private val authManager: IBtrAuthManager by inject()
@@ -55,6 +56,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         handleIntent(intent)
         
         setContent {

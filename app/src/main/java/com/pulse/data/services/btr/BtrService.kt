@@ -83,7 +83,8 @@ class GoogleDriveBtrService(
             .build()
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) error("Download failed: ${response.code}")
-            response.body!!.bytes()
+            val body = response.body ?: error("Empty response body from Drive API")
+            body.bytes()
         }
     }
 

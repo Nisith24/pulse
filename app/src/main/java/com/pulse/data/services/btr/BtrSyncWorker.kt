@@ -6,6 +6,8 @@ import androidx.work.CoroutineWorker
 import com.pulse.core.domain.util.ILogger
 import androidx.work.WorkerParameters
 import com.pulse.data.repository.LectureRepository
+import com.pulse.core.domain.util.onSuccess
+import com.pulse.core.domain.util.onError
 
 class BtrSyncWorker(
     appContext: Context,
@@ -15,16 +17,23 @@ class BtrSyncWorker(
 
     override suspend fun doWork(): Result {
         Log.d("BtrSyncWorker", "Starting background sync...")
-        return try {
-            repository.sync()
-            Log.d("BtrSyncWorker", "Background sync completed successfully.")
-            Result.success()
-        } catch (e: PulseAuthException) {
-            Log.w("BtrSyncWorker", "Sync skipped due to auth issue: ${e.message}")
-            Result.retry()
-        } catch (e: Exception) {
-            Log.e("BtrSyncWorker", "Sync failed with error: ", e)
-            Result.failure()
-        }
+        var workResult = Result.failure()
+        
+        repository.sync()
+            .onSuccess {
+                Log.d("BtrSyncWorker", "Background sync completed successfully.")
+                workResult = Result.success()
+            }
+            .onError { e, message ->
+                if (e is PulseAuthException) {
+                    Log.w("BtrSyncWorker", "Sync skipped due to auth issue: $message")
+                    workResult = Result.retry()
+                } else {
+                    Log.e("BtrSyncWorker", "Sync failed with error: ", e)
+                    workResult = Result.failure()
+                }
+            }
+            
+        return workResult
     }
 }

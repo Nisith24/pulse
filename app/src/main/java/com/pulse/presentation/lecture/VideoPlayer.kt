@@ -62,7 +62,7 @@ fun VideoPlayer(
 ) {
     var showControls by remember { mutableStateOf(!isPip) }
     var showSettings by remember { mutableStateOf(false) }
-    var resizeMode by remember { mutableIntStateOf(AspectRatioFrameLayout.RESIZE_MODE_FIT) }
+    var resizeMode by remember { mutableIntStateOf(AspectRatioFrameLayout.RESIZE_MODE_ZOOM) }
 
     val context = LocalContext.current
     val activity = context as? android.app.Activity

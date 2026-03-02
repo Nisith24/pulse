@@ -51,13 +51,13 @@ class GoogleAuthManager(private val context: Context) : IBtrAuthManager {
         val account = getSignedInAccount() ?: throw PulseAuthException.UserNotSignedIn
         val scope = "oauth2:https://www.googleapis.com/auth/drive.readonly"
         
+        val googleAccount = account.account ?: throw PulseAuthException.Fatal("Google account is null")
         try {
-            GoogleAuthUtil.getToken(context, account.account!!, scope)
+            GoogleAuthUtil.getToken(context, googleAccount, scope)
         } catch (e: UserRecoverableAuthException) {
             val intent = e.intent ?: throw PulseAuthException.Fatal("Auth required but no intent provided")
             throw PulseAuthException.PermissionRequired(intent)
         } catch (e: Exception) {
-            e.printStackTrace()
             throw PulseAuthException.Fatal(e.message ?: "Unknown auth error")
         }
     }

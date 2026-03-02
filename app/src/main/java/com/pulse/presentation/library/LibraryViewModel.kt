@@ -18,6 +18,9 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
+import com.pulse.core.domain.util.Result
+import com.pulse.core.domain.util.onError
+import com.pulse.core.domain.util.onSuccess
 
 enum class LibraryTab {
     HOME, SERVICES
@@ -97,16 +100,15 @@ class LibraryViewModel(
     fun syncAndResume(onLectureReady: (String) -> Unit) {
         viewModelScope.launch {
             _isLoading.value = true
-            try {
-                // Sync latest position before resuming
-                repository.syncWithCloud()
-                val recent = repository.recentLecture.first()
-                recent?.let { onLectureReady(it.id) }
-            } catch (e: Exception) {
-                _error.value = "Failed to sync: ${e.message}"
-            } finally {
-                _isLoading.value = false
-            }
+            repository.syncWithCloud()
+                .onSuccess {
+                    val recent = repository.recentLecture.first()
+                    recent?.let { onLectureReady(it.id) }
+                }
+                .onError { error, message ->
+                    _error.value = "Failed to sync: $message"
+                }
+            _isLoading.value = false
         }
     }
 
@@ -143,27 +145,29 @@ class LibraryViewModel(
             _error.value = null
             _authIntent.value = null
             _isLoading.value = true
-            try {
-                repository.sync()
-            } catch (e: com.pulse.data.services.btr.PulseAuthException) {
-                when (e) {
-                    is com.pulse.data.services.btr.PulseAuthException.PermissionRequired -> {
-                        _error.value = "Cloud access requires permission."
-                        _authIntent.value = e.intent
-                    }
-                    is com.pulse.data.services.btr.PulseAuthException.UserNotSignedIn -> {
-                        _error.value = "Please sign in to your Cloud account."
-                    }
-                    is com.pulse.data.services.btr.PulseAuthException.Fatal -> {
-                        _error.value = "Authentication error: ${e.message}"
+            
+            repository.sync()
+                .onError { e, message ->
+                    if (e is com.pulse.data.services.btr.PulseAuthException) {
+                        when (e) {
+                            is com.pulse.data.services.btr.PulseAuthException.PermissionRequired -> {
+                                _error.value = "Cloud access requires permission."
+                                _authIntent.value = e.intent
+                            }
+                            is com.pulse.data.services.btr.PulseAuthException.UserNotSignedIn -> {
+                                _error.value = "Please sign in to your Cloud account."
+                            }
+                            is com.pulse.data.services.btr.PulseAuthException.Fatal -> {
+                                _error.value = "Authentication error: ${e.message}"
+                            }
+                        }
+                    } else {
+                        e.printStackTrace()
+                        _error.value = "Sync failed: $message"
                     }
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                _error.value = "Sync failed: ${e.message}"
-            } finally {
-                _isLoading.value = false
-            }
+                
+            _isLoading.value = false
         }
     }
 

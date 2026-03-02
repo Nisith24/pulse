@@ -7,6 +7,8 @@ import com.pulse.data.repository.LectureRepository
 import com.pulse.domain.services.btr.IBtrAuthManager
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import com.pulse.core.domain.util.onError
+import com.pulse.core.domain.util.onSuccess
 
 data class SubjectDetailUiState(
     val isLoading: Boolean = false,
@@ -39,18 +41,18 @@ class SubjectDetailViewModel(
         
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
-            try {
-                if (!btrAuthManager.isSignedIn) {
-                    _uiState.update { it.copy(isLoading = false, error = "Sign in required to load content.") }
-                    return@launch
-                }
-                
-                lectureRepository.syncSubjectFolder(folderId, subjectName)
-                
-                _uiState.update { it.copy(isLoading = false) }
-            } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, error = "Error loading folder: ${e.message}") }
+            if (!btrAuthManager.isSignedIn) {
+                _uiState.update { it.copy(isLoading = false, error = "Sign in required to load content.") }
+                return@launch
             }
+            
+            lectureRepository.syncSubjectFolder(folderId, subjectName)
+                .onSuccess {
+                    _uiState.update { state -> state.copy(isLoading = false) }
+                }
+                .onError { error, message ->
+                    _uiState.update { state -> state.copy(isLoading = false, error = "Error loading folder: $message") }
+                }
         }
     }
 

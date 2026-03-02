@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.pulse.core.data.db.Lecture
+import com.pulse.core.domain.util.Constants
 import com.pulse.presentation.components.LectureCard
 import org.koin.androidx.compose.koinViewModel
 
@@ -53,7 +54,7 @@ fun SubjectDetailScreen(
                 subjectName == "Microbiology" && !showingFolder -> {
                     FolderSection(onFolderClick = {
                         showingFolder = true
-                        viewModel.loadFolder("1qAt4Qm9H-18uh6JZ5sBDh4u_qLszcA47", subjectName)
+                        viewModel.loadFolder(Constants.PREPLADDER_FOLDER_ID, subjectName)
                     })
                 }
                 showingFolder -> {

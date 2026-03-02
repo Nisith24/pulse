@@ -147,7 +147,8 @@ class FirestoreSyncManager(
                             speed = local.speed,
                             pdfPageCount = local.pdfPageCount,
                             lastPdfPage = local.lastPdfPage,
-                            pdfIsHorizontal = local.pdfIsHorizontal
+                            pdfIsHorizontal = local.pdfIsHorizontal,
+                            subject = local.subject ?: remote.subject
                         )
                     } else remote
                 }
@@ -167,6 +168,7 @@ class FirestoreSyncManager(
         "id" to l.id, "name" to l.name, "videoId" to l.videoId, 
         "lastPosition" to l.lastPosition, "videoDuration" to l.videoDuration,
         "isFavorite" to l.isFavorite,
+        "subject" to l.subject,
         "hlcTimestamp" to l.hlcTimestamp,
         "updatedAt" to l.updatedAt
     )
@@ -191,7 +193,8 @@ class FirestoreSyncManager(
         pdfIsHorizontal = false,
         hlcTimestamp = m["hlcTimestamp"] as? String ?: "",
         isDeleted = m["isDeleted"] as? Boolean ?: false,
-        updatedAt = (m["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
+        updatedAt = (m["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+        subject = m["subject"] as? String
     )
 
     private fun mapToNote(m: Map<String, Any>): Note = Note(

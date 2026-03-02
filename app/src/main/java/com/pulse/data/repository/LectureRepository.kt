@@ -79,8 +79,10 @@ class LectureRepository(
         }
     }
 
-    suspend fun syncWithCloud() = withContext(Dispatchers.IO) {
-        pullFromFirestore()
+    suspend fun syncWithCloud(): com.pulse.core.domain.util.Result<Unit> = withContext(Dispatchers.IO) {
+        com.pulse.core.domain.util.safeApiCall {
+            pullFromFirestore()
+        }
     }
 
     suspend fun deleteOfflineVideo(lectureId: String) = withContext(Dispatchers.IO) {
@@ -179,110 +181,112 @@ class LectureRepository(
         firebasePush(lectureId) // Infrequent user action
     }
 
-    suspend fun sync() {
-        // Step 1: Pull from Firestore first (get latest from other devices)
-        pullFromFirestore()
+    suspend fun sync(): com.pulse.core.domain.util.Result<Unit> = withContext(Dispatchers.IO) {
+        com.pulse.core.domain.util.safeApiCall {
+            // Step 1: Pull from Firestore first (get latest from other devices)
+            pullFromFirestore()
 
-        // Step 2: Sync from Google Drive (BTR files)
-        val token = try { authManager.getToken() } catch (e: Exception) { 
-            logger.e("LectureSync", "Failed to get token: ${e.message}")
-            throw e 
-        }
-        logger.d("LectureSync", "Starting sync with folder: ${Constants.DRIVE_FOLDER_ID}")
-        val files = btrService.listFolder(Constants.DRIVE_FOLDER_ID, token)
-        logger.d("LectureSync", "Found ${files.size} files in Drive folder")
+            // Step 2: Sync from Google Drive (BTR files)
+            val token = authManager.getToken()
+            
+            logger.d("LectureSync", "Starting sync with folder: ${Constants.DRIVE_FOLDER_ID}")
+            val files = btrService.listFolder(Constants.DRIVE_FOLDER_ID, token)
+            logger.d("LectureSync", "Found ${files.size} files in Drive folder")
 
-        val grouped = syncLecturesUseCase(files)
-        
-        val existingLectures = lectureDao.getAllLecturesAsList().associateBy { it.id }
-        
-        val hlc = hlcGenerator.generate()
-        val lecturesToInsert = grouped.map { newLecture ->
-            val existing = existingLectures[newLecture.id]
-            if (existing != null) {
-                newLecture.copy(
-                    lastPosition = existing.lastPosition,
-                    videoDuration = existing.videoDuration,
-                    speed = existing.speed,
-                    isFavorite = existing.isFavorite,
-                    pdfPageCount = existing.pdfPageCount,
-                    lastPdfPage = existing.lastPdfPage,
-                    pdfIsHorizontal = existing.pdfIsHorizontal,
-                    subject = existing.subject,
-                    pdfLocalPath = existing.pdfLocalPath.ifEmpty { newLecture.pdfLocalPath },
-                    videoLocalPath = existing.videoLocalPath,
-                    isPdfDownloaded = existing.isPdfDownloaded,
-                    isDeleted = existing.isDeleted,
-                    updatedAt = existing.updatedAt,
-                    hlcTimestamp = existing.hlcTimestamp
-                )
-            } else {
-                newLecture.copy(hlcTimestamp = hlc)
+            val grouped = syncLecturesUseCase(files)
+            
+            val existingLectures = lectureDao.getAllLecturesAsList().associateBy { it.id }
+            
+            val hlc = hlcGenerator.generate()
+            val lecturesToInsert = grouped.map { newLecture ->
+                val existing = existingLectures[newLecture.id]
+                if (existing != null) {
+                    newLecture.copy(
+                        lastPosition = existing.lastPosition,
+                        videoDuration = existing.videoDuration,
+                        speed = existing.speed,
+                        isFavorite = existing.isFavorite,
+                        pdfPageCount = existing.pdfPageCount,
+                        lastPdfPage = existing.lastPdfPage,
+                        pdfIsHorizontal = existing.pdfIsHorizontal,
+                        subject = existing.subject,
+                        pdfLocalPath = existing.pdfLocalPath.ifEmpty { newLecture.pdfLocalPath },
+                        videoLocalPath = existing.videoLocalPath,
+                        isPdfDownloaded = existing.isPdfDownloaded,
+                        isDeleted = existing.isDeleted,
+                        updatedAt = existing.updatedAt,
+                        hlcTimestamp = existing.hlcTimestamp
+                    )
+                } else {
+                    newLecture.copy(hlcTimestamp = hlc)
+                }
             }
-        }
-        
-        lectureDao.insertAll(lecturesToInsert)
-        lectureDao.markMissingBtrDeleted(grouped.map { it.id }, hlc)
+            
+            lectureDao.insertAll(lecturesToInsert)
+            lectureDao.markMissingBtrDeleted(grouped.map { it.id }, hlc)
 
-        // Step 3: Push all BTR lectures to Firestore
-        val btrToSync = lecturesToInsert.filter { !it.isLocal }
-        if (btrToSync.isNotEmpty()) {
-            syncManager.pushLectures(btrToSync)
-            logger.d("LectureSync", "Pushed ${btrToSync.size} BTR lectures to Firestore")
-        }
+            // Step 3: Push all BTR lectures to Firestore
+            val btrToSync = lecturesToInsert.filter { !it.isLocal }
+            if (btrToSync.isNotEmpty()) {
+                syncManager.pushLectures(btrToSync)
+                logger.d("LectureSync", "Pushed ${btrToSync.size} BTR lectures to Firestore")
+            }
 
-        // Auto-download PDFs
-        for (lecture in grouped) {
-            if (lecture.pdfId != null && !lecture.isPdfDownloaded) {
-                try { downloadPdf(lecture, token) } catch (e: Exception) {
-                    logger.e("LectureSync", "Failed to download PDF for ${lecture.name}: ${e.message}")
+            // Auto-download PDFs
+            for (lecture in grouped) {
+                if (lecture.pdfId != null && !lecture.isPdfDownloaded) {
+                    try { downloadPdf(lecture, token) } catch (e: Exception) {
+                        logger.e("LectureSync", "Failed to download PDF for ${lecture.name}: ${e.message}")
+                    }
                 }
             }
         }
     }
 
-    suspend fun syncSubjectFolder(folderId: String, subjectName: String) = withContext(Dispatchers.IO) {
-        val token = authManager.getToken()
-        val files = btrService.listFolder(folderId, token)
-        val grouped = syncLecturesUseCase(files)
-        
-        val existingLectures = lectureDao.getAllLecturesAsList().associateBy { it.id }
-        val hlc = hlcGenerator.generate()
-        
-        val lecturesToInsert = grouped.map { newLecture ->
-            val existing = existingLectures[newLecture.id]
-            if (existing != null) {
-                newLecture.copy(
-                    lastPosition = existing.lastPosition,
-                    videoDuration = existing.videoDuration,
-                    speed = existing.speed,
-                    isFavorite = existing.isFavorite,
-                    pdfPageCount = existing.pdfPageCount,
-                    lastPdfPage = existing.lastPdfPage,
-                    pdfIsHorizontal = existing.pdfIsHorizontal,
-                    subject = existing.subject ?: subjectName,
-                    pdfLocalPath = existing.pdfLocalPath.ifEmpty { newLecture.pdfLocalPath },
-                    videoLocalPath = existing.videoLocalPath,
-                    isPdfDownloaded = existing.isPdfDownloaded,
-                    isDeleted = existing.isDeleted,
-                    updatedAt = existing.updatedAt,
-                    hlcTimestamp = existing.hlcTimestamp
-                )
-            } else {
-                newLecture.copy(subject = subjectName, hlcTimestamp = hlc)
+    suspend fun syncSubjectFolder(folderId: String, subjectName: String): com.pulse.core.domain.util.Result<Unit> = withContext(Dispatchers.IO) {
+        com.pulse.core.domain.util.safeApiCall {
+            val token = authManager.getToken()
+            val files = btrService.listFolder(folderId, token, recursive = true)
+            val grouped = syncLecturesUseCase(files)
+            
+            val existingLectures = lectureDao.getAllLecturesAsList().associateBy { it.id }
+            val hlc = hlcGenerator.generate()
+            
+            val lecturesToInsert = grouped.map { newLecture ->
+                val existing = existingLectures[newLecture.id]
+                if (existing != null) {
+                    newLecture.copy(
+                        lastPosition = existing.lastPosition,
+                        videoDuration = existing.videoDuration,
+                        speed = existing.speed,
+                        isFavorite = existing.isFavorite,
+                        pdfPageCount = existing.pdfPageCount,
+                        lastPdfPage = existing.lastPdfPage,
+                        pdfIsHorizontal = existing.pdfIsHorizontal,
+                        subject = existing.subject.takeIf { !it.isNullOrBlank() } ?: subjectName,
+                        pdfLocalPath = existing.pdfLocalPath.ifEmpty { newLecture.pdfLocalPath },
+                        videoLocalPath = existing.videoLocalPath,
+                        isPdfDownloaded = existing.isPdfDownloaded,
+                        isDeleted = existing.isDeleted,
+                        updatedAt = existing.updatedAt,
+                        hlcTimestamp = existing.hlcTimestamp
+                    )
+                } else {
+                    newLecture.copy(subject = subjectName, hlcTimestamp = hlc)
+                }
             }
-        }
-        
-        lectureDao.insertAll(lecturesToInsert)
-        
-        val btrToSync = lecturesToInsert.filter { !it.isLocal }
-        if (btrToSync.isNotEmpty()) {
-            syncManager.pushLectures(btrToSync)
-        }
-        
-        for (lecture in grouped) {
-            if (lecture.pdfId != null && !lecture.isPdfDownloaded) {
-                try { downloadPdf(lecture, token) } catch (e: Exception) {}
+            
+            lectureDao.insertAll(lecturesToInsert)
+            
+            val btrToSync = lecturesToInsert.filter { !it.isLocal }
+            if (btrToSync.isNotEmpty()) {
+                syncManager.pushLectures(btrToSync)
+            }
+            
+            for (lecture in grouped) {
+                if (lecture.pdfId != null && !lecture.isPdfDownloaded) {
+                    try { downloadPdf(lecture, token) } catch (e: Exception) {}
+                }
             }
         }
     }
