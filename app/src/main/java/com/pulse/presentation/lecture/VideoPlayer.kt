@@ -48,6 +48,7 @@ import com.pulse.presentation.lecture.components.ControlsOverlay
 import com.pulse.presentation.lecture.components.SettingsOverlay
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.compose.material.icons.filled.ContentCut
 
 @Composable
 fun VideoPlayer(
@@ -63,6 +64,7 @@ fun VideoPlayer(
     var showControls by remember { mutableStateOf(!isPip) }
     var showSettings by remember { mutableStateOf(false) }
     var resizeMode by remember { mutableIntStateOf(AspectRatioFrameLayout.RESIZE_MODE_ZOOM) }
+    var isSlideMode by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val activity = context as? android.app.Activity
@@ -113,28 +115,42 @@ fun VideoPlayer(
         val isMinimal = containerWidth < 300.dp || containerHeight < 200.dp
 
         // ── Video Surface ──
-        AndroidView(
-            modifier = Modifier.fillMaxSize(),
-            factory = { ctx ->
-                val view = android.view.LayoutInflater.from(ctx).inflate(com.pulse.R.layout.texture_player_view, null) as PlayerView
-                view.apply {
-                    this.player = player
-                    setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
-                    layoutParams = ViewGroup.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.MATCH_PARENT
-                    )
+        if (isSlideMode) {
+            // Cropped mode: removes chat, shows tutor PiP
+            CroppedVideoPlayer(
+                player = player,
+                modifier = Modifier.fillMaxSize(),
+                showTutorPip = true,
+                onTapMainView = {
+                    showControls = !showControls
+                    if (!showControls) showSettings = false
                 }
-            },
-            update = { view ->
-                view.player = player
-                if (isPip) {
-                    view.resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                } else {
-                    view.resizeMode = resizeMode
+            )
+        } else {
+            // Standard mode: full video
+            AndroidView(
+                modifier = Modifier.fillMaxSize(),
+                factory = { ctx ->
+                    val view = android.view.LayoutInflater.from(ctx).inflate(com.pulse.R.layout.texture_player_view, null) as PlayerView
+                    view.apply {
+                        this.player = player
+                        setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
+                        layoutParams = ViewGroup.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT
+                        )
+                    }
+                },
+                update = { view ->
+                    view.player = player
+                    if (isPip) {
+                        view.resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                    } else {
+                        view.resizeMode = resizeMode
+                    }
                 }
-            }
-        )
+            )
+        }
 
         // ── Gesture Overlay (vertical only for brightness/volume + double-tap seek) ──
         if (!isPip) {
@@ -348,6 +364,29 @@ fun VideoPlayer(
             onFullscreenToggle = onFullscreenToggle,
             onSettingsClick = { showSettings = !showSettings }
         )
+
+        // ── Slide Mode Toggle (top-left icon) ──
+        if (showControls && !isPip) {
+            IconButton(
+                onClick = { isSlideMode = !isSlideMode },
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(start = 8.dp, top = 8.dp)
+                    .size(40.dp)
+                    .background(
+                        if (isSlideMode) MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+                        else Color.Black.copy(alpha = 0.5f),
+                        RoundedCornerShape(8.dp)
+                    )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ContentCut,
+                    contentDescription = "Slide Mode",
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
 
         // Settings panel
         if (showSettings) {
