@@ -1,6 +1,7 @@
 package com.pulse.data.services.btr
 
 import com.pulse.core.domain.util.ILogger
+import com.pulse.core.domain.util.Constants
 import com.pulse.domain.services.btr.IBtrAuthManager
 import com.pulse.domain.services.btr.IBtrService
 import java.io.File
@@ -34,10 +35,13 @@ class GoogleDriveBtrService(
             if (processedFolders.contains(currentFolderId)) continue
             processedFolders.add(currentFolderId)
 
-            val url = "https://www.googleapis.com/drive/v3/files?q='${currentFolderId}'+in+parents+and+trashed=false&fields=files(id,name,mimeType,size)&pageSize=1000&supportsAllDrives=true&includeItemsFromAllDrives=true"
+            // Google Drive API requires either a Bearer token OR an API key — even for public folders.
+            // When the user is not signed in, append the API key to authenticate the request.
+            val apiKeyParam = if (accessToken.isEmpty()) "&key=${Constants.GOOGLE_API_KEY}" else ""
+            val url = "https://www.googleapis.com/drive/v3/files?q='${currentFolderId}'+in+parents+and+trashed=false&fields=files(id,name,mimeType,size)&pageSize=1000&supportsAllDrives=true&includeItemsFromAllDrives=true$apiKeyParam"
             val request = Request.Builder()
                 .url(url)
-                .addHeader("Authorization", "Bearer $accessToken")
+                .apply { if (accessToken.isNotEmpty()) addHeader("Authorization", "Bearer $accessToken") }
                 .addHeader("User-Agent", "Pulse/1.0")
                 .build()
 
@@ -72,14 +76,43 @@ class GoogleDriveBtrService(
         }
     }
 
+    override suspend fun listSubfolders(
+        folderId: String,
+        accessToken: String
+    ): List<BtrFile> = withContext(Dispatchers.IO) {
+        val apiKeyParam = if (accessToken.isEmpty()) "&key=${Constants.GOOGLE_API_KEY}" else ""
+        val url = "https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents+and+mimeType='application/vnd.google-apps.folder'+and+trashed=false&fields=files(id,name,mimeType)&pageSize=100&supportsAllDrives=true&includeItemsFromAllDrives=true$apiKeyParam"
+        val request = Request.Builder()
+            .url(url)
+            .apply { if (accessToken.isNotEmpty()) addHeader("Authorization", "Bearer $accessToken") }
+            .addHeader("User-Agent", "Pulse/1.0")
+            .build()
+
+        try {
+            client.newCall(request).execute().use { response ->
+                val body = response.body?.string() ?: ""
+                if (response.isSuccessful) {
+                    parseBtrFiles(body)
+                } else {
+                    logger.e("BtrService", "listSubfolders Error [${response.code}]: $body")
+                    emptyList()
+                }
+            }
+        } catch (e: Exception) {
+            logger.e("BtrService", "listSubfolders exception", e)
+            emptyList()
+        }
+    }
+
     override fun streamUrl(fileId: String): String =
         "https://www.googleapis.com/drive/v3/files/$fileId?alt=media&supportsAllDrives=true"
 
     override suspend fun downloadFile(fileId: String, accessToken: String): ByteArray = withContext(Dispatchers.IO) {
-        val url = streamUrl(fileId)
+        val apiKeyParam = if (accessToken.isEmpty()) "&key=${Constants.GOOGLE_API_KEY}" else ""
+        val url = streamUrl(fileId) + apiKeyParam
         val request = Request.Builder()
             .url(url)
-            .addHeader("Authorization", "Bearer $accessToken")
+            .apply { if (accessToken.isNotEmpty()) addHeader("Authorization", "Bearer $accessToken") }
             .build()
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) error("Download failed: ${response.code}")
@@ -88,11 +121,27 @@ class GoogleDriveBtrService(
         }
     }
 
-    override suspend fun downloadToStream(fileId: String, outputStream: OutputStream, accessToken: String, onProgress: (Long, Long) -> Unit) = withContext(Dispatchers.IO) {
-        val url = streamUrl(fileId)
+    override suspend fun downloadRange(fileId: String, accessToken: String, start: Long, end: Long): ByteArray = withContext(Dispatchers.IO) {
+        val apiKeyParam = if (accessToken.isEmpty()) "&key=${Constants.GOOGLE_API_KEY}" else ""
+        val url = streamUrl(fileId) + apiKeyParam
         val request = Request.Builder()
             .url(url)
-            .addHeader("Authorization", "Bearer $accessToken")
+            .addHeader("Range", "bytes=$start-$end")
+            .apply { if (accessToken.isNotEmpty()) addHeader("Authorization", "Bearer $accessToken") }
+            .build()
+        client.newCall(request).execute().use { response ->
+            if (response.code != 206 && response.code != 200) error("Range download failed: ${response.code}")
+            val body = response.body ?: error("Empty response body from Drive API")
+            body.bytes()
+        }
+    }
+
+    override suspend fun downloadToStream(fileId: String, outputStream: OutputStream, accessToken: String, onProgress: (Long, Long) -> Unit) = withContext(Dispatchers.IO) {
+        val apiKeyParam = if (accessToken.isEmpty()) "&key=${Constants.GOOGLE_API_KEY}" else ""
+        val url = streamUrl(fileId) + apiKeyParam
+        val request = Request.Builder()
+            .url(url)
+            .apply { if (accessToken.isNotEmpty()) addHeader("Authorization", "Bearer $accessToken") }
             .build()
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) error("Fetch failed: ${response.code}")
@@ -117,7 +166,7 @@ class GoogleDriveBtrService(
         val contentLen = body.contentLength()
         body.byteStream().use { input ->
             outputStream.use { output ->
-                val buffer = ByteArray(65536)
+                val buffer = ByteArray(131072) // 128KB buffer for faster throughput
                 var totalRead = 0L
                 var read: Int
                 var lastUpdate = System.currentTimeMillis()
@@ -126,7 +175,7 @@ class GoogleDriveBtrService(
                     output.write(buffer, 0, read)
                     totalRead += read
                     val now = System.currentTimeMillis()
-                    if (now - lastUpdate > 300) {
+                    if (now - lastUpdate > 200) { // smoother UI progress at 200ms
                         onProgress(totalRead, contentLen)
                         lastUpdate = now
                     }

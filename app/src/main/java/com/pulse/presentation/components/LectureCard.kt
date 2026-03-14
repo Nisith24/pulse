@@ -1,6 +1,7 @@
 package com.pulse.presentation.components
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -18,13 +19,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.CircleShape
 import com.pulse.core.data.db.Lecture
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun LectureCard(
     lecture: Lecture,
-    isLibraryHome: Boolean,
+    isLibraryHome: Boolean = false,
     onLectureSelected: (String) -> Unit,
     onToggleFavorite: (String) -> Unit,
-    onDelete: (Lecture) -> Unit = {}
+    onDelete: (Lecture) -> Unit = {},
+    onLongPress: (Lecture) -> Unit = {}
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
 
@@ -52,7 +55,12 @@ fun LectureCard(
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth().clickable { onLectureSelected(lecture.id) },
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = { onLectureSelected(lecture.id) },
+                onLongClick = { onLongPress(lecture) }
+            ),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         shape = MaterialTheme.shapes.extraLarge

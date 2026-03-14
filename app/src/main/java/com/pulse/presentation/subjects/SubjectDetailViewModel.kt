@@ -12,7 +12,8 @@ import com.pulse.core.domain.util.onSuccess
 
 data class SubjectDetailUiState(
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val drivePdfs: List<com.pulse.data.services.btr.BtrFile> = emptyList()
 )
 
 class SubjectDetailViewModel(
@@ -38,20 +39,16 @@ class SubjectDetailViewModel(
 
     fun loadFolder(folderId: String, subjectName: String) {
         _currentSubject.value = subjectName
-        
+
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
-            if (!btrAuthManager.isSignedIn) {
-                _uiState.update { it.copy(isLoading = false, error = "Sign in required to load content.") }
-                return@launch
-            }
-            
+
             lectureRepository.syncSubjectFolder(folderId, subjectName)
                 .onSuccess {
                     _uiState.update { state -> state.copy(isLoading = false) }
                 }
                 .onError { error, message ->
-                    _uiState.update { state -> state.copy(isLoading = false, error = "Error loading folder: $message") }
+                    _uiState.update { state -> state.copy(isLoading = false, error = "Error loading content: $message") }
                 }
         }
     }
@@ -67,6 +64,43 @@ class SubjectDetailViewModel(
             lectureRepository.deleteLecture(lecture.id)
             if (lecture.videoLocalPath?.isNotEmpty() == true) {
                 lectureRepository.deleteOfflineVideo(lecture.id)
+            }
+        }
+    }
+
+    fun markAsCompleted(lectureId: String) {
+        viewModelScope.launch {
+            lectureRepository.markAsCompleted(lectureId)
+        }
+    }
+
+    fun startDownload(lecture: Lecture) {
+        lectureRepository.startDownload(lecture)
+    }
+
+    fun loadDrivePdfs(folderId: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            val pdfs = lectureRepository.listPdfs(folderId)
+            _uiState.update { it.copy(isLoading = false, drivePdfs = pdfs) }
+        }
+    }
+
+    fun addDrivePdf(pdf: com.pulse.data.services.btr.BtrFile, subjectName: String) {
+        viewModelScope.launch {
+            val lectureId = pdf.id
+            lectureRepository.addDriveLecture(
+                id = lectureId,
+                name = pdf.name,
+                subject = subjectName,
+                topic = subjectName,
+                videoId = null,
+                pdfId = pdf.id
+            )
+            // Trigger download
+            val lecture = lectureRepository.getLectureById(lectureId).first()
+            if (lecture != null) {
+                lectureRepository.downloadPdf(lecture)
             }
         }
     }

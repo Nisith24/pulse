@@ -44,7 +44,10 @@ fun DownloadsScreen(
     }
     
     val groupedLectures = remember(allLectures) {
-        allLectures.groupBy { it.subject?.takeIf { s -> s.isNotBlank() } ?: "BTR" }
+        allLectures.groupBy { 
+            if (it.isLocal) "Internal Storage" 
+            else it.subject?.takeIf { s -> s.isNotBlank() } ?: "Cloud Service"
+        }
     }
 
     var expandedSections by remember { mutableStateOf(setOf<String>()) }
@@ -258,7 +261,12 @@ private fun SourceHeader(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(Icons.Default.Folder, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            val isInternal = title == "Internal Storage"
+            Icon(
+                imageVector = if (isInternal) Icons.Default.PhoneAndroid else Icons.Default.Cloud,
+                contentDescription = null, 
+                tint = if (isInternal) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
+            )
             Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f)) {
                 Text(

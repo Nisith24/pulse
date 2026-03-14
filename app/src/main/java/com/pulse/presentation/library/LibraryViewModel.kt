@@ -57,6 +57,9 @@ class LibraryViewModel(
     private val _showFavoritesOnly = MutableStateFlow(false)
     val showFavoritesOnly = _showFavoritesOnly.asStateFlow()
 
+    private val _drivePdfs = MutableStateFlow<List<com.pulse.data.services.btr.BtrFile>>(emptyList())
+    val drivePdfs = _drivePdfs.asStateFlow()
+
     companion object {
         private val MODULE_NUMBER_REGEX = Regex("\\d+")
     }
@@ -139,6 +142,12 @@ class LibraryViewModel(
         }
     }
 
+    fun markAsCompleted(lectureId: String) {
+        viewModelScope.launch {
+            repository.markAsCompleted(lectureId)
+        }
+    }
+
 
     fun syncBtr() {
         viewModelScope.launch {
@@ -177,6 +186,34 @@ class LibraryViewModel(
         }
     }
 
+    fun loadDrivePdfs(folderId: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            val pdfs = repository.listPdfs(folderId)
+            _drivePdfs.value = pdfs
+            _isLoading.value = false
+        }
+    }
+
+    fun addDrivePdf(pdf: com.pulse.data.services.btr.BtrFile) {
+        viewModelScope.launch {
+            val lectureId = pdf.id
+            repository.addDriveLecture(
+                id = lectureId,
+                name = pdf.name,
+                subject = "BTR",
+                topic = pdf.parentName ?: "BTR",
+                videoId = null,
+                pdfId = pdf.id
+            )
+            // Trigger immediate download
+            val lecture = repository.getLectureById(lectureId).first()
+            if (lecture != null) {
+                repository.downloadPdf(lecture)
+            }
+        }
+    }
+
     fun clearCache() {
         viewModelScope.launch {
             try {
@@ -200,5 +237,9 @@ class LibraryViewModel(
                 repository.deleteOfflineVideo(lecture.id)
             }
         }
+    }
+
+    fun startDownload(lecture: com.pulse.core.data.db.Lecture) {
+        repository.startDownload(lecture)
     }
 }

@@ -1,6 +1,7 @@
-﻿> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
 > Task :app:preBuild UP-TO-DATE
 > Task :app:preDebugBuild UP-TO-DATE
+> Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
 > Task :app:checkDebugAarMetadata UP-TO-DATE
 > Task :app:generateDebugResValues UP-TO-DATE
 > Task :app:processDebugGoogleServices UP-TO-DATE
@@ -15,34 +16,22 @@
 > Task :app:processDebugManifest UP-TO-DATE
 > Task :app:processDebugManifestForPackage UP-TO-DATE
 > Task :app:processDebugResources UP-TO-DATE
-> Task :app:kspDebugKotlin
+> Task :app:kspDebugKotlin UP-TO-DATE
+> Task :app:compileDebugKotlin FAILED
+w: Detected multiple Kotlin daemon sessions at 
 
-> Task :app:compileDebugKotlin
-w: file:///C:/Users/welcome/Desktop/pulse/app/src/main/java/com/pulse/MainActivity.kt:28:8 '@Deprecated(...) class GoogleSignIn : Any' is deprecated. Deprecated in Java.
-w: file:///C:/Users/welcome/Desktop/pulse/app/src/main/java/com/pulse/MainActivity.kt:73:79 '@Deprecated(...) class GoogleSignIn : Any' is deprecated. Deprecated in Java.
-w: file:///C:/Users/welcome/Desktop/pulse/app/src/main/java/com/pulse/MainActivity.kt:102:85 '@Deprecated(...) class GoogleSignIn : Any' is deprecated. Deprecated in Java.
-w: file:///C:/Users/welcome/Desktop/pulse/app/src/main/java/com/pulse/data/services/btr/BtrAuthManager.kt:5:8 '@Deprecated(...) class GoogleSignIn : Any' is deprecated. Deprecated in Java.
-w: file:///C:/Users/welcome/Desktop/pulse/app/src/main/java/com/pulse/data/services/btr/BtrAuthManager.kt:25:46 '@Deprecated(...) class GoogleSignIn : Any' is deprecated. Deprecated in Java.
-w: file:///C:/Users/welcome/Desktop/pulse/app/src/main/java/com/pulse/data/services/btr/BtrAuthManager.kt:27:47 '@Deprecated(...) class GoogleSignIn : Any' is deprecated. Deprecated in Java.
-w: file:///C:/Users/welcome/Desktop/pulse/app/src/main/java/com/pulse/data/services/btr/BtrAuthManager.kt:28:41 '@Deprecated(...) class GoogleSignIn : Any' is deprecated. Deprecated in Java.
-w: file:///C:/Users/welcome/Desktop/pulse/app/src/main/java/com/pulse/data/services/btr/BtrAuthManager.kt:29:44 '@Deprecated(...) class GoogleSignIn : Any' is deprecated. Deprecated in Java.
-w: file:///C:/Users/welcome/Desktop/pulse/app/src/main/java/com/pulse/data/services/btr/BtrAuthManager.kt:40:13 '@Deprecated(...) class GoogleSignIn : Any' is deprecated. Deprecated in Java.
-w: file:///C:/Users/welcome/Desktop/pulse/app/src/main/java/com/pulse/data/services/btr/BtrAuthManager.kt:47:9 '@Deprecated(...) class GoogleSignIn : Any' is deprecated. Deprecated in Java.
-w: file:///C:/Users/welcome/Desktop/pulse/app/src/main/java/com/pulse/data/services/btr/FirebasePulseAuthManager.kt:5:8 '@Deprecated(...) class GoogleSignIn : Any' is deprecated. Deprecated in Java.
-w: file:///C:/Users/welcome/Desktop/pulse/app/src/main/java/com/pulse/data/services/btr/FirebasePulseAuthManager.kt:44:9 '@Deprecated(...) class GoogleSignIn : Any' is deprecated. Deprecated in Java.
-w: file:///C:/Users/welcome/Desktop/pulse/app/src/main/java/com/pulse/data/services/btr/FirebasePulseAuthManager.kt:53:28 '@Deprecated(...) @NonNull() static fun getToken(@NonNull() p0: Context, @NonNull() p1: String, @NonNull() p2: String): String' is deprecated. Deprecated in Java.
-w: file:///C:/Users/welcome/Desktop/pulse/app/src/main/java/com/pulse/presentation/auth/LoginScreen.kt:68:53 '@property:Deprecated(...) val Icons.Filled.Login: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Login.
-w: file:///C:/Users/welcome/Desktop/pulse/app/src/main/java/com/pulse/presentation/downloads/DownloadsScreen.kt:70:86 '@property:Deprecated(...) val Icons.Filled.ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowBack.
-w: file:///C:/Users/welcome/Desktop/pulse/app/src/main/java/com/pulse/presentation/lecture/LectureScreen.kt:107:26 '@property:Deprecated(...) val LocalLifecycleOwner: ProvidableCompositionLocal<LifecycleOwner>' is deprecated. Moved to lifecycle-runtime-compose library in androidx.lifecycle.compose package.
-w: file:///C:/Users/welcome/Desktop/pulse/app/src/main/java/com/pulse/presentation/lecture/PdfViewer.kt:242:32 '@property:Deprecated(...) val Icons.Filled.NoteAdd: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.NoteAdd.
-w: file:///C:/Users/welcome/Desktop/pulse/app/src/main/java/com/pulse/presentation/lecture/VideoPlayer.kt:241:48 '@property:Deprecated(...) val Icons.Filled.VolumeUp: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.VolumeUp.
-w: file:///C:/Users/welcome/Desktop/pulse/app/src/main/java/com/pulse/presentation/lecture/videoengine/LectureVideoEffect.kt:29:5 '@Deprecated(...) @UnstableApi() class SingleFrameGlShaderProgram : BaseGlShaderProgram' is deprecated. Deprecated in Java.
-w: file:///C:/Users/welcome/Desktop/pulse/app/src/main/java/com/pulse/presentation/library/LibraryScreen.kt:194:48 '@property:Deprecated(...) val Icons.Filled.ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowBack.
-w: file:///C:/Users/welcome/Desktop/pulse/app/src/main/java/com/pulse/presentation/library/LibraryScreen.kt:407:109 '@property:Deprecated(...) val Icons.Filled.MenuBook: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.MenuBook.
-w: file:///C:/Users/welcome/Desktop/pulse/app/src/main/java/com/pulse/presentation/library/LibraryScreen.kt:413:62 '@property:Deprecated(...) val Icons.Filled.ArrowForwardIos: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowForwardIos.
-w: file:///C:/Users/welcome/Desktop/pulse/app/src/main/java/com/pulse/presentation/settings/ProfileSettingsScreen.kt:73:44 '@property:Deprecated(...) val Icons.Filled.ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowBack.
-w: file:///C:/Users/welcome/Desktop/pulse/app/src/main/java/com/pulse/presentation/subjects/SubjectDetailViewModel.kt:28:10 This declaration needs opt-in. Its usage should be marked with '@kotlinx.coroutines.ExperimentalCoroutinesApi' or '@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)'
-w: file:///C:/Users/welcome/Desktop/pulse/app/src/main/java/com/pulse/presentation/subjects/SubjectsScreen.kt:84:51 '@property:Deprecated(...) val Icons.Filled.MenuBook: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.MenuBook.
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileDebugKotlin'.
+> Cannot access output property 'taskBuildCacheableOutputDirectory$kotlin_gradle_plugin_common' of task ':app:compileDebugKotlin'. Accessing unreadable inputs or outputs is not supported. Declare the task as untracked by using Task.doNotTrackState(). For more information, please refer to https://docs.gradle.org/8.10.2/userguide/incremental_build.html#sec:disable-state-tracking in the Gradle documentation.
+   > Failed to create MD5 hash for file 'C:\CodeStuffs\References\Pulse\pulse\app\build\kotlin\compileDebugKotlin\cacheable\dirty-sources.txt' as it does not exist.
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
 
 Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
 
@@ -50,5 +39,5 @@ You can use '--warning-mode all' to show the individual deprecation warnings and
 
 For more on this, please refer to https://docs.gradle.org/8.10.2/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
 
-BUILD SUCCESSFUL in 34s
-15 actionable tasks: 2 executed, 13 up-to-date
+BUILD FAILED in 5s
+15 actionable tasks: 1 executed, 14 up-to-date

@@ -9,7 +9,7 @@ object LoginRoute
 object LibraryRoute
 
 @Serializable
-data class LectureRoute(val lectureId: String)
+data class LectureRoute(val lectureId: String, val sourceFolderId: String? = null)
 
 @Serializable
 object SettingsRoute
@@ -22,3 +22,15 @@ object SubjectsRoute
 
 @Serializable
 data class SubjectDetailRoute(val subjectName: String)
+
+@Serializable
+object PrepladderRRRoute
+
+@Serializable
+object CustomListsRoute
+
+@Serializable
+object CompletedRoute
+
+@Serializable
+data class CustomListDetailRoute(val listId: Long, val listName: String)

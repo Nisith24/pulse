@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material3.*
@@ -19,6 +20,9 @@ import androidx.compose.ui.unit.dp
 import com.pulse.core.data.db.Lecture
 import com.pulse.core.domain.util.Constants
 import com.pulse.presentation.components.LectureCard
+import com.pulse.presentation.components.DrivePdfPicker
+import com.pulse.presentation.customlist.CustomListViewModel
+import com.pulse.presentation.library.LectureActionBottomSheet
 import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -26,12 +30,17 @@ import org.koin.androidx.compose.koinViewModel
 fun SubjectDetailScreen(
     subjectName: String,
     onNavigateBack: () -> Unit,
-    onNavigateToLecture: (String) -> Unit = {},
-    viewModel: SubjectDetailViewModel = koinViewModel()
+    onNavigateToLecture: (String, String?) -> Unit = { _, _ -> },
+    viewModel: SubjectDetailViewModel = koinViewModel(),
+    customListViewModel: CustomListViewModel = koinViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val lectures by viewModel.lectures.collectAsState()
+    val customLists by customListViewModel.customLists.collectAsState()
+    var selectedLongPressLecture by remember { mutableStateOf<Lecture?>(null) }
     var showingFolder by remember { mutableStateOf(false) }
+    var currentFolderId by remember { mutableStateOf<String?>(null) }
+    var showDrivePdfPicker by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -54,6 +63,7 @@ fun SubjectDetailScreen(
                 subjectName == "Microbiology" && !showingFolder -> {
                     FolderSection(onFolderClick = {
                         showingFolder = true
+                        currentFolderId = Constants.PREPLADDER_FOLDER_ID
                         viewModel.loadFolder(Constants.PREPLADDER_FOLDER_ID, subjectName)
                     })
                 }
@@ -61,17 +71,71 @@ fun SubjectDetailScreen(
                     FolderContent(
                         uiState = uiState,
                         lectures = lectures,
-                        onBack = { showingFolder = false },
+                        onBack = { 
+                            showingFolder = false
+                            currentFolderId = null
+                        },
+                        currentFolderId = currentFolderId,
                         onLectureSelected = onNavigateToLecture,
                         onToggleFavorite = { viewModel.toggleFavorite(it) },
-                        onDelete = { viewModel.deleteLecture(it) }
+                        onDelete = { viewModel.deleteLecture(it) },
+                        onLongPress = { selectedLongPressLecture = it }
                     )
                 }
                 else -> {
                     EmptySubjectPlaceholder(subjectName)
                 }
             }
+
+            if (showingFolder && currentFolderId != null) {
+                ExtendedFloatingActionButton(
+                    onClick = { 
+                        viewModel.loadDrivePdfs(currentFolderId!!)
+                        showDrivePdfPicker = true 
+                    },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(16.dp),
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                ) {
+                    Icon(Icons.Default.Cloud, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("PDF from Drive")
+                }
+            }
         }
+    }
+
+    if (showDrivePdfPicker) {
+        DrivePdfPicker(
+            pdfs = uiState.drivePdfs,
+            onPdfSelected = { pdf ->
+                showDrivePdfPicker = false
+                viewModel.addDrivePdf(pdf, subjectName)
+            },
+            onDismissRequest = { showDrivePdfPicker = false },
+            isLoading = uiState.isLoading
+        )
+    }
+
+    selectedLongPressLecture?.let { lecture ->
+        LectureActionBottomSheet(
+            lecture = lecture,
+            customLists = customLists,
+            onDismissRequest = { selectedLongPressLecture = null },
+            onDownloadClick = { viewModel.startDownload(lecture) },
+            onAddToListClick = { targetListId ->
+                customListViewModel.addLectureToList(targetListId, lecture.id)
+            },
+            onCreateNewListClick = { listName ->
+                customListViewModel.createList(listName) { newListId ->
+                    customListViewModel.addLectureToList(newListId, lecture.id)
+                }
+            },
+            onToggleFavoriteClick = { viewModel.toggleFavorite(lecture.id) },
+            onMarkAsCompletedClick = { viewModel.markAsCompleted(lecture.id) }
+        )
     }
 }
 
@@ -107,9 +171,11 @@ private fun FolderContent(
     uiState: SubjectDetailUiState,
     lectures: List<Lecture>,
     onBack: () -> Unit,
-    onLectureSelected: (String) -> Unit,
+    currentFolderId: String?,
+    onLectureSelected: (String, String?) -> Unit,
     onToggleFavorite: (String) -> Unit,
-    onDelete: (Lecture) -> Unit
+    onDelete: (Lecture) -> Unit,
+    onLongPress: (Lecture) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
@@ -156,9 +222,10 @@ private fun FolderContent(
                         LectureCard(
                             lecture = lecture,
                             isLibraryHome = false,
-                            onLectureSelected = onLectureSelected,
+                            onLectureSelected = { id -> onLectureSelected(id, currentFolderId) },
                             onToggleFavorite = onToggleFavorite,
-                            onDelete = onDelete
+                            onDelete = onDelete,
+                            onLongPress = onLongPress
                         )
                     }
                 }

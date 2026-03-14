@@ -9,8 +9,10 @@ class GetLectureStreamUrlUseCase(
 ) {
     suspend operator fun invoke(videoId: String?): Pair<String, String?>? {
         if (videoId == null) return null
-        
-        val token = authManager.getToken()
+
+        // Try to get auth token; for publicly shared Drive folders (e.g. Microbiology)
+        // a null/empty token still allows streaming — no sign-in required
+        val token = try { authManager.getToken() } catch (e: Exception) { null }
         return Pair(btrService.streamUrl(videoId), token)
     }
 

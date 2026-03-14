@@ -1,6 +1,5 @@
 package com.pulse.presentation.lecture
 
-import android.Manifest
 import android.app.PictureInPictureParams
 import android.content.Intent
 import android.os.Build
@@ -13,15 +12,15 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Notes
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.PictureAsPdf
-import androidx.compose.material.icons.filled.CloudDownload
-import androidx.compose.material.icons.filled.SaveAlt
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,11 +35,19 @@ import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
+import com.pulse.presentation.components.DrivePdfPicker
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.max
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LectureScreen(
     lectureId: String,
+    sourceFolderId: String? = null,
     onNavigateBack: () -> Unit = {},
     viewModel: LectureViewModel = koinViewModel(
         key = lectureId,
@@ -60,6 +67,27 @@ fun LectureScreen(
     val context = LocalContext.current
     val activity = context as? ComponentActivity
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    
+    val drivePdfs by viewModel.drivePdfs.collectAsState()
+    val isLoadingDrivePdfs by viewModel.isLoadingDrivePdfs.collectAsState()
+    val isDrivePdfLoading by viewModel.isDrivePdfLoading.collectAsState()
+    val drivePdfDownloadProgress by viewModel.drivePdfDownloadProgress.collectAsState()
+    val drivePdfBytes by viewModel.drivePdfBytes.collectAsState()
+    val drivePdfProxy by viewModel.drivePdfProxy.collectAsState()
+    var showDrivePdfPicker by remember { mutableStateOf(false) }
+
+    val onAddDrivePdf = {
+        viewModel.loadDrivePdfs(sourceFolderId)
+        showDrivePdfPicker = true
+    }
+    
+    androidx.activity.compose.BackHandler {
+        if (isFullscreen) {
+            isFullscreen = false
+        } else {
+            onNavigateBack()
+        }
+    }
 
     val lecture by viewModel.lecture.collectAsState()
     val playerState by viewModel.playerState.collectAsState()
@@ -118,6 +146,7 @@ fun LectureScreen(
             try {
                 context.contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
             } catch (_: Exception) {}
+            showPdf = true // Ensure panel is shown
             viewModel.updateLocalPdfPath(it.toString())
         }
     }
@@ -159,6 +188,7 @@ fun LectureScreen(
     }
 
     val onCreateBlankNote = {
+        showPdf = true
         viewModel.updateLocalPdfPath("blank_note")
     }
 
@@ -241,8 +271,7 @@ fun LectureScreen(
         Surface(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(if (isPip) PaddingValues(0.dp) else padding)
-                .statusBarsPadding(),
+                .padding(if (isPip) PaddingValues(0.dp) else padding),
             color = if (isPip) Color.Black else MaterialTheme.colorScheme.background
         ) {
             val state = playerState
@@ -274,7 +303,13 @@ fun LectureScreen(
                         val totalWidth = constraints.maxWidth.toFloat()
                         val isTablet = maxWidth > 840.dp
                             
-                            val isStandalonePdf = !hasVideo && l.pdfLocalPath.isNotEmpty() && l.pdfLocalPath != "blank_note"
+                            val isStandalonePdf = !hasVideo && (l.pdfLocalPath.isNotEmpty() || l.pdfId != null) && l.pdfLocalPath != "blank_note"
+
+                            if (showPdf && !l.isPdfDownloaded && l.pdfId != null) {
+                                LaunchedEffect(l.id) {
+                                    viewModel.downloadPdf()
+                                }
+                            }
 
                             if (isStandalonePdf) {
                                 // ── Professional Standalone PDF Mode ──
@@ -284,6 +319,9 @@ fun LectureScreen(
                                         title = l.name,
                                         initialPage = l.lastPdfPage,
                                         isPdfDownloaded = l.isPdfDownloaded,
+                                        isDrivePdfLoading = isDrivePdfLoading,
+                                        downloadProgress = drivePdfDownloadProgress,
+                                        pdfBytes = drivePdfBytes,
                                         visuals = visuals,
                                         annotationState = annotationState,
                                         onPageChanged = { viewModel.updatePdfState(it) },
@@ -296,6 +334,7 @@ fun LectureScreen(
                                         onDeleteVisual = { id -> viewModel.deleteVisual(id) },
                                         onAddLocalPdf = onAddLocalPdf,
                                         onCreateBlankNote = onCreateBlankNote,
+                                        onAddDrivePdf = onAddDrivePdf,
                                         onAddPage = { viewModel.addPage() },
                                         totalPages = l.pdfPageCount,
                                         onClose = onClosePdf,
@@ -335,6 +374,7 @@ fun LectureScreen(
                                                 modifier = Modifier.fillMaxSize(),
                                                 isFullscreen = isFullscreen,
                                                 isPip = isPip,
+                                                onNavigateBack = onNavigateBack,
                                                 onFullscreenToggle = { isFullscreen = !isFullscreen },
                                                 onPipClick = onPipClick,
                                                 onSpeedChanged = { viewModel.setPlaybackSpeed(it) }
@@ -357,11 +397,15 @@ fun LectureScreen(
                                             PdfViewer(
                                                 pdfPath = l.pdfLocalPath,
                                                 title = l.name,
-                                                initialPage = 0,
+                                                initialPage = l.lastPdfPage,
                                                 isPdfDownloaded = l.isPdfDownloaded,
+                                                isDrivePdfLoading = isDrivePdfLoading,
+                                                downloadProgress = drivePdfDownloadProgress,
+                                                pdfBytes = drivePdfBytes,
+                                                drivePdfProxy = drivePdfProxy,
                                                 visuals = visuals,
                                                 annotationState = annotationState,
-                                                onPageChanged = { },
+                                                onPageChanged = { viewModel.updatePdfState(it) },
                                                 onAddVisual = { type, data, page, color, width ->
                                                     viewModel.addVisual(type, data, page, color, width)
                                                 },
@@ -371,6 +415,7 @@ fun LectureScreen(
                                                 onDeleteVisual = { id -> viewModel.deleteVisual(id) },
                                                 onAddLocalPdf = onAddLocalPdf,
                                                 onCreateBlankNote = onCreateBlankNote,
+                                                onAddDrivePdf = onAddDrivePdf,
                                                 onAddPage = { viewModel.addPage() },
                                                 totalPages = l.pdfPageCount,
                                                 onClose = onClosePdf,
@@ -381,25 +426,53 @@ fun LectureScreen(
                                         }
 
                                         // Tablet Drag Handle
+                                        val haptic = LocalHapticFeedback.current
                                         val density = androidx.compose.ui.platform.LocalDensity.current
-                                        val dragHandleStart = with(density) { (totalWidth * splitRatio).toDp() }
+                                        val dragHandleShift = with(density) { (totalWidth * splitRatio).toDp() }
+                                        var isDraggingByHaptic by remember { mutableStateOf(false) }
+                                        
+                                        val visualWidth by animateDpAsState(if (isDraggingByHaptic) 8.dp else 3.dp, label = "handle_width")
+                                        val handleAlpha by animateFloatAsState(if (isDraggingByHaptic) 1f else 0.4f, label = "handle_alpha")
+                                        val handleColor = if (isDraggingByHaptic) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                        
+                                        // Invisible touch target (48dp)
                                         Box(
                                             Modifier
                                                 .align(Alignment.CenterStart)
-                                                .padding(start = dragHandleStart - 6.dp)
-                                                .width(12.dp)
+                                                .padding(start = dragHandleShift - 24.dp)
+                                                .width(48.dp)
                                                 .fillMaxHeight()
-                                                .background(MaterialTheme.colorScheme.surfaceVariant)
                                                 .draggable(
                                                     orientation = Orientation.Horizontal,
-                                                    state = rememberDraggableState { delta ->
-                                                        splitRatio = (splitRatio + delta / totalWidth).coerceIn(0.2f, 0.8f)
+                                                    onDragStarted = { 
+                                                        isDraggingByHaptic = true
+                                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                                     },
-                                                    onDragStopped = { scope.launch { settingsManager.saveSplitRatio(splitRatio) } }
+                                                    state = rememberDraggableState { delta ->
+                                                        val newRatio = (splitRatio + delta / totalWidth).coerceIn(0.2f, 0.8f)
+                                                        if ((newRatio * 10).toInt() != (splitRatio * 10).toInt()) {
+                                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                        }
+                                                        splitRatio = newRatio
+                                                    },
+                                                    onDragStopped = { 
+                                                        isDraggingByHaptic = false
+                                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                        val snapPoints = listOf(0.3f, 0.5f, 0.7f)
+                                                        val snapped = snapPoints.minByOrNull { kotlin.math.abs(it - splitRatio) } ?: splitRatio
+                                                        if (kotlin.math.abs(snapped - splitRatio) < 0.1f) splitRatio = snapped
+                                                        scope.launch { settingsManager.saveSplitRatio(splitRatio) } 
+                                                    }
                                                 ),
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Icon(Icons.Default.DragHandle, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f), modifier = Modifier.size(16.dp))
+                                            // Visual Indicator
+                                            Box(
+                                                modifier = Modifier
+                                                    .width(visualWidth)
+                                                    .fillMaxHeight(0.2f)
+                                                    .background(handleColor.copy(alpha = handleAlpha), CircleShape)
+                                            )
                                         }
                                     } else {
                                         // Phone PDF
@@ -413,11 +486,15 @@ fun LectureScreen(
                                             PdfViewer(
                                                 pdfPath = l.pdfLocalPath,
                                                 title = l.name,
-                                                initialPage = 0,
+                                                initialPage = l.lastPdfPage,
                                                 isPdfDownloaded = l.isPdfDownloaded,
+                                                isDrivePdfLoading = isDrivePdfLoading,
+                                                downloadProgress = drivePdfDownloadProgress,
+                                                pdfBytes = drivePdfBytes,
+                                                drivePdfProxy = drivePdfProxy,
                                                 visuals = visuals,
                                                 annotationState = annotationState,
-                                                onPageChanged = { },
+                                                onPageChanged = { viewModel.updatePdfState(it) },
                                                 onAddVisual = { type, data, page, color, width ->
                                                     viewModel.addVisual(type, data, page, color, width)
                                                 },
@@ -427,6 +504,7 @@ fun LectureScreen(
                                                 onDeleteVisual = { id -> viewModel.deleteVisual(id) },
                                                 onAddLocalPdf = onAddLocalPdf,
                                                 onCreateBlankNote = onCreateBlankNote,
+                                                onAddDrivePdf = onAddDrivePdf,
                                                 onAddPage = { viewModel.addPage() },
                                                 totalPages = l.pdfPageCount,
                                                 onClose = onClosePdf,
@@ -437,25 +515,53 @@ fun LectureScreen(
                                         }
 
                                         // Phone Drag Handle
+                                        val haptic = LocalHapticFeedback.current
                                         val totalHeightPx = constraints.maxHeight.toFloat()
-                                        val dragHandleStart = maxHeight * splitRatio
+                                        val dragHandleShift = maxHeight * splitRatio
+                                        var isDraggingByHaptic by remember { mutableStateOf(false) }
+                                        
+                                        val visualHeight by animateDpAsState(if (isDraggingByHaptic) 8.dp else 3.dp, label = "handle_height")
+                                        val handleAlpha by animateFloatAsState(if (isDraggingByHaptic) 1f else 0.4f, label = "handle_alpha")
+                                        val handleColor = if (isDraggingByHaptic) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+
+                                        // Invisible touch target (48dp)
                                         Box(
                                             Modifier
                                                 .align(Alignment.TopCenter)
-                                                .padding(top = dragHandleStart - 6.dp)
-                                                .height(12.dp)
+                                                .padding(top = dragHandleShift - 24.dp)
+                                                .height(48.dp)
                                                 .fillMaxWidth()
-                                                .background(MaterialTheme.colorScheme.surfaceVariant)
                                                 .draggable(
                                                     orientation = Orientation.Vertical,
-                                                    state = rememberDraggableState { delta ->
-                                                        splitRatio = (splitRatio + delta / totalHeightPx).coerceIn(0.2f, 0.8f)
+                                                    onDragStarted = { 
+                                                        isDraggingByHaptic = true
+                                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                                     },
-                                                    onDragStopped = { scope.launch { settingsManager.saveSplitRatio(splitRatio) } }
+                                                    state = rememberDraggableState { delta ->
+                                                        val newRatio = (splitRatio + delta / totalHeightPx).coerceIn(0.2f, 0.8f)
+                                                        if ((newRatio * 10).toInt() != (splitRatio * 10).toInt()) {
+                                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                        }
+                                                        splitRatio = newRatio
+                                                    },
+                                                    onDragStopped = { 
+                                                        isDraggingByHaptic = false
+                                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                        val snapPoints = listOf(0.3f, 0.5f, 0.7f)
+                                                        val snapped = snapPoints.minByOrNull { kotlin.math.abs(it - splitRatio) } ?: splitRatio
+                                                        if (kotlin.math.abs(snapped - splitRatio) < 0.1f) splitRatio = snapped
+                                                        scope.launch { settingsManager.saveSplitRatio(splitRatio) } 
+                                                    }
                                                 ),
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Icon(Icons.Default.DragHandle, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f), modifier = Modifier.size(16.dp))
+                                            // Visual Indicator
+                                            Box(
+                                                modifier = Modifier
+                                                    .height(visualHeight)
+                                                    .fillMaxWidth(0.2f)
+                                                    .background(handleColor.copy(alpha = handleAlpha), CircleShape)
+                                            )
                                         }
                                     }
                             }
@@ -474,6 +580,19 @@ fun LectureScreen(
             ) {
                 NotesPanel(viewModel = viewModel)
             }
+        }
+
+        if (showDrivePdfPicker) {
+            DrivePdfPicker(
+                pdfs = drivePdfs,
+                onPdfSelected = { pdf ->
+                    showDrivePdfPicker = false
+                    showPdf = true // Ensure panel is shown
+                    viewModel.attachDrivePdf(pdf)
+                },
+                onDismissRequest = { showDrivePdfPicker = false },
+                isLoading = isLoadingDrivePdfs
+            )
         }
     }
 }

@@ -45,7 +45,7 @@ val appModule = module {
             androidContext(),
             AppDatabase::class.java,
             "Pulse.db"
-        ).addMigrations(AppDatabase.MIGRATION_12_13)
+        ).addMigrations(AppDatabase.MIGRATION_12_13, AppDatabase.MIGRATION_13_14)
          .fallbackToDestructiveMigration()
          .build()
     }
@@ -53,6 +53,7 @@ val appModule = module {
     single { get<AppDatabase>().lectureDao() }
     single { get<AppDatabase>().noteDao() }
     single { get<AppDatabase>().noteVisualDao() }
+    single { get<AppDatabase>().customListDao() }
     
     // HLC Generator for CRDT
     single { 
@@ -68,8 +69,31 @@ val appModule = module {
     single<IBtrAuthManager> { get<FirebasePulseAuthManager>() }
     
     single {
+        val retryInterceptor = okhttp3.Interceptor { chain ->
+            val request = chain.request()
+            var lastException: Exception? = null
+            for (attempt in 0..2) {
+                try {
+                    val response = chain.proceed(request)
+                    if (response.isSuccessful || response.code !in listOf(502, 503, 504)) {
+                        return@Interceptor response
+                    }
+                    response.close()
+                } catch (e: java.io.IOException) {
+                    lastException = e
+                }
+                if (attempt < 2) {
+                    try { Thread.sleep((300L * (attempt + 1))) } catch (ignored: InterruptedException) {}
+                }
+            }
+            throw lastException ?: java.io.IOException("Retry exhausted for ${request.url}")
+        }
+
         OkHttpClient.Builder()
-            .connectTimeout(30, TimeUnit.SECONDS)
+            .protocols(listOf(okhttp3.Protocol.HTTP_2, okhttp3.Protocol.HTTP_1_1))
+            .connectionPool(okhttp3.ConnectionPool(5, 5, TimeUnit.MINUTES))
+            .addInterceptor(retryInterceptor)
+            .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
             .writeTimeout(60, TimeUnit.SECONDS)
             .build()
@@ -84,7 +108,7 @@ val appModule = module {
     // Repositories
     single<INoteRepository> { NoteRepository(get(), get()) }
     single { NoteVisualRepository(get(), get()) }
-    single { LectureRepository(get(), get(), get(), get(), get(), get(), get(), androidContext(), get()) }
+    single { LectureRepository(get(), get(), get(), get(), get(), get(), get(), androidContext(), get(), get()) }
     
     // Player — MUST be singleton (SimpleCache uses exclusive DB lock)
     single { PlayerProvider(androidContext(), get()) }
@@ -98,6 +122,8 @@ val appModule = module {
         LectureViewModel(lectureId, get(), get(), get(), get(), get(), get(), get()) 
     }
     viewModel { com.pulse.presentation.subjects.SubjectDetailViewModel(get(), get()) }
+    viewModel { com.pulse.presentation.prepladderrr.PrepladderRRViewModel(get()) }
+    viewModel { com.pulse.presentation.customlist.CustomListViewModel(get()) }
     
     // Workers
     worker { com.pulse.data.services.btr.BtrSyncWorker(get(), get(), get()) }

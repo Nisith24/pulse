@@ -1,6 +1,7 @@
 package com.pulse.presentation.lecture
 
 import android.view.ViewGroup
+import android.view.WindowManager
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -23,6 +24,7 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.Forward
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import android.content.pm.ActivityInfo
 import androidx.compose.runtime.*
@@ -57,18 +59,26 @@ fun VideoPlayer(
     modifier: Modifier = Modifier,
     isFullscreen: Boolean = false,
     isPip: Boolean = false,
+    onNavigateBack: () -> Unit = {},
     onFullscreenToggle: () -> Unit = {},
     onPipClick: () -> Unit = {},
     onSpeedChanged: (Float) -> Unit = {}
 ) {
     var showControls by remember { mutableStateOf(!isPip) }
     var showSettings by remember { mutableStateOf(false) }
-    var resizeMode by remember { mutableIntStateOf(AspectRatioFrameLayout.RESIZE_MODE_ZOOM) }
-    var isSlideMode by remember { mutableStateOf(false) }
+    var resizeMode by remember { mutableIntStateOf(AspectRatioFrameLayout.RESIZE_MODE_FIT) }
 
     val context = LocalContext.current
     val activity = context as? android.app.Activity
     val audioManager = remember { context.getSystemService(android.content.Context.AUDIO_SERVICE) as AudioManager }
+
+    // Stay Awake while player is on screen
+    DisposableEffect(Unit) {
+        activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        onDispose {
+            activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
 
     var gestureType by remember { mutableStateOf("") }
     var gestureValue by remember { mutableFloatStateOf(0f) }
@@ -115,42 +125,28 @@ fun VideoPlayer(
         val isMinimal = containerWidth < 300.dp || containerHeight < 200.dp
 
         // ── Video Surface ──
-        if (isSlideMode) {
-            // Cropped mode: removes chat, shows tutor PiP
-            CroppedVideoPlayer(
-                player = player,
-                modifier = Modifier.fillMaxSize(),
-                showTutorPip = true,
-                onTapMainView = {
-                    showControls = !showControls
-                    if (!showControls) showSettings = false
+        AndroidView(
+            modifier = Modifier.fillMaxSize(),
+            factory = { ctx ->
+                val view = android.view.LayoutInflater.from(ctx).inflate(com.pulse.R.layout.texture_player_view, null) as PlayerView
+                view.apply {
+                    this.player = player
+                    setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
+                    layoutParams = ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    )
                 }
-            )
-        } else {
-            // Standard mode: full video
-            AndroidView(
-                modifier = Modifier.fillMaxSize(),
-                factory = { ctx ->
-                    val view = android.view.LayoutInflater.from(ctx).inflate(com.pulse.R.layout.texture_player_view, null) as PlayerView
-                    view.apply {
-                        this.player = player
-                        setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
-                        layoutParams = ViewGroup.LayoutParams(
-                            ViewGroup.LayoutParams.MATCH_PARENT,
-                            ViewGroup.LayoutParams.MATCH_PARENT
-                        )
-                    }
-                },
-                update = { view ->
-                    view.player = player
-                    if (isPip) {
-                        view.resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                    } else {
-                        view.resizeMode = resizeMode
-                    }
+            },
+            update = { view ->
+                view.player = player
+                if (isPip) {
+                    view.resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                } else {
+                    view.resizeMode = resizeMode
                 }
-            )
-        }
+            }
+        )
 
         // ── Gesture Overlay (vertical only for brightness/volume + double-tap seek) ──
         if (!isPip) {
@@ -364,29 +360,26 @@ fun VideoPlayer(
             onFullscreenToggle = onFullscreenToggle,
             onSettingsClick = { showSettings = !showSettings }
         )
-
-        // ── Slide Mode Toggle (top-left icon) ──
+        
+        // ── Back Button (top-left) ──
         if (showControls && !isPip) {
             IconButton(
-                onClick = { isSlideMode = !isSlideMode },
+                onClick = onNavigateBack,
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .padding(start = 8.dp, top = 8.dp)
                     .size(40.dp)
-                    .background(
-                        if (isSlideMode) MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
-                        else Color.Black.copy(alpha = 0.5f),
-                        RoundedCornerShape(8.dp)
-                    )
+                    .background(Color.Black.copy(alpha = 0.5f), CircleShape)
             ) {
                 Icon(
-                    imageVector = Icons.Default.ContentCut,
-                    contentDescription = "Slide Mode",
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Back",
                     tint = Color.White,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(24.dp)
                 )
             }
         }
+
 
         // Settings panel
         if (showSettings) {

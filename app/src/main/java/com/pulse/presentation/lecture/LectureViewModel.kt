@@ -40,11 +40,33 @@ class LectureViewModel(
     private val _playerState: MutableStateFlow<PlayerUiState> = MutableStateFlow(PlayerUiState.LOADING)
     val playerState: StateFlow<PlayerUiState> = _playerState.asStateFlow()
 
+    private val _drivePdfs = MutableStateFlow<List<com.pulse.data.services.btr.BtrFile>>(emptyList())
+    val drivePdfs: StateFlow<List<com.pulse.data.services.btr.BtrFile>> = _drivePdfs.asStateFlow()
+
+    private val _isLoadingDrivePdfs = MutableStateFlow(false)
+    val isLoadingDrivePdfs: StateFlow<Boolean> = _isLoadingDrivePdfs.asStateFlow()
+
+    // Tracks ONLY user-initiated Drive PDF download (not passive undownloaded state)
+    private val _isDrivePdfLoading = MutableStateFlow(false)
+    val isDrivePdfLoading: StateFlow<Boolean> = _isDrivePdfLoading.asStateFlow()
+
+    // Holds in-memory PDF bytes for instant rendering (streamed from Drive, no file I/O)
+    private val _drivePdfBytes = MutableStateFlow<ByteArray?>(null)
+    val drivePdfBytes: StateFlow<ByteArray?> = _drivePdfBytes.asStateFlow()
+
+    // Tracks the exact download progress 0.0 to 1.0 safely
+    private val _drivePdfDownloadProgress = MutableStateFlow<Float?>(null)
+    val drivePdfDownloadProgress: StateFlow<Float?> = _drivePdfDownloadProgress.asStateFlow()
+
+    // ── INDUSTRY STANDARD STREAMING PROXY ──
+    private val _drivePdfProxy = MutableStateFlow<android.os.ParcelFileDescriptor?>(null)
+    val drivePdfProxy = _drivePdfProxy.asStateFlow()
+
     val notes: Flow<List<Note>> = noteRepository.getNotes(lectureId)
     
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val visuals: Flow<List<NoteVisual>> = lecture.filterNotNull()
-        .map { it.pdfLocalPath.ifEmpty { it.pdfId ?: it.id } }
+        .map { it.pdfId.takeIf { id -> !id.isNullOrEmpty() } ?: it.pdfLocalPath.ifEmpty { it.id } }
         .distinctUntilChanged()
         .flatMapLatest { pdfId ->
             noteVisualRepository.getVisualsForFile(lectureId, pdfId)
@@ -84,9 +106,12 @@ class LectureViewModel(
 
     fun playSessionIfNeeded() {
         val currentLecture = _lecture.value ?: return
-        if (!playerProvider.isSessionActive(lectureId)) {
+        if (!playerProvider.isSessionActive(lectureId) || _playerState.value is PlayerUiState.ERROR) {
             viewModelScope.launch {
                 hasStartedPlayback = false
+                if (_playerState.value is PlayerUiState.ERROR) {
+                    playerProvider.stopSession(lectureId)
+                }
                 processPlayback(currentLecture)
             }
         } else {
@@ -261,7 +286,7 @@ class LectureViewModel(
     }
 
     fun addVisual(type: VisualType, data: String, page: Int, color: Int, width: Float) {
-        val currentPdfId = _lecture.value?.let { it.pdfLocalPath.ifEmpty { it.pdfId ?: it.id } } ?: lectureId
+        val currentPdfId = _lecture.value?.let { l -> l.pdfId.takeIf { !it.isNullOrEmpty() } ?: l.pdfLocalPath.ifEmpty { l.id } } ?: lectureId
         viewModelScope.launch {
             noteVisualRepository.insert(
                 NoteVisual(
@@ -279,7 +304,7 @@ class LectureViewModel(
     }
 
     fun addVisualAtPos(type: VisualType, x: Float, y: Float, page: Int, color: Int) {
-        val currentPdfId = _lecture.value?.let { it.pdfLocalPath.ifEmpty { it.pdfId ?: it.id } } ?: lectureId
+        val currentPdfId = _lecture.value?.let { l -> l.pdfId.takeIf { !it.isNullOrEmpty() } ?: l.pdfLocalPath.ifEmpty { l.id } } ?: lectureId
         viewModelScope.launch {
             noteVisualRepository.insert(
                 NoteVisual(
@@ -320,6 +345,12 @@ class LectureViewModel(
                 if (path == "blank_note" && l.pdfPageCount == 0) {
                     repository.updatePageCount(l.id, 5)
                 }
+                
+                // Clear memory cache if closing or changing file source
+                if (path == "" || path != "memory_bytes") {
+                    _drivePdfBytes.value = null
+                }
+                
                 repository.updateLocalPdfPath(l, path) 
             }
         }
@@ -363,6 +394,7 @@ class LectureViewModel(
     }
 
     override fun onCleared() {
+        _drivePdfProxy.value?.close()
         Log.d("LectureViewModel", "ViewModel cleared for $lectureId")
         periodicSaveJob?.cancel()
         saveProgress()
@@ -372,7 +404,95 @@ class LectureViewModel(
         }
         super.onCleared()
     }
+
+    fun downloadPdf() {
+        val currentLecture = _lecture.value ?: return
+        if (currentLecture.isPdfDownloaded) return
+        
+        viewModelScope.launch {
+            _isDrivePdfLoading.value = true
+            _drivePdfDownloadProgress.value = 0f
+            _drivePdfBytes.value = null
+
+            launch(kotlinx.coroutines.Dispatchers.IO) {
+                try {
+                    val pdfId = currentLecture.pdfId ?: return@launch
+                    val baos = java.io.ByteArrayOutputStream()
+                    repository.downloadPdfToStream(pdfId, baos) { bytes, total ->
+                        val prog = if (total > 0) bytes.toFloat() / total else 0f
+                        _drivePdfDownloadProgress.value = prog
+                    }
+                    val fullBytes = baos.toByteArray()
+                    _drivePdfBytes.value = fullBytes
+                    _isDrivePdfLoading.value = false
+                    
+                    // Fallback to cache
+                    repository.downloadPdf(currentLecture)
+                } catch (e: Exception) {
+                    logger.e("LectureViewModel", "Stream/Cache PDF failed", e)
+                    _isDrivePdfLoading.value = false
+                }
+            }
+        }
+    }
+
+    fun loadDrivePdfs(folderId: String? = null) {
+        val resolvedFolderId = folderId ?: com.pulse.core.domain.util.Constants.DRIVE_FOLDER_ID
+        viewModelScope.launch {
+            _isLoadingDrivePdfs.value = true
+            _drivePdfs.value = emptyList() // Clear stale files first
+            try {
+                _drivePdfs.value = repository.listPdfs(resolvedFolderId)
+            } catch (e: Exception) {
+                logger.e("LectureViewModel", "Failed to load Drive PDFs", e)
+            } finally {
+                _isLoadingDrivePdfs.value = false
+            }
+        }
+    }
+
+    fun attachDrivePdf(pdf: com.pulse.data.services.btr.BtrFile) {
+        viewModelScope.launch {
+            _isDrivePdfLoading.value = false // Instant rendering, so spinner is usually unnecessary
+            _drivePdfDownloadProgress.value = null
+            _drivePdfBytes.value = null
+            
+            // Close old proxy if any
+            _drivePdfProxy.value?.close()
+            _drivePdfProxy.value = null
+            
+            val lecture = _lecture.value ?: return@launch
+            
+            // Instant: If we already have the file locally, just use path
+            val computedPath = repository.getLecturePdfPath(lecture.id, pdf)
+            if (java.io.File(computedPath).exists()) {
+                repository.attachDrivePdfToLecture(lecture.id, pdf) // Update DB
+                return@launch
+            }
+
+            // High Performance: Use Stream Proxy for large files
+            pdf.size?.let { size ->
+                try {
+                    val proxy = repository.getDrivePdfProxy(pdf.id, size)
+                    _drivePdfProxy.value = proxy
+                    logger.d("LectureViewModel", "Instant proxy created for ${pdf.name}")
+                } catch (e: Exception) {
+                    logger.e("LectureViewModel", "Proxy creation failed", e)
+                }
+            }
+
+            // Background: Keep the cache download running in parallel so it's ready offline later
+            launch(kotlinx.coroutines.Dispatchers.IO) {
+                try {
+                    repository.attachDrivePdfToLecture(lecture.id, pdf)
+                } catch (e: Exception) {
+                    logger.e("LectureViewModel", "Background PDF cache failed", e)
+                }
+            }
+        }
+    }
 }
+
 
 sealed class PlayerUiState {
     object LOADING : PlayerUiState()

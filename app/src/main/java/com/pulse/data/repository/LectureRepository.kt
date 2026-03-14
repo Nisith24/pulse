@@ -4,7 +4,10 @@ import com.pulse.core.domain.util.HlcGenerator
 import com.pulse.core.domain.util.ILogger
 import com.pulse.core.domain.util.Constants
 import com.pulse.core.data.db.Lecture
+import com.pulse.core.data.db.CustomList
+import com.pulse.core.data.db.CustomListLectureCrossRef
 import com.pulse.data.db.LectureDao
+import com.pulse.data.db.CustomListDao
 import com.pulse.domain.services.btr.IBtrAuthManager
 import com.pulse.domain.services.btr.IBtrService
 import com.pulse.data.local.FileStorageManager
@@ -39,7 +42,8 @@ class LectureRepository(
     private val hlcGenerator: HlcGenerator,
     private val logger: ILogger,
     private val context: android.content.Context,
-    private val syncManager: com.pulse.data.sync.FirestoreSyncManager
+    private val syncManager: com.pulse.data.sync.FirestoreSyncManager,
+    private val customListDao: CustomListDao
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val _activeDownloads = MutableStateFlow<Map<String, DownloadStatus>>(emptyMap())
@@ -50,9 +54,20 @@ class LectureRepository(
     val downloadedLectures: Flow<List<Lecture>> = lectureDao.getDownloadedLectures()
     val cloudOnlyLectures: Flow<List<Lecture>> = lectureDao.getCloudOnlyLectures()
     val recentLecture: Flow<Lecture?> = lectureDao.getRecentLecture()
+    val completedLectures: Flow<List<Lecture>> = lectureDao.getCompletedLectures()
 
     fun getLectureById(id: String): Flow<Lecture?> = lectureDao.getById(id)
     fun getLecturesBySubject(subject: String): Flow<List<Lecture>> = lectureDao.getLecturesBySubject(subject)
+
+    // ── Custom Lists ──
+    fun getAllCustomLists(): Flow<List<CustomList>> = customListDao.getAllCustomLists()
+    fun getLecturesForCustomList(listId: Long): Flow<List<Lecture>> = customListDao.getLecturesForCustomList(listId)
+    suspend fun createCustomList(name: String): Long = customListDao.insertCustomList(CustomList(name = name))
+    suspend fun deleteCustomList(listId: Long) = customListDao.deleteCustomList(listId)
+    suspend fun addLectureToCustomList(listId: Long, lectureId: String) =
+        customListDao.insertLectureToCustomList(CustomListLectureCrossRef(listId = listId, lectureId = lectureId))
+    suspend fun removeLectureFromCustomList(listId: Long, lectureId: String) =
+        customListDao.removeLectureFromCustomList(listId, lectureId)
 
     // --- Sync: push single lecture to Firestore (fire-and-forget) ---
     private fun firebasePush(lectureId: String) {
@@ -289,6 +304,108 @@ class LectureRepository(
                 }
             }
         }
+    }
+
+    /** Public entry point for on-demand PDF download (uses cached auth token) */
+    suspend fun downloadPdf(lecture: Lecture) = withContext(Dispatchers.IO) {
+        val token = try { authManager.getToken() } catch (e: Exception) { "" }
+        downloadPdf(lecture, token)
+    }
+
+    /** Stream PDF bytes to an output stream with progress callback */
+    suspend fun downloadPdfToStream(pdfId: String, outputStream: java.io.OutputStream, onProgress: (Long, Long) -> Unit) = withContext(Dispatchers.IO) {
+        val token = try { authManager.getToken() } catch (e: Exception) { "" }
+        btrService.downloadToStream(pdfId, outputStream, token, onProgress)
+    }
+
+    /** List PDF files in a Drive folder */
+    suspend fun listPdfs(folderId: String): List<com.pulse.data.services.btr.BtrFile> = withContext(Dispatchers.IO) {
+        val token = try { authManager.getToken() } catch (e: Exception) { "" }
+        btrService.listFolder(folderId, token).filter { it.mimeType == "application/pdf" || it.name.endsWith(".pdf", ignoreCase = true) }
+    }
+
+    /** List subfolders in a Drive folder */
+    suspend fun listSubfolders(folderId: String): List<com.pulse.data.services.btr.BtrFile> = withContext(Dispatchers.IO) {
+        val token = try { authManager.getToken() } catch (e: Exception) { "" }
+        btrService.listSubfolders(folderId, token)
+    }
+
+    /** Compute the local path where a Drive PDF would be cached */
+    fun getLecturePdfPath(lectureId: String, pdf: com.pulse.data.services.btr.BtrFile): String {
+        val cacheDir = File(context.filesDir, "pdfs")
+        cacheDir.mkdirs()
+        return File(cacheDir, "${pdf.id}.pdf").absolutePath
+    }
+
+    /** Attach a Drive PDF to a lecture — downloads to cache in background */
+    suspend fun attachDrivePdfToLecture(lectureId: String, pdf: com.pulse.data.services.btr.BtrFile) = withContext(Dispatchers.IO) {
+        val destPath = getLecturePdfPath(lectureId, pdf)
+        val destFile = File(destPath)
+        if (!destFile.exists()) {
+            val token = try { authManager.getToken() } catch (e: Exception) { "" }
+            destFile.parentFile?.mkdirs()
+            destFile.outputStream().use { os ->
+                btrService.downloadToStream(pdf.id, os, token) { _, _ -> }
+            }
+        }
+        val lecture = lectureDao.getById(lectureId).first()
+        if (lecture != null) {
+            val now = System.currentTimeMillis()
+            val hlc = hlcGenerator.generate()
+            lectureDao.update(lecture.copy(
+                pdfId = pdf.id,
+                pdfLocalPath = destPath,
+                isPdfDownloaded = true,
+                updatedAt = now,
+                hlcTimestamp = hlc
+            ))
+        }
+    }
+
+    /** Create a streaming proxy (ParcelFileDescriptor pipe) for a Drive PDF */
+    suspend fun getDrivePdfProxy(fileId: String, fileSize: Long): android.os.ParcelFileDescriptor = withContext(Dispatchers.IO) {
+        val pipe = android.os.ParcelFileDescriptor.createPipe()
+        val writeFd = pipe[1]
+        val readFd = pipe[0]
+        scope.launch(Dispatchers.IO) {
+            try {
+                android.os.ParcelFileDescriptor.AutoCloseOutputStream(writeFd).use { os ->
+                    val token = try { authManager.getToken() } catch (e: Exception) { "" }
+                    btrService.downloadToStream(fileId, os, token) { _, _ -> }
+                }
+            } catch (e: Exception) {
+                logger.e("PdfProxy", "Pipe write failed", e)
+            }
+        }
+        readFd
+    }
+
+    /** Mark a lecture as completed (100% progress) */
+    suspend fun markAsCompleted(lectureId: String) {
+        val lecture = lectureDao.getById(lectureId).first() ?: return
+        val now = System.currentTimeMillis()
+        val hlc = hlcGenerator.generate()
+        lectureDao.updateProgress(
+            id = lectureId,
+            lastPosition = 0L,
+            duration = lecture.videoDuration,
+            updatedAt = now,
+            hlcTimestamp = hlc
+        )
+        firebasePush(lectureId)
+    }
+
+    /** Reset lecture progress back to zero */
+    suspend fun resetProgress(lectureId: String) {
+        val now = System.currentTimeMillis()
+        val hlc = hlcGenerator.generate()
+        lectureDao.updateProgress(
+            id = lectureId,
+            lastPosition = 0L,
+            duration = 0L,
+            updatedAt = now,
+            hlcTimestamp = hlc
+        )
     }
 
     private suspend fun downloadPdf(lecture: Lecture, token: String) = withContext(Dispatchers.IO) {

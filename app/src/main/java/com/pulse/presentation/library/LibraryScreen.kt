@@ -10,13 +10,19 @@ import android.provider.OpenableColumns
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Close
@@ -25,16 +31,21 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.pulse.domain.services.btr.IBtrAuthManager
 import com.pulse.presentation.components.LectureCard
+import com.pulse.presentation.components.DrivePdfPicker
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
@@ -45,7 +56,10 @@ fun LibraryScreen(
     onLectureSelected: (String) -> Unit,
     onNavigateToSettings: () -> Unit = {},
     onNavigateToDownloads: () -> Unit = {},
-    onNavigateToSubjects: () -> Unit = {}
+    onNavigateToSubjects: () -> Unit = {},
+    onNavigateToPrepladderRR: () -> Unit = {},
+    onNavigateToCustomLists: () -> Unit = {},
+    customListViewModel: com.pulse.presentation.customlist.CustomListViewModel = koinViewModel()
 ) {
     val currentTab by viewModel.currentTab.collectAsState()
     val btrLectures by viewModel.btrLectures.collectAsState()
@@ -61,6 +75,12 @@ fun LibraryScreen(
     var isSearching by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    
+    // Custom List State
+    val customLists by customListViewModel.customLists.collectAsState()
+    var selectedLongPressLecture by remember { mutableStateOf<com.pulse.core.data.db.Lecture?>(null) }
+    var showDrivePdfPicker by remember { mutableStateOf(false) }
+    val drivePdfs by viewModel.drivePdfs.collectAsState()
 
     if (isBtrViewActive && currentTab == LibraryTab.SERVICES) {
         androidx.activity.compose.BackHandler {
@@ -201,6 +221,13 @@ fun LibraryScreen(
                 ),
                 actions = {
                     if (!isSearching) {
+                        IconButton(onClick = onNavigateToCustomLists) {
+                            Icon(
+                                Icons.Default.PlaylistPlay,
+                                contentDescription = "Custom Playlists",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                         IconButton(onClick = { viewModel.toggleFavoritesFilter() }) {
                             Icon(
                                 if (showFavoritesOnly) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
@@ -294,6 +321,22 @@ fun LibraryScreen(
                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                     ) { Icon(Icons.Default.VideoLibrary, contentDescription = "Add Video") }
+                } else if (currentTab == LibraryTab.SERVICES && isBtrViewActive && showFabMenu) {
+                    FloatingActionButton(
+                        onClick = { 
+                            showFabMenu = false
+                            viewModel.loadDrivePdfs(com.pulse.core.domain.util.Constants.DRIVE_FOLDER_ID)
+                            showDrivePdfPicker = true 
+                        },
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                    ) { 
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 12.dp)) {
+                            Icon(Icons.Default.Cloud, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("PDF from Drive", style = MaterialTheme.typography.labelLarge)
+                        }
+                    }
                 }
 
                 // Resume Playback FAB with inline Tooltip
@@ -335,7 +378,7 @@ fun LibraryScreen(
                     }
                 }
 
-                if (currentTab == LibraryTab.HOME) {
+                if (currentTab == LibraryTab.HOME || (currentTab == LibraryTab.SERVICES && isBtrViewActive)) {
                     LargeFloatingActionButton(
                         onClick = { showFabMenu = !showFabMenu },
                         containerColor = MaterialTheme.colorScheme.primary,
@@ -390,40 +433,11 @@ fun LibraryScreen(
             }
 
             if (currentTab == LibraryTab.SERVICES && !isBtrViewActive) {
-                Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text(text = "CORE SERVICES", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f), modifier = Modifier.padding(start = 8.dp, bottom = 4.dp), fontWeight = FontWeight.Bold)
-                    Card(modifier = Modifier.fillMaxWidth().height(110.dp).clickable { viewModel.setBtrViewActive(true) }, shape = MaterialTheme.shapes.extraLarge, elevation = CardDefaults.cardElevation(defaultElevation = 8.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
-                        Row(Modifier.fillMaxSize().padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                            Surface(modifier = Modifier.size(64.dp), shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.primary, shadowElevation = 12.dp) {
-                                Box(contentAlignment = Alignment.Center) { Icon(imageVector = Icons.Default.Stream, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(32.dp)) }
-                            }
-                            Text("BTR", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.weight(1f))
-                            Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
-                        }
-                    }
-                    Card(modifier = Modifier.fillMaxWidth().height(110.dp).clickable { onNavigateToSubjects() }, shape = MaterialTheme.shapes.extraLarge, elevation = CardDefaults.cardElevation(defaultElevation = 8.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
-                        Row(Modifier.fillMaxSize().padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                            Surface(modifier = Modifier.size(64.dp), shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.secondary, shadowElevation = 12.dp) {
-                                Box(contentAlignment = Alignment.Center) { Icon(imageVector = Icons.Default.MenuBook, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondary, modifier = Modifier.size(32.dp)) }
-                            }
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("SUBJECTS", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onSecondaryContainer)
-                                Text("19 Subjects NEET PG", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha=0.7f), fontWeight = FontWeight.Bold)
-                            }
-                            Icon(imageVector = Icons.Default.ArrowForwardIos, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(24.dp))
-                        }
-                    }
-                    Card(modifier = Modifier.fillMaxWidth().height(100.dp).alpha(0.6f), shape = MaterialTheme.shapes.extraLarge, border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.outlineVariant), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-                        Row(Modifier.fillMaxSize().padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                            Icon(imageVector = Icons.Default.History, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(40.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("MARROW RR", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text("Coming soon", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                            }
-                            Badge(containerColor = MaterialTheme.colorScheme.surfaceVariant) { Text("DISABLED", modifier = Modifier.padding(4.dp)) }
-                        }
-                    }
-                }
+                ServicesTab(
+                    onBtrClick = { viewModel.setBtrViewActive(true) },
+                    onSubjectsClick = onNavigateToSubjects,
+                    onPrepladderClick = onNavigateToPrepladderRR
+                )
             } else if (currentLectures.isEmpty() && !isLoading) {
                 Box(modifier = Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -449,7 +463,8 @@ fun LibraryScreen(
                                 isLibraryHome = currentTab == LibraryTab.HOME, 
                                 onLectureSelected = onLectureSelected, 
                                 onToggleFavorite = { viewModel.toggleFavorite(it) },
-                                onDelete = { viewModel.deleteLecture(it) }
+                                onDelete = { viewModel.deleteLecture(it) },
+                                onLongPress = { selectedLongPressLecture = it }
                             )
                         }
                     } else {
@@ -471,12 +486,254 @@ fun LibraryScreen(
                                     isLibraryHome = currentTab == LibraryTab.HOME, 
                                     onLectureSelected = onLectureSelected, 
                                     onToggleFavorite = { viewModel.toggleFavorite(it) },
-                                    onDelete = { viewModel.deleteLecture(it) }
+                                    onDelete = { viewModel.deleteLecture(it) },
+                                    onLongPress = { selectedLongPressLecture = it }
                                 )
                             }
                         }
                     }
                 }
+            }
+        }
+    }
+
+    selectedLongPressLecture?.let { lecture ->
+        LectureActionBottomSheet(
+            lecture = lecture,
+            customLists = customLists,
+            onDismissRequest = { selectedLongPressLecture = null },
+            onDownloadClick = { viewModel.startDownload(lecture) },
+            onAddToListClick = { listId ->
+                customListViewModel.addLectureToList(listId, lecture.id)
+            },
+            onCreateNewListClick = { listName ->
+                customListViewModel.createList(listName) { listId ->
+                    customListViewModel.addLectureToList(listId, lecture.id)
+                }
+            },
+            onToggleFavoriteClick = { viewModel.toggleFavorite(lecture.id) },
+            onMarkAsCompletedClick = { viewModel.markAsCompleted(lecture.id) }
+        )
+    }
+
+    if (showDrivePdfPicker) {
+        DrivePdfPicker(
+            pdfs = drivePdfs,
+            onPdfSelected = { pdf ->
+                showDrivePdfPicker = false
+                viewModel.addDrivePdf(pdf)
+            },
+            onDismissRequest = { showDrivePdfPicker = false },
+            isLoading = isLoading
+        )
+    }
+}
+
+@Composable
+private fun ServicesTab(
+    onBtrClick: () -> Unit,
+    onSubjectsClick: () -> Unit,
+    onPrepladderClick: () -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            // ── Section Header ──
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.padding(bottom = 8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(4.dp, 22.dp)
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(Color(0xFF6C63FF), Color(0xFF3EC6E0))
+                            ),
+                            shape = RoundedCornerShape(2.dp)
+                        )
+                )
+                Text(
+                    text = "STUDY SERVICES",
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        letterSpacing = 2.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                )
+            }
+        }
+
+        item {
+            // ── BTR Hero Card ──
+            ServiceCard(
+                title = "BTR",
+                subtitle = "Board Targeted Review",
+                badge = "LIVE",
+                icon = Icons.Default.Stream,
+                gradientColors = listOf(Color(0xFF6C63FF), Color(0xFF4A90D9)),
+                glowColor = Color(0xFF6C63FF),
+                onClick = onBtrClick
+            )
+        }
+
+        item {
+            // ── Subjects Card ──
+            ServiceCard(
+                title = "SUBJECTS",
+                subtitle = "19 Subjects · NEET PG",
+                badge = "19",
+                icon = Icons.Default.MenuBook,
+                gradientColors = listOf(Color(0xFF00B09B), Color(0xFF26D0CE)),
+                glowColor = Color(0xFF00B09B),
+                onClick = onSubjectsClick
+            )
+        }
+
+        item {
+            // ── PrepladderRR Card ──
+            ServiceCard(
+                title = "PREPLADDER RR",
+                subtitle = "Rapid Revision · CBT Ready",
+                badge = "RR",
+                icon = Icons.Default.Bolt,
+                gradientColors = listOf(Color(0xFFFF6B35), Color(0xFFF7C948)),
+                glowColor = Color(0xFFFF6B35),
+                onClick = onPrepladderClick
+            )
+        }
+    }
+}
+
+@Composable
+private fun ServiceCard(
+    title: String,
+    subtitle: String,
+    badge: String,
+    icon: ImageVector,
+    gradientColors: List<Color>,
+    glowColor: Color,
+    onClick: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.97f else 1f,
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = 500f),
+        label = "card_scale"
+    )
+    val elevation by animateFloatAsState(
+        targetValue = if (isPressed) 2f else 12f,
+        animationSpec = spring(stiffness = 400f),
+        label = "card_elevation"
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .scale(scale)
+            .shadow(elevation = elevation.dp, shape = RoundedCornerShape(28.dp), clip = false)
+            .clip(RoundedCornerShape(28.dp))
+            .background(brush = Brush.linearGradient(gradientColors))
+            .clickable(interactionSource = interactionSource, indication = null) { onClick() }
+    ) {
+        // Decorative radial glow circles
+        Box(
+            modifier = Modifier
+                .size(160.dp)
+                .align(Alignment.TopEnd)
+                .offset(x = 40.dp, y = (-30).dp)
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(Color.White.copy(alpha = 0.15f), Color.Transparent)
+                    ),
+                    shape = CircleShape
+                )
+        )
+        Box(
+            modifier = Modifier
+                .size(90.dp)
+                .align(Alignment.BottomStart)
+                .offset(x = (-20).dp, y = 20.dp)
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(Color.White.copy(alpha = 0.10f), Color.Transparent)
+                    ),
+                    shape = CircleShape
+                )
+        )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 22.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            // Icon container with frosted glass effect
+            Box(
+                modifier = Modifier
+                    .size(68.dp)
+                    .background(
+                        color = Color.White.copy(alpha = 0.2f),
+                        shape = RoundedCornerShape(20.dp)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(34.dp)
+                )
+            }
+
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.headlineSmall.copy(
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 0.5.sp
+                    ),
+                    color = Color.White
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                    color = Color.White.copy(alpha = 0.75f)
+                )
+            }
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Badge
+                Surface(
+                    color = Color.White.copy(alpha = 0.25f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        text = badge,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 1.sp
+                        ),
+                        color = Color.White
+                    )
+                }
+                // Arrow
+                Icon(
+                    imageVector = Icons.Default.ArrowForwardIos,
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.7f),
+                    modifier = Modifier.size(16.dp)
+                )
             }
         }
     }

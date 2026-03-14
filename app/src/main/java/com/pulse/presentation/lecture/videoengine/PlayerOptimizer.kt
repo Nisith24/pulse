@@ -38,19 +38,13 @@ object PlayerOptimizer {
     }
 
     /**
-     * Renderers factory tuned for quality:
-     * - Prefer extension decoders (FFmpeg/AV1 software) for accurate color
+     * Standard renderers factory:
+     * - Default mode to prevent MediaCodec and software rendering errors
      * - Enable decoder fallback for resilience
-     * - Enable async queueing for smoother frame delivery
      */
     fun createRenderersFactory(context: Context): RenderersFactory {
         return DefaultRenderersFactory(context).apply {
-            setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
             setEnableDecoderFallback(true)
-            // Async MediaCodec queueing: smoother frame delivery pipeline
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                forceEnableMediaCodecAsynchronousQueueing()
-            }
         }
     }
 }

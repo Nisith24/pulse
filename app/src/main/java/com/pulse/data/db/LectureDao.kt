@@ -28,6 +28,9 @@ interface LectureDao {
     @Query("SELECT * FROM lectures WHERE id = :id AND isDeleted = 0")
     fun getById(id: String): Flow<Lecture?>
 
+    @Query("SELECT * FROM lectures WHERE id = :id AND isDeleted = 0")
+    suspend fun getByIdSync(id: String): Lecture?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(lecture: Lecture)
 
@@ -49,7 +52,7 @@ interface LectureDao {
     @Query("UPDATE lectures SET videoLocalPath = :path, updatedAt = :updatedAt, hlcTimestamp = :hlcTimestamp WHERE id = :id")
     suspend fun updateVideoLocalPath(id: String, path: String, updatedAt: Long, hlcTimestamp: String)
 
-    @Query("UPDATE lectures SET isDeleted = 1, hlcTimestamp = :hlcTimestamp WHERE isLocal = 0 AND id NOT IN (:ids)")
+    @Query("UPDATE lectures SET isDeleted = 1, hlcTimestamp = :hlcTimestamp WHERE isLocal = 0 AND (subject IS NULL OR subject = '') AND id NOT IN (:ids)")
     suspend fun markMissingBtrDeleted(ids: List<String>, hlcTimestamp: String)
 
     @Query("UPDATE lectures SET isFavorite = NOT isFavorite, updatedAt = :updatedAt, hlcTimestamp = :hlcTimestamp WHERE id = :id")
@@ -75,4 +78,7 @@ interface LectureDao {
 
     @Query("SELECT * FROM lectures WHERE lastPosition > 1000 AND isDeleted = 0 ORDER BY updatedAt DESC LIMIT 1")
     fun getRecentLecture(): Flow<Lecture?>
+
+    @Query("SELECT * FROM lectures WHERE videoDuration > 0 AND lastPosition >= (videoDuration * 0.9) AND isDeleted = 0 ORDER BY updatedAt DESC")
+    fun getCompletedLectures(): Flow<List<Lecture>>
 }

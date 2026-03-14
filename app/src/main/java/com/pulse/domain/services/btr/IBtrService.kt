@@ -4,8 +4,10 @@ import com.pulse.data.services.btr.BtrFile
 
 interface IBtrService {
     suspend fun listFolder(folderId: String, accessToken: String, recursive: Boolean = true): List<BtrFile>
+    suspend fun listSubfolders(folderId: String, accessToken: String): List<BtrFile>
     fun streamUrl(fileId: String): String
     suspend fun downloadFile(fileId: String, accessToken: String): ByteArray
+    suspend fun downloadRange(fileId: String, accessToken: String, start: Long, end: Long): ByteArray
     suspend fun downloadToStream(fileId: String, outputStream: java.io.OutputStream, accessToken: String, onProgress: (bytesRead: Long, totalBytes: Long) -> Unit)
 }
 

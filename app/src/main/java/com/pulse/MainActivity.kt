@@ -1,27 +1,19 @@
 package com.pulse
 
 import android.app.PictureInPictureParams
-import android.content.res.Configuration
-import android.os.Build
 import android.os.Bundle
 import android.util.Rational
 import android.util.Log
 import androidx.lifecycle.lifecycleScope
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Login
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.media3.common.Player
@@ -242,7 +234,39 @@ fun PulseAppContent(
                     },
                     onNavigateToSettings = { navController.navigate(SettingsRoute) },
                     onNavigateToDownloads = { navController.navigate(DownloadsRoute) },
-                    onNavigateToSubjects = { navController.navigate(SubjectsRoute) }
+                    onNavigateToSubjects = { navController.navigate(SubjectsRoute) },
+                    onNavigateToPrepladderRR = { navController.navigate(PrepladderRRRoute) },
+                    onNavigateToCustomLists = { navController.navigate(CustomListsRoute) }
+                )
+            }
+            composable<CustomListsRoute> {
+                val vm = org.koin.androidx.compose.koinViewModel<com.pulse.presentation.customlist.CustomListViewModel>()
+                com.pulse.presentation.customlist.CustomListsScreen(
+                    viewModel = vm,
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToList = { id, name ->
+                        navController.navigate(CustomListDetailRoute(id, name))
+                    },
+                    onNavigateToCompleted = { navController.navigate(CompletedRoute) }
+                )
+            }
+            composable<CompletedRoute> {
+                val vm = org.koin.androidx.compose.koinViewModel<com.pulse.presentation.customlist.CustomListViewModel>()
+                com.pulse.presentation.customlist.CompletedVideosScreen(
+                    viewModel = vm,
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToLecture = { id -> navController.navigate(LectureRoute(id)) }
+                )
+            }
+            composable<CustomListDetailRoute> { backStackEntry ->
+                val route = backStackEntry.toRoute<CustomListDetailRoute>()
+                val vm = org.koin.androidx.compose.koinViewModel<com.pulse.presentation.customlist.CustomListViewModel>()
+                com.pulse.presentation.customlist.CustomListDetailScreen(
+                    listId = route.listId,
+                    listName = route.listName,
+                    viewModel = vm,
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToLecture = { id -> navController.navigate(LectureRoute(id)) }
                 )
             }
             composable<SubjectsRoute> {
@@ -258,7 +282,18 @@ fun PulseAppContent(
                 com.pulse.presentation.subjects.SubjectDetailScreen(
                     subjectName = route.subjectName,
                     onNavigateBack = { navController.popBackStack() },
-                    onNavigateToLecture = { id -> navController.navigate(LectureRoute(id)) }
+                    onNavigateToLecture = { id, folderId -> navController.navigate(LectureRoute(id, folderId)) }
+                )
+            }
+            composable<PrepladderRRRoute> {
+                com.pulse.presentation.prepladderrr.PrepladderRRScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToLecture = { id, folderId ->
+                        if (playerProvider.isMiniPlayerActive) {
+                            playerProvider.closeMiniPlayer()
+                        }
+                        navController.navigate(LectureRoute(id, folderId))
+                    }
                 )
             }
             composable<DownloadsRoute> {
@@ -279,9 +314,9 @@ fun PulseAppContent(
                 key(route.lectureId) {
                     LectureScreen(
                         lectureId = route.lectureId,
+                        sourceFolderId = route.sourceFolderId,
                         onNavigateBack = {
-                            playerProvider.activateMiniPlayer(route.lectureId, "")
-                            navController.popBackStack(LibraryRoute, inclusive = false)
+                            navController.popBackStack()
                         }
                     )
                 }
