@@ -51,8 +51,8 @@ fun PdfViewer(
     visuals: List<NoteVisual>,
     annotationState: AnnotationState,
     onPageChanged: (Int) -> Unit,
-    onAddVisual: (VisualType, String, Int, Int, Float) -> Unit,
-    onAddVisualAtPos: (VisualType, Float, Float, Int, Int) -> Unit,
+    onAddVisual: (VisualType, String, Int, Int, Float, Float) -> Unit,
+    onAddVisualAtPos: (VisualType, Float, Float, Int, Int, Float, Float) -> Unit,
     onDeleteVisual: (Long) -> Unit,
     onCreateBlankNote: () -> Unit = {},
     onAddPage: () -> Unit = {},
@@ -260,8 +260,8 @@ private fun NotebookMode(
     annotationState: AnnotationState,
     visuals: List<NoteVisual>,
     onPageChanged: (Int) -> Unit,
-    onAddVisual: (VisualType, String, Int, Int, Float) -> Unit,
-    onAddVisualAtPos: (VisualType, Float, Float, Int, Int) -> Unit,
+    onAddVisual: (VisualType, String, Int, Int, Float, Float) -> Unit,
+    onAddVisualAtPos: (VisualType, Float, Float, Int, Int, Float, Float) -> Unit,
     onDeleteVisual: (Long) -> Unit
 ) {
     val pagerState = rememberPagerState(initialPage = currentPage.coerceIn(0, (totalPages - 1).coerceAtLeast(0))) { totalPages }
@@ -281,9 +281,7 @@ private fun NotebookMode(
         LaunchedEffect(maxWidth, maxHeight) {
             annotationState.pageWidth = with(density) { maxWidth.toPx() }
             annotationState.pageHeight = with(density) { maxHeight.toPx() }
-            annotationState.currentZoom = 1f
-            annotationState.currentXOffset = 0f
-            annotationState.currentYOffset = 0f
+            annotationState.resetTransform()
         }
 
         if (isHorizontal) {
@@ -312,8 +310,8 @@ private fun NotebookPage(
     pageIndex: Int,
     annotationState: AnnotationState,
     visuals: List<NoteVisual>,
-    onAddVisual: (VisualType, String, Int, Int, Float) -> Unit,
-    onAddVisualAtPos: (VisualType, Float, Float, Int, Int) -> Unit,
+    onAddVisual: (VisualType, String, Int, Int, Float, Float) -> Unit,
+    onAddVisualAtPos: (VisualType, Float, Float, Int, Int, Float, Float) -> Unit,
     onDeleteVisual: (Long) -> Unit
 ) {
     Box(Modifier.fillMaxSize()) {
@@ -342,11 +340,11 @@ private fun NotebookPage(
         DrawingCanvas(
             annotationState = annotationState,
             visuals = visuals.filter { it.pageNumber == pageIndex },
-            onDrawComplete = { type, data, color, width ->
-                onAddVisual(type, data, pageIndex, color.toArgb(), width)
+            onDrawComplete = { type, data, color, width, alpha ->
+                onAddVisual(type, data, pageIndex, color.toArgb(), width, alpha)
             },
-            onAddVisualAtPos = { type, x, y, color ->
-                onAddVisualAtPos(type, x, y, pageIndex, color)
+            onAddVisualAtPos = { type, x, y, color, width, alpha ->
+                onAddVisualAtPos(type, x, y, pageIndex, color, width, alpha)
             },
             onDeleteVisual = onDeleteVisual,
             modifier = Modifier.fillMaxSize()
@@ -364,8 +362,8 @@ private fun PdfMode(
     visuals: List<NoteVisual>,
     currentPage: Int,
     onStatusUpdate: (Int, Int) -> Unit,
-    onAddVisual: (VisualType, String, Int, Int, Float) -> Unit,
-    onAddVisualAtPos: (VisualType, Float, Float, Int, Int) -> Unit,
+    onAddVisual: (VisualType, String, Int, Int, Float, Float) -> Unit,
+    onAddVisualAtPos: (VisualType, Float, Float, Int, Int, Float, Float) -> Unit,
     onDeleteVisual: (Long) -> Unit,
     onError: (String) -> Unit,
     pdfViewRef: MutableState<PDFView?>
@@ -382,6 +380,14 @@ private fun PdfMode(
         } 
     }
 
+    // Track container size to force remapping on resize
+    var containerWidth by remember { mutableIntStateOf(0) }
+    var containerHeight by remember { mutableIntStateOf(0) }
+    
+    // ── RECOMPOSITION TRIGGER: Observe tool changes to refresh overlay logic ──
+    val activeTool = annotationState.currentTool
+    val activeMode = annotationState.isDrawingMode
+
     // Sync the Compose overlay content
     SideEffect {
         composeOverlay.setContent {
@@ -389,20 +395,24 @@ private fun PdfMode(
                 annotationState = annotationState,
                 pdfView = pdfViewRef.value,
                 visuals = visuals.filter { it.pageNumber == currentPage },
-                onDrawComplete = { type, data, color, width ->
-                    onAddVisual(type, data, currentPage, color.toArgb(), width)
+                onDrawComplete = { type, data, color, width, alpha ->
+                    onAddVisual(type, data, currentPage, color.toArgb(), width, alpha)
                 },
-                onAddVisualAtPos = { type, x, y, color ->
-                    onAddVisualAtPos(type, x, y, currentPage, color)
+                onAddVisualAtPos = { type, x, y, color, width, alpha ->
+                    onAddVisualAtPos(type, x, y, currentPage, color, width, alpha)
                 },
                 onDeleteVisual = onDeleteVisual,
                 modifier = Modifier.fillMaxSize()
             )
         }
-        
-        // Direct coordinate mapping using PDFView's public zoom/offset API
+    }
+
+    // Coordinate mappers — always read pdfView dimensions live at call time.
+    // Re-installed whenever pdfView ref changes OR container resizes so closures stay fresh.
+    LaunchedEffect(pdfViewRef.value, containerWidth, containerHeight) {
         pdfViewRef.value?.let { pdfView ->
             annotationState.pdfToScreenMapper = { x, y ->
+                // Read width at invocation time, not capture time
                 val w = pdfView.width.toFloat().takeIf { it > 0 } ?: 1f
                 android.graphics.PointF(
                     (x * w) * pdfView.zoom + pdfView.currentXOffset,
@@ -416,6 +426,7 @@ private fun PdfMode(
                     ((y - pdfView.currentYOffset) / pdfView.zoom) / w
                 )
             }
+            annotationState.invalidationTick++
         }
     }
 
@@ -457,6 +468,21 @@ private fun PdfMode(
             // Force Canvas recomposition on every PDFView draw (zoom/pan/scroll)
             pdfView.viewTreeObserver.addOnDrawListener {
                 annotationState.invalidationTick++
+            }
+
+            // ── RESIZE FIX: Re-map coordinates when container layout changes ──
+            frameLayout.addOnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
+                val newW = right - left
+                val newH = bottom - top
+                val oldW = oldRight - oldLeft
+                val oldH = oldBottom - oldTop
+                if (newW != oldW || newH != oldH) {
+                    containerWidth = newW
+                    containerHeight = newH
+                    // Force the overlay to re-layout to match new container size
+                    composeOverlay.requestLayout()
+                    annotationState.invalidationTick++
+                }
             }
 
             frameLayout.addView(pdfView)

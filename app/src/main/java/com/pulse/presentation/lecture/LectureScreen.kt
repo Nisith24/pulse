@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Build
 import android.util.Rational
 import android.util.Log
+import android.view.MotionEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -26,6 +27,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.style.TextAlign
@@ -43,7 +46,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.max
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
 fun LectureScreen(
     lectureId: String,
@@ -208,6 +211,10 @@ fun LectureScreen(
                         viewModel.player.pause()
                     }
                 }
+                androidx.lifecycle.Lifecycle.Event.ON_START,
+                androidx.lifecycle.Lifecycle.Event.ON_RESUME -> {
+                    viewModel.playSessionIfNeeded()
+                }
                 else -> {}
             }
         }
@@ -221,8 +228,10 @@ fun LectureScreen(
             val inPip = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 activity?.isInPictureInPictureMode == true
             } else false
-            if (!isRotating && !goingToMiniPlayer && !inPip) {
-                Log.d("LectureScreen", "Disposing: Exiting session")
+            val isFinishing = activity?.isFinishing == true
+
+            if (!isRotating && !goingToMiniPlayer && !inPip && isFinishing) {
+                Log.d("LectureScreen", "Disposing: Exiting session (Finishing)")
                 viewModel.onExit()
             } else {
                 viewModel.saveProgress()
@@ -299,7 +308,24 @@ fun LectureScreen(
                             CircularProgressIndicator()
                         }
                 } else {
-                    BoxWithConstraints(Modifier.fillMaxSize()) {
+                    BoxWithConstraints(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .pointerInteropFilter { motionEvent ->
+                                // Stylus button → play/pause toggle
+                                val isStylusTool = motionEvent.getToolType(0) == MotionEvent.TOOL_TYPE_STYLUS ||
+                                                   motionEvent.getToolType(0) == MotionEvent.TOOL_TYPE_ERASER
+                                if (isStylusTool && motionEvent.actionMasked == MotionEvent.ACTION_DOWN) {
+                                    val stylusBtn = MotionEvent.BUTTON_STYLUS_PRIMARY or
+                                                    MotionEvent.BUTTON_SECONDARY
+                                    if (motionEvent.buttonState and stylusBtn != 0) {
+                                        if (viewModel.player.isPlaying) viewModel.player.pause()
+                                        else viewModel.player.play()
+                                    }
+                                }
+                                false // Don't consume — let events flow to children
+                            }
+                    ) {
                         val totalWidth = constraints.maxWidth.toFloat()
                         val isTablet = maxWidth > 840.dp
                             
@@ -325,11 +351,11 @@ fun LectureScreen(
                                         visuals = visuals,
                                         annotationState = annotationState,
                                         onPageChanged = { viewModel.updatePdfState(it) },
-                                        onAddVisual = { type, data, page, color, width ->
-                                            viewModel.addVisual(type, data, page, color, width)
+                                        onAddVisual = { type, data, page, color, width, alpha ->
+                                            viewModel.addVisual(type, data, page, color, width, alpha)
                                         },
-                                        onAddVisualAtPos = { type, x, y, page, color ->
-                                            viewModel.addVisualAtPos(type, x, y, page, color)
+                                        onAddVisualAtPos = { type, x, y, page, color, width, alpha ->
+                                            viewModel.addVisualAtPos(type, x, y, page, color, width, alpha)
                                         },
                                         onDeleteVisual = { id -> viewModel.deleteVisual(id) },
                                         onAddLocalPdf = onAddLocalPdf,
@@ -406,11 +432,11 @@ fun LectureScreen(
                                                 visuals = visuals,
                                                 annotationState = annotationState,
                                                 onPageChanged = { viewModel.updatePdfState(it) },
-                                                onAddVisual = { type, data, page, color, width ->
-                                                    viewModel.addVisual(type, data, page, color, width)
+                                                onAddVisual = { type, data, page, color, width, alpha ->
+                                                    viewModel.addVisual(type, data, page, color, width, alpha)
                                                 },
-                                                onAddVisualAtPos = { type, x, y, page, color ->
-                                                    viewModel.addVisualAtPos(type, x, y, page, color)
+                                                onAddVisualAtPos = { type, x, y, page, color, width, alpha ->
+                                                    viewModel.addVisualAtPos(type, x, y, page, color, width, alpha)
                                                 },
                                                 onDeleteVisual = { id -> viewModel.deleteVisual(id) },
                                                 onAddLocalPdf = onAddLocalPdf,
@@ -495,11 +521,11 @@ fun LectureScreen(
                                                 visuals = visuals,
                                                 annotationState = annotationState,
                                                 onPageChanged = { viewModel.updatePdfState(it) },
-                                                onAddVisual = { type, data, page, color, width ->
-                                                    viewModel.addVisual(type, data, page, color, width)
+                                                onAddVisual = { type, data, page, color, width, alpha ->
+                                                    viewModel.addVisual(type, data, page, color, width, alpha)
                                                 },
-                                                onAddVisualAtPos = { type, x, y, page, color ->
-                                                    viewModel.addVisualAtPos(type, x, y, page, color)
+                                                onAddVisualAtPos = { type, x, y, page, color, width, alpha ->
+                                                    viewModel.addVisualAtPos(type, x, y, page, color, width, alpha)
                                                 },
                                                 onDeleteVisual = { id -> viewModel.deleteVisual(id) },
                                                 onAddLocalPdf = onAddLocalPdf,

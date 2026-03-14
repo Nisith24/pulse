@@ -285,7 +285,7 @@ class LectureViewModel(
         viewModelScope.launch { noteRepository.deleteNote(noteId) }
     }
 
-    fun addVisual(type: VisualType, data: String, page: Int, color: Int, width: Float) {
+    fun addVisual(type: VisualType, data: String, page: Int, color: Int, width: Float, alpha: Float = 1f) {
         val currentPdfId = _lecture.value?.let { l -> l.pdfId.takeIf { !it.isNullOrEmpty() } ?: l.pdfLocalPath.ifEmpty { l.id } } ?: lectureId
         viewModelScope.launch {
             noteVisualRepository.insert(
@@ -297,13 +297,14 @@ class LectureViewModel(
                     type = type,
                     data = data,
                     color = color,
-                    strokeWidth = width
+                    strokeWidth = width,
+                    alpha = alpha
                 )
             )
         }
     }
 
-    fun addVisualAtPos(type: VisualType, x: Float, y: Float, page: Int, color: Int) {
+    fun addVisualAtPos(type: VisualType, x: Float, y: Float, page: Int, color: Int, width: Float = 1f, alpha: Float = 1f) {
         val currentPdfId = _lecture.value?.let { l -> l.pdfId.takeIf { !it.isNullOrEmpty() } ?: l.pdfLocalPath.ifEmpty { l.id } } ?: lectureId
         viewModelScope.launch {
             noteVisualRepository.insert(
@@ -315,7 +316,8 @@ class LectureViewModel(
                     type = type,
                     data = "$x,$y",
                     color = color,
-                    strokeWidth = 1f
+                    strokeWidth = width,
+                    alpha = alpha
                 )
             )
         }

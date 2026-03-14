@@ -125,6 +125,9 @@ fun VideoPlayer(
         val isMinimal = containerWidth < 300.dp || containerHeight < 200.dp
 
         // ── Video Surface ──
+        val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+        var playerViewRef by remember { mutableStateOf<PlayerView?>(null) }
+
         AndroidView(
             modifier = Modifier.fillMaxSize(),
             factory = { ctx ->
@@ -136,6 +139,7 @@ fun VideoPlayer(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT
                     )
+                    playerViewRef = this
                 }
             },
             update = { view ->
@@ -147,6 +151,22 @@ fun VideoPlayer(
                 }
             }
         )
+
+        DisposableEffect(lifecycle) {
+            val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+                when (event) {
+                    androidx.lifecycle.Lifecycle.Event.ON_RESUME -> playerViewRef?.onResume()
+                    androidx.lifecycle.Lifecycle.Event.ON_PAUSE -> playerViewRef?.onPause()
+                    else -> {}
+                }
+            }
+            lifecycle.addObserver(observer)
+            onDispose { 
+                lifecycle.removeObserver(observer)
+                playerViewRef?.onPause()
+                playerViewRef = null
+            }
+        }
 
         // ── Gesture Overlay (vertical only for brightness/volume + double-tap seek) ──
         if (!isPip) {
