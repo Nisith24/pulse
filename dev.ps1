@@ -1,14 +1,14 @@
 param (
-    [switch]$Watch
+    [switch]$Watch,
+    [switch]$HotRefresh
 )
 
-if ($Watch) {
-    Write-Host "Starting Pulse Dev Watcher... (App will re-install on save)" -ForegroundColor Cyan
+if ($HotRefresh -or $Watch) {
+    Write-Host "Pulse HotRefresh/Watch Mode Active: Monitoring for changes..." -ForegroundColor Green
     ./gradlew installDebug -t
 } else {
-    Write-Host "Building and Launching Pulse..." -ForegroundColor Green
+    Write-Host "Building and Launching Pulse..." -ForegroundColor Cyan
     ./gradlew installDebug
-    if ($?) {
-        adb shell am start -n com.pulse/.MainActivity
-    }
 }
+
+

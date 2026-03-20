@@ -115,7 +115,8 @@ fun SubjectDetailScreen(
                 viewModel.addDrivePdf(pdf, subjectName)
             },
             onDismissRequest = { showDrivePdfPicker = false },
-            isLoading = uiState.isLoading
+            isLoading = uiState.isLoading,
+            folderPdf = uiState.folderPdf
         )
     }
 

@@ -209,7 +209,7 @@ class LibraryViewModel(
             // Trigger immediate download
             val lecture = repository.getLectureById(lectureId).first()
             if (lecture != null) {
-                repository.downloadPdf(lecture)
+                repository.downloadLecturePdf(lecture)
             }
         }
     }

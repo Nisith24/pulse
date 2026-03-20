@@ -33,6 +33,14 @@ sealed class DownloadStatus {
     data class Error(val message: String) : DownloadStatus()
 }
 
+/** PDF-specific download state exposed to the ViewModel/UI */
+sealed class PdfDownloadState {
+    object Idle : PdfDownloadState()
+    data class Downloading(val progress: Float, val speedBytesPerSec: Long, val downloadedBytes: Long, val totalBytes: Long) : PdfDownloadState()
+    object Done : PdfDownloadState()
+    data class Error(val message: String) : PdfDownloadState()
+}
+
 class LectureRepository(
     private val lectureDao: LectureDao,
     private val btrService: IBtrService,
@@ -49,6 +57,11 @@ class LectureRepository(
     private val _activeDownloads = MutableStateFlow<Map<String, DownloadStatus>>(emptyMap())
     val activeDownloads = _activeDownloads.asStateFlow()
     private val downloadJobs = ConcurrentHashMap<String, Job>()
+
+    // ── PDF Download State (observed by ViewModel) ──
+    private val _pdfDownloadState = MutableStateFlow<PdfDownloadState>(PdfDownloadState.Idle)
+    val pdfDownloadState = _pdfDownloadState.asStateFlow()
+
     val btrLectures: Flow<List<Lecture>> = lectureDao.getBtrLectures()
     val localLectures: Flow<List<Lecture>> = lectureDao.getLocalLectures()
     val downloadedLectures: Flow<List<Lecture>> = lectureDao.getDownloadedLectures()
@@ -247,14 +260,7 @@ class LectureRepository(
                 logger.d("LectureSync", "Pushed ${btrToSync.size} BTR lectures to Firestore")
             }
 
-            // Auto-download PDFs
-            for (lecture in grouped) {
-                if (lecture.pdfId != null && !lecture.isPdfDownloaded) {
-                    try { downloadPdf(lecture, token) } catch (e: Exception) {
-                        logger.e("LectureSync", "Failed to download PDF for ${lecture.name}: ${e.message}")
-                    }
-                }
-            }
+            // PDFs are now downloaded on-demand when the user opens a lecture
         }
     }
 
@@ -297,25 +303,51 @@ class LectureRepository(
             if (btrToSync.isNotEmpty()) {
                 syncManager.pushLectures(btrToSync)
             }
-            
-            for (lecture in grouped) {
-                if (lecture.pdfId != null && !lecture.isPdfDownloaded) {
-                    try { downloadPdf(lecture, token) } catch (e: Exception) {}
-                }
-            }
+            // PDFs are now downloaded on-demand when the user opens a lecture
         }
     }
 
-    /** Public entry point for on-demand PDF download (uses cached auth token) */
-    suspend fun downloadPdf(lecture: Lecture) = withContext(Dispatchers.IO) {
+    /** Public entry point for on-demand PDF download — disk-first with progress */
+    suspend fun downloadPdfToDisk(pdfId: String, onProgress: (Long, Long) -> Unit = { _, _ -> }) = withContext(Dispatchers.IO) {
         val token = try { authManager.getToken() } catch (e: Exception) { "" }
-        downloadPdf(lecture, token)
+        val tmpFile = File(fileStorage.getPdfTmpPath(pdfId))
+        val finalFile = File(fileStorage.getPdfFinalPath(pdfId))
+        btrService.downloadToFile(pdfId, token, tmpFile, finalFile, onProgress)
+        finalFile.absolutePath
     }
 
-    /** Stream PDF bytes to an output stream with progress callback */
-    suspend fun downloadPdfToStream(pdfId: String, outputStream: java.io.OutputStream, onProgress: (Long, Long) -> Unit) = withContext(Dispatchers.IO) {
-        val token = try { authManager.getToken() } catch (e: Exception) { "" }
-        btrService.downloadToStream(pdfId, outputStream, token, onProgress)
+    /** Download a lecture's paired PDF to disk and update DB */
+    suspend fun downloadLecturePdf(lecture: Lecture) = withContext(Dispatchers.IO) {
+        val pdfId = lecture.pdfId ?: return@withContext
+        _pdfDownloadState.value = PdfDownloadState.Downloading(0f, 0, 0, 0)
+        try {
+            var lastBytes = 0L
+            var lastTime = System.currentTimeMillis()
+            val path = downloadPdfToDisk(pdfId) { bytes, total ->
+                val now = System.currentTimeMillis()
+                val dt = now - lastTime
+                val speedBps = if (dt > 0) ((bytes - lastBytes).toDouble() / (dt / 1000.0)).toLong() else 0L
+                val progress = if (total > 0L) bytes.toFloat() / total else 0f
+                _pdfDownloadState.value = PdfDownloadState.Downloading(progress, speedBps, bytes, total)
+                if (dt > 500) {
+                    lastBytes = bytes
+                    lastTime = now
+                }
+            }
+            val now = System.currentTimeMillis()
+            val hlc = hlcGenerator.generate()
+            lectureDao.update(lecture.copy(
+                pdfLocalPath = path,
+                isPdfDownloaded = true,
+                updatedAt = now,
+                hlcTimestamp = hlc
+            ))
+            fileStorage.evictPdfCacheIfNeeded()
+            _pdfDownloadState.value = PdfDownloadState.Done
+        } catch (e: Exception) {
+            logger.e("LectureRepo", "PDF download failed for ${lecture.name}", e)
+            _pdfDownloadState.value = PdfDownloadState.Error(e.message ?: "Download failed")
+        }
     }
 
     /** List PDF files in a Drive folder */
@@ -332,52 +364,58 @@ class LectureRepository(
 
     /** Compute the local path where a Drive PDF would be cached */
     fun getLecturePdfPath(lectureId: String, pdf: com.pulse.data.services.btr.BtrFile): String {
-        val cacheDir = File(context.filesDir, "pdfs")
-        cacheDir.mkdirs()
-        return File(cacheDir, "${pdf.id}.pdf").absolutePath
+        return fileStorage.getPdfFinalPath(pdf.id)
     }
 
-    /** Attach a Drive PDF to a lecture — downloads to cache in background */
+    /** Attach a Drive PDF to a lecture — downloads to cache with progress */
     suspend fun attachDrivePdfToLecture(lectureId: String, pdf: com.pulse.data.services.btr.BtrFile) = withContext(Dispatchers.IO) {
-        val destPath = getLecturePdfPath(lectureId, pdf)
-        val destFile = File(destPath)
-        if (!destFile.exists()) {
-            val token = try { authManager.getToken() } catch (e: Exception) { "" }
-            destFile.parentFile?.mkdirs()
-            destFile.outputStream().use { os ->
-                btrService.downloadToStream(pdf.id, os, token) { _, _ -> }
+        val finalPath = fileStorage.getPdfFinalPath(pdf.id)
+        val finalFile = File(finalPath)
+
+        if (!finalFile.exists()) {
+            _pdfDownloadState.value = PdfDownloadState.Downloading(0f, 0, 0, 0)
+            try {
+                var lastBytes = 0L
+                var lastTime = System.currentTimeMillis()
+                val token = try { authManager.getToken() } catch (e: Exception) { "" }
+                val tmpFile = File(fileStorage.getPdfTmpPath(pdf.id))
+                btrService.downloadToFile(pdf.id, token, tmpFile, finalFile) { bytes, total ->
+                    val now = System.currentTimeMillis()
+                    val dt = now - lastTime
+                    val speedBps = if (dt > 0) ((bytes - lastBytes).toDouble() / (dt / 1000.0)).toLong() else 0L
+                    val progress = if (total > 0L) bytes.toFloat() / total else 0f
+                    _pdfDownloadState.value = PdfDownloadState.Downloading(progress, speedBps, bytes, total)
+                    if (dt > 500) {
+                        lastBytes = bytes
+                        lastTime = now
+                    }
+                }
+            } catch (e: Exception) {
+                logger.e("LectureRepo", "Attach PDF download failed", e)
+                _pdfDownloadState.value = PdfDownloadState.Error(e.message ?: "Download failed")
+                return@withContext
             }
         }
+
         val lecture = lectureDao.getById(lectureId).first()
         if (lecture != null) {
             val now = System.currentTimeMillis()
             val hlc = hlcGenerator.generate()
             lectureDao.update(lecture.copy(
                 pdfId = pdf.id,
-                pdfLocalPath = destPath,
+                pdfLocalPath = finalPath,
                 isPdfDownloaded = true,
                 updatedAt = now,
                 hlcTimestamp = hlc
             ))
+            fileStorage.evictPdfCacheIfNeeded()
         }
+        _pdfDownloadState.value = PdfDownloadState.Done
     }
 
-    /** Create a streaming proxy (ParcelFileDescriptor pipe) for a Drive PDF */
-    suspend fun getDrivePdfProxy(fileId: String, fileSize: Long): android.os.ParcelFileDescriptor = withContext(Dispatchers.IO) {
-        val pipe = android.os.ParcelFileDescriptor.createPipe()
-        val writeFd = pipe[1]
-        val readFd = pipe[0]
-        scope.launch(Dispatchers.IO) {
-            try {
-                android.os.ParcelFileDescriptor.AutoCloseOutputStream(writeFd).use { os ->
-                    val token = try { authManager.getToken() } catch (e: Exception) { "" }
-                    btrService.downloadToStream(fileId, os, token) { _, _ -> }
-                }
-            } catch (e: Exception) {
-                logger.e("PdfProxy", "Pipe write failed", e)
-            }
-        }
-        readFd
+    /** Reset PDF download state to idle */
+    fun resetPdfDownloadState() {
+        _pdfDownloadState.value = PdfDownloadState.Idle
     }
 
     /** Mark a lecture as completed (100% progress) */
@@ -408,24 +446,7 @@ class LectureRepository(
         )
     }
 
-    private suspend fun downloadPdf(lecture: Lecture, token: String) = withContext(Dispatchers.IO) {
-        val pdfId = lecture.pdfId ?: return@withContext
-        val file = File(lecture.pdfLocalPath)
-        file.parentFile?.mkdirs()
-        
-        try {
-            file.outputStream().use { os ->
-                btrService.downloadToStream(pdfId, os, token) { _, _ -> }
-            }
-            val now = System.currentTimeMillis()
-            val hlc = hlcGenerator.generate()
-            lectureDao.update(lecture.copy(isPdfDownloaded = true, updatedAt = now, hlcTimestamp = hlc))
-            logger.d("LectureSync", "Downloaded PDF: ${lecture.name}")
-        } catch (e: Exception) {
-            if (file.exists()) file.delete()
-            throw e
-        }
-    }
+    // Old private downloadPdf removed — replaced by downloadLecturePdf()
 
     suspend fun downloadVideoToApp(lecture: Lecture, onProgress: (Long, Long) -> Unit = {_,_->}): String = withContext(Dispatchers.IO) {
         val videoId = lecture.videoId ?: error("No video ID")

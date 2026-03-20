@@ -73,10 +73,7 @@ fun LectureScreen(
     
     val drivePdfs by viewModel.drivePdfs.collectAsState()
     val isLoadingDrivePdfs by viewModel.isLoadingDrivePdfs.collectAsState()
-    val isDrivePdfLoading by viewModel.isDrivePdfLoading.collectAsState()
-    val drivePdfDownloadProgress by viewModel.drivePdfDownloadProgress.collectAsState()
-    val drivePdfBytes by viewModel.drivePdfBytes.collectAsState()
-    val drivePdfProxy by viewModel.drivePdfProxy.collectAsState()
+    val pdfDownloadState by viewModel.pdfDownloadState.collectAsState()
     var showDrivePdfPicker by remember { mutableStateOf(false) }
 
     val onAddDrivePdf = {
@@ -345,9 +342,7 @@ fun LectureScreen(
                                         title = l.name,
                                         initialPage = l.lastPdfPage,
                                         isPdfDownloaded = l.isPdfDownloaded,
-                                        isDrivePdfLoading = isDrivePdfLoading,
-                                        downloadProgress = drivePdfDownloadProgress,
-                                        pdfBytes = drivePdfBytes,
+                                        pdfDownloadState = pdfDownloadState,
                                         visuals = visuals,
                                         annotationState = annotationState,
                                         onPageChanged = { viewModel.updatePdfState(it) },
@@ -425,10 +420,7 @@ fun LectureScreen(
                                                 title = l.name,
                                                 initialPage = l.lastPdfPage,
                                                 isPdfDownloaded = l.isPdfDownloaded,
-                                                isDrivePdfLoading = isDrivePdfLoading,
-                                                downloadProgress = drivePdfDownloadProgress,
-                                                pdfBytes = drivePdfBytes,
-                                                drivePdfProxy = drivePdfProxy,
+                                                pdfDownloadState = pdfDownloadState,
                                                 visuals = visuals,
                                                 annotationState = annotationState,
                                                 onPageChanged = { viewModel.updatePdfState(it) },
@@ -514,10 +506,7 @@ fun LectureScreen(
                                                 title = l.name,
                                                 initialPage = l.lastPdfPage,
                                                 isPdfDownloaded = l.isPdfDownloaded,
-                                                isDrivePdfLoading = isDrivePdfLoading,
-                                                downloadProgress = drivePdfDownloadProgress,
-                                                pdfBytes = drivePdfBytes,
-                                                drivePdfProxy = drivePdfProxy,
+                                                pdfDownloadState = pdfDownloadState,
                                                 visuals = visuals,
                                                 annotationState = annotationState,
                                                 onPageChanged = { viewModel.updatePdfState(it) },
@@ -609,6 +598,7 @@ fun LectureScreen(
         }
 
         if (showDrivePdfPicker) {
+            val folderPdf by viewModel.folderPdf.collectAsState()
             DrivePdfPicker(
                 pdfs = drivePdfs,
                 onPdfSelected = { pdf ->
@@ -617,7 +607,8 @@ fun LectureScreen(
                     viewModel.attachDrivePdf(pdf)
                 },
                 onDismissRequest = { showDrivePdfPicker = false },
-                isLoading = isLoadingDrivePdfs
+                isLoading = isLoadingDrivePdfs,
+                folderPdf = folderPdf
             )
         }
     }

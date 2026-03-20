@@ -46,27 +46,26 @@ class LectureViewModel(
     private val _isLoadingDrivePdfs = MutableStateFlow(false)
     val isLoadingDrivePdfs: StateFlow<Boolean> = _isLoadingDrivePdfs.asStateFlow()
 
-    // Tracks ONLY user-initiated Drive PDF download (not passive undownloaded state)
-    private val _isDrivePdfLoading = MutableStateFlow(false)
-    val isDrivePdfLoading: StateFlow<Boolean> = _isDrivePdfLoading.asStateFlow()
+    // PDF download state (observed from repository — disk-first, no RAM buffering)
+    val pdfDownloadState: StateFlow<com.pulse.data.repository.PdfDownloadState> = repository.pdfDownloadState
 
-    // Holds in-memory PDF bytes for instant rendering (streamed from Drive, no file I/O)
-    private val _drivePdfBytes = MutableStateFlow<ByteArray?>(null)
-    val drivePdfBytes: StateFlow<ByteArray?> = _drivePdfBytes.asStateFlow()
+    // ── Folder PDF: first PDF found in the folder for quick-select ──
+    private val _folderPdf = MutableStateFlow<com.pulse.data.services.btr.BtrFile?>(null)
+    val folderPdf: StateFlow<com.pulse.data.services.btr.BtrFile?> = _folderPdf.asStateFlow()
 
-    // Tracks the exact download progress 0.0 to 1.0 safely
-    private val _drivePdfDownloadProgress = MutableStateFlow<Float?>(null)
-    val drivePdfDownloadProgress: StateFlow<Float?> = _drivePdfDownloadProgress.asStateFlow()
-
-    // ── INDUSTRY STANDARD STREAMING PROXY ──
-    private val _drivePdfProxy = MutableStateFlow<android.os.ParcelFileDescriptor?>(null)
-    val drivePdfProxy = _drivePdfProxy.asStateFlow()
+    private fun resolveActivePdfId(lecture: Lecture): String {
+        return if (lecture.pdfLocalPath == "blank_note") {
+            "blank_note"
+        } else {
+            lecture.pdfId.takeIf { !it.isNullOrEmpty() } ?: lecture.pdfLocalPath.ifEmpty { lecture.id }
+        }
+    }
 
     val notes: Flow<List<Note>> = noteRepository.getNotes(lectureId)
     
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val visuals: Flow<List<NoteVisual>> = lecture.filterNotNull()
-        .map { it.pdfId.takeIf { id -> !id.isNullOrEmpty() } ?: it.pdfLocalPath.ifEmpty { it.id } }
+        .map { resolveActivePdfId(it) }
         .distinctUntilChanged()
         .flatMapLatest { pdfId ->
             noteVisualRepository.getVisualsForFile(lectureId, pdfId)
@@ -123,10 +122,11 @@ class LectureViewModel(
     }
 
     private suspend fun processPlayback(lecture: Lecture) {
-        if (hasStartedPlayback) return
+        // If we already started AND the player is still healthy/preparing/ready, don't re-prepare
+        if (hasStartedPlayback && player.playbackState != Player.STATE_IDLE) return
         
         try {
-            // Internal state is LOADING until ExoPlayer reports STATE_READY
+            hasStartedPlayback = true 
             _playerState.value = PlayerUiState.LOADING
             
             val hasVideo = lecture.videoId != null || (lecture.videoLocalPath != null && lecture.videoLocalPath != "")
@@ -286,7 +286,7 @@ class LectureViewModel(
     }
 
     fun addVisual(type: VisualType, data: String, page: Int, color: Int, width: Float, alpha: Float = 1f) {
-        val currentPdfId = _lecture.value?.let { l -> l.pdfId.takeIf { !it.isNullOrEmpty() } ?: l.pdfLocalPath.ifEmpty { l.id } } ?: lectureId
+        val currentPdfId = _lecture.value?.let { resolveActivePdfId(it) } ?: "blank_note"
         viewModelScope.launch {
             noteVisualRepository.insert(
                 NoteVisual(
@@ -305,7 +305,7 @@ class LectureViewModel(
     }
 
     fun addVisualAtPos(type: VisualType, x: Float, y: Float, page: Int, color: Int, width: Float = 1f, alpha: Float = 1f) {
-        val currentPdfId = _lecture.value?.let { l -> l.pdfId.takeIf { !it.isNullOrEmpty() } ?: l.pdfLocalPath.ifEmpty { l.id } } ?: lectureId
+        val currentPdfId = _lecture.value?.let { resolveActivePdfId(it) } ?: "blank_note"
         viewModelScope.launch {
             noteVisualRepository.insert(
                 NoteVisual(
@@ -346,11 +346,6 @@ class LectureViewModel(
                 // Initialize page count for blank note
                 if (path == "blank_note" && l.pdfPageCount == 0) {
                     repository.updatePageCount(l.id, 5)
-                }
-                
-                // Clear memory cache if closing or changing file source
-                if (path == "" || path != "memory_bytes") {
-                    _drivePdfBytes.value = null
                 }
                 
                 repository.updateLocalPdfPath(l, path) 
@@ -396,7 +391,6 @@ class LectureViewModel(
     }
 
     override fun onCleared() {
-        _drivePdfProxy.value?.close()
         Log.d("LectureViewModel", "ViewModel cleared for $lectureId")
         periodicSaveJob?.cancel()
         saveProgress()
@@ -411,30 +405,8 @@ class LectureViewModel(
         val currentLecture = _lecture.value ?: return
         if (currentLecture.isPdfDownloaded) return
         
-        viewModelScope.launch {
-            _isDrivePdfLoading.value = true
-            _drivePdfDownloadProgress.value = 0f
-            _drivePdfBytes.value = null
-
-            launch(kotlinx.coroutines.Dispatchers.IO) {
-                try {
-                    val pdfId = currentLecture.pdfId ?: return@launch
-                    val baos = java.io.ByteArrayOutputStream()
-                    repository.downloadPdfToStream(pdfId, baos) { bytes, total ->
-                        val prog = if (total > 0) bytes.toFloat() / total else 0f
-                        _drivePdfDownloadProgress.value = prog
-                    }
-                    val fullBytes = baos.toByteArray()
-                    _drivePdfBytes.value = fullBytes
-                    _isDrivePdfLoading.value = false
-                    
-                    // Fallback to cache
-                    repository.downloadPdf(currentLecture)
-                } catch (e: Exception) {
-                    logger.e("LectureViewModel", "Stream/Cache PDF failed", e)
-                    _isDrivePdfLoading.value = false
-                }
-            }
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            repository.downloadLecturePdf(currentLecture)
         }
     }
 
@@ -442,9 +414,12 @@ class LectureViewModel(
         val resolvedFolderId = folderId ?: com.pulse.core.domain.util.Constants.DRIVE_FOLDER_ID
         viewModelScope.launch {
             _isLoadingDrivePdfs.value = true
-            _drivePdfs.value = emptyList() // Clear stale files first
+            _drivePdfs.value = emptyList()
+            _folderPdf.value = null
             try {
-                _drivePdfs.value = repository.listPdfs(resolvedFolderId)
+                val pdfs = repository.listPdfs(resolvedFolderId)
+                _drivePdfs.value = pdfs
+                _folderPdf.value = pdfs.firstOrNull()
             } catch (e: Exception) {
                 logger.e("LectureViewModel", "Failed to load Drive PDFs", e)
             } finally {
@@ -455,40 +430,22 @@ class LectureViewModel(
 
     fun attachDrivePdf(pdf: com.pulse.data.services.btr.BtrFile) {
         viewModelScope.launch {
-            _isDrivePdfLoading.value = false // Instant rendering, so spinner is usually unnecessary
-            _drivePdfDownloadProgress.value = null
-            _drivePdfBytes.value = null
-            
-            // Close old proxy if any
-            _drivePdfProxy.value?.close()
-            _drivePdfProxy.value = null
-            
+            repository.resetPdfDownloadState()
             val lecture = _lecture.value ?: return@launch
             
-            // Instant: If we already have the file locally, just use path
+            // If already cached on disk, just update DB (instant)
             val computedPath = repository.getLecturePdfPath(lecture.id, pdf)
             if (java.io.File(computedPath).exists()) {
-                repository.attachDrivePdfToLecture(lecture.id, pdf) // Update DB
+                repository.attachDrivePdfToLecture(lecture.id, pdf)
                 return@launch
             }
 
-            // High Performance: Use Stream Proxy for large files
-            pdf.size?.let { size ->
-                try {
-                    val proxy = repository.getDrivePdfProxy(pdf.id, size)
-                    _drivePdfProxy.value = proxy
-                    logger.d("LectureViewModel", "Instant proxy created for ${pdf.name}")
-                } catch (e: Exception) {
-                    logger.e("LectureViewModel", "Proxy creation failed", e)
-                }
-            }
-
-            // Background: Keep the cache download running in parallel so it's ready offline later
+            // Download to disk with progress (shown in UI via pdfDownloadState)
             launch(kotlinx.coroutines.Dispatchers.IO) {
                 try {
                     repository.attachDrivePdfToLecture(lecture.id, pdf)
                 } catch (e: Exception) {
-                    logger.e("LectureViewModel", "Background PDF cache failed", e)
+                    logger.e("LectureViewModel", "PDF download failed", e)
                 }
             }
         }

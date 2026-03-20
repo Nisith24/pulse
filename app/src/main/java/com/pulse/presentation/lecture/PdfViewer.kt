@@ -44,10 +44,7 @@ fun PdfViewer(
     initialPage: Int,
     totalPages: Int = 0,
     isPdfDownloaded: Boolean,
-    isDrivePdfLoading: Boolean = false,
-    downloadProgress: Float? = null,
-    pdfBytes: ByteArray? = null,
-    drivePdfProxy: android.os.ParcelFileDescriptor? = null,
+    pdfDownloadState: com.pulse.data.repository.PdfDownloadState = com.pulse.data.repository.PdfDownloadState.Idle,
     visuals: List<NoteVisual>,
     annotationState: AnnotationState,
     onPageChanged: (Int) -> Unit,
@@ -86,13 +83,26 @@ fun PdfViewer(
         ) {
             // ── PROFESSIONAL CONTENT VALIDATION ──
             val shouldRenderPdf = (pdfPath == "blank_note" || (pdfPath.isNotEmpty() && (isContentUri || fileExists))) && loadError == null
-            
             if (!shouldRenderPdf) {
-                PdfPlaceholder(
-                    pdfPath = pdfPath,
-                    onAddLocalPdf = onAddLocalPdf,
-                    onCreateBlankNote = onCreateBlankNote
-                )
+                when (pdfDownloadState) {
+                    is com.pulse.data.repository.PdfDownloadState.Downloading -> {
+                        PdfDownloadProgressOverlay(state = pdfDownloadState)
+                    }
+                    is com.pulse.data.repository.PdfDownloadState.Error -> {
+                        PdfDownloadErrorOverlay(
+                            message = pdfDownloadState.message,
+                            onRetry = onAddDrivePdf 
+                        )
+                    }
+                    else -> {
+                        PdfPlaceholder(
+                            pdfPath = pdfPath,
+                            onAddLocalPdf = onAddLocalPdf,
+                            onAddDrivePdf = onAddDrivePdf,
+                            onCreateBlankNote = onCreateBlankNote
+                        )
+                    }
+                }
             } else {
                 Box(modifier = Modifier.fillMaxSize()) {
                     if (pdfPath == "blank_note") {
@@ -132,6 +142,7 @@ fun PdfViewer(
                         PdfPlaceholder(
                             pdfPath = pdfPath,
                             onAddLocalPdf = onAddLocalPdf,
+                            onAddDrivePdf = onAddDrivePdf,
                             onCreateBlankNote = onCreateBlankNote
                         )
                     }
@@ -143,6 +154,7 @@ fun PdfViewer(
                     onClose = onClose,
                     isHorizontal = isHorizontal,
                     onOrientationChange = onOrientationChange,
+                    onAddDrivePdf = onAddDrivePdf,
                     modifier = Modifier.align(Alignment.TopEnd).padding(12.dp)
                 )
 
@@ -211,6 +223,7 @@ fun PdfViewer(
 private fun PdfPlaceholder(
     pdfPath: String,
     onAddLocalPdf: () -> Unit,
+    onAddDrivePdf: () -> Unit,
     onCreateBlankNote: () -> Unit
 ) {
     Column(
@@ -231,6 +244,8 @@ private fun PdfPlaceholder(
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
         )
         Spacer(Modifier.height(24.dp))
+        
+        // Local PDF Button
         Button(
             onClick = onAddLocalPdf,
             contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
@@ -239,7 +254,10 @@ private fun PdfPlaceholder(
             Spacer(Modifier.width(8.dp))
             Text("Select PDF")
         }
+        
         Spacer(Modifier.height(12.dp))
+        
+        // Blank Note Button
         OutlinedButton(
             onClick = onCreateBlankNote,
             modifier = Modifier.padding(horizontal = 8.dp)
@@ -247,6 +265,24 @@ private fun PdfPlaceholder(
             Icon(Icons.Default.NoteAdd, null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
             Text("Blank Note")
+        }
+
+        Spacer(Modifier.height(32.dp))
+
+        // ── DRIVE PDF BUTTON (Requested Location) ──
+        TextButton(
+            onClick = onAddDrivePdf,
+            colors = ButtonDefaults.textButtonColors(
+                contentColor = MaterialTheme.colorScheme.primary
+            )
+        ) {
+            Icon(Icons.Default.Cloud, null, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(
+                "PDF from Drive",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }
@@ -588,4 +624,88 @@ private fun loadPdfInternal(
         .pageFitPolicy(FitPolicy.WIDTH)
         .fitEachPage(true)
         .load()
+}
+
+@Composable
+fun PdfDownloadProgressOverlay(state: com.pulse.data.repository.PdfDownloadState.Downloading) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            imageVector = Icons.Default.CloudDownload,
+            contentDescription = null,
+            modifier = Modifier.size(64.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+        Spacer(Modifier.height(24.dp))
+        
+        Text(
+            text = "Downloading Document...",
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        
+        Spacer(Modifier.height(16.dp))
+        
+        LinearProgressIndicator(
+            progress = { state.progress },
+            modifier = Modifier.width(280.dp)
+                .height(8.dp)
+                .clipToBounds(),
+        )
+        
+        Spacer(Modifier.height(16.dp))
+        
+        val speedMb = state.speedBytesPerSec / (1024.0 * 1024.0)
+        val downloadedMb = state.downloadedBytes / (1024.0 * 1024.0)
+        val totalMb = state.totalBytes / (1024.0 * 1024.0)
+        
+        val progressText = if (state.totalBytes > 0) {
+            String.format("%.1f MB / %.1f MB (%.1f MB/s)", downloadedMb, totalMb, speedMb)
+        } else {
+            String.format("%.1f MB downloaded (%.1f MB/s)", downloadedMb, speedMb)
+        }
+        
+        Text(
+            text = progressText,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+fun PdfDownloadErrorOverlay(message: String, onRetry: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            imageVector = Icons.Default.ErrorOutline,
+            contentDescription = null,
+            modifier = Modifier.size(64.dp),
+            tint = MaterialTheme.colorScheme.error
+        )
+        Spacer(Modifier.height(16.dp))
+        Text(
+            text = "Download Failed",
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.error,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 32.dp)
+        )
+        Spacer(Modifier.height(24.dp))
+        Button(onClick = onRetry) {
+            Text("Retry Download")
+        }
+    }
 }

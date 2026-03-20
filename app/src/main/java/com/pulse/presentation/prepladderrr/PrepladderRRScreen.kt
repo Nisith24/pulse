@@ -263,7 +263,8 @@ fun PrepladderRRScreen(
                 viewModel.addDrivePdf(pdf)
             },
             onDismissRequest = { showDrivePdfPicker = false },
-            isLoading = uiState.isLoadingVideos
+            isLoading = uiState.isLoadingVideos,
+            folderPdf = uiState.folderPdf
         )
     }
 }

@@ -20,6 +20,7 @@ data class PrepladderRRUiState(
     val error: String? = null,
     val subfolders: List<DriveFolder> = emptyList(),
     val drivePdfs: List<com.pulse.data.services.btr.BtrFile> = emptyList(),
+    val folderPdf: com.pulse.data.services.btr.BtrFile? = null,
     val currentFolder: DriveFolder? = null
 )
 
@@ -115,7 +116,7 @@ class PrepladderRRViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoadingVideos = true) }
             val pdfs = lectureRepository.listPdfs(folderId)
-            _uiState.update { it.copy(isLoadingVideos = false, drivePdfs = pdfs) }
+            _uiState.update { it.copy(isLoadingVideos = false, drivePdfs = pdfs, folderPdf = pdfs.firstOrNull()) }
         }
     }
 
@@ -133,7 +134,7 @@ class PrepladderRRViewModel(
             // Trigger download
             val lecture = lectureRepository.getLectureById(lectureId).first()
             if (lecture != null) {
-                lectureRepository.downloadPdf(lecture)
+                lectureRepository.downloadLecturePdf(lecture)
             }
         }
     }

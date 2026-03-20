@@ -94,6 +94,7 @@ fun PdfSettingsMenu(
     onClose: () -> Unit,
     isHorizontal: Boolean,
     onOrientationChange: (Boolean) -> Unit,
+    onAddDrivePdf: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
@@ -151,6 +152,24 @@ fun PdfSettingsMenu(
                 },
                 onClick = {
                     onOrientationChange(!isHorizontal)
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    expanded = false
+                }
+            )
+
+            // Drive PDF
+            DropdownMenuItem(
+                text = { Text("Replace from Drive") },
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.Cloud,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                },
+                onClick = {
+                    onAddDrivePdf()
                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     expanded = false
                 }

@@ -184,4 +184,84 @@ class GoogleDriveBtrService(
             }
         }
     }
+
+    override suspend fun downloadToFile(
+        fileId: String,
+        accessToken: String,
+        tmpFile: java.io.File,
+        finalFile: java.io.File,
+        onProgress: (Long, Long) -> Unit
+    ) = withContext(Dispatchers.IO) {
+        // If final file already exists, nothing to do
+        if (finalFile.exists()) {
+            val size = finalFile.length()
+            onProgress(size, size)
+            return@withContext
+        }
+
+        tmpFile.parentFile?.mkdirs()
+        val existingBytes = if (tmpFile.exists()) tmpFile.length() else 0L
+
+        val apiKeyParam = if (accessToken.isEmpty()) "&key=${Constants.GOOGLE_API_KEY}" else ""
+        val url = streamUrl(fileId) + apiKeyParam
+
+        val requestBuilder = Request.Builder()
+            .url(url)
+            .apply { if (accessToken.isNotEmpty()) addHeader("Authorization", "Bearer $accessToken") }
+
+        // Resume: request only the remaining bytes
+        if (existingBytes > 0) {
+            requestBuilder.addHeader("Range", "bytes=$existingBytes-")
+        }
+
+        client.newCall(requestBuilder.build()).execute().use { response ->
+            val isResume = response.code == 206
+            val isFullDownload = response.code == 200
+
+            if (!isResume && !isFullDownload) {
+                error("Download failed: ${response.code}")
+            }
+
+            // If server doesn't support Range (returned 200 instead of 206), start fresh
+            if (isFullDownload && existingBytes > 0) {
+                tmpFile.delete()
+            }
+
+            val body = response.body ?: error("Empty response body")
+            val contentLen = body.contentLength()
+            val totalSize = if (isResume) existingBytes + contentLen else contentLen
+
+            val appendMode = isResume
+            java.io.FileOutputStream(tmpFile, appendMode).use { fos ->
+                java.io.BufferedOutputStream(fos, 262144).use { output ->
+                    val buffer = ByteArray(131072) // 128KB
+                    var totalRead = if (isResume) existingBytes else 0L
+                    var read: Int
+                    var lastUpdate = System.currentTimeMillis()
+
+                    body.byteStream().use { input ->
+                        while (input.read(buffer).also { read = it } != -1) {
+                            kotlinx.coroutines.yield()
+                            output.write(buffer, 0, read)
+                            totalRead += read
+                            val now = System.currentTimeMillis()
+                            if (now - lastUpdate > 200 || totalRead == totalSize) {
+                                onProgress(totalRead, totalSize)
+                                lastUpdate = now
+                            }
+                        }
+                    }
+                    output.flush()
+                    onProgress(totalRead, totalSize)
+                }
+            }
+        }
+
+        // Atomic rename
+        if (!tmpFile.renameTo(finalFile)) {
+            // Fallback: copy + delete (renameTo can fail across mount points)
+            tmpFile.copyTo(finalFile, overwrite = true)
+            tmpFile.delete()
+        }
+    }
 }

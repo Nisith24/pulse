@@ -110,3 +110,14 @@ dependencies {
     // Storage (DataStore)
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 }
+
+// 🔥 HotRefresh: Automatically launch MainActivity after installation
+tasks.matching { it.name == "installDebug" }.all {
+    doLast {
+        println("🚀 Installation complete. Launching Pulse...")
+        exec {
+            commandLine("adb", "shell", "am", "start", "-n", "com.pulse/.MainActivity")
+            isIgnoreExitValue = true // Don't fail the build if adb launch fails (e.g. no device)
+        }
+    }
+}

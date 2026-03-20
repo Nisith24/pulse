@@ -9,6 +9,8 @@ interface IBtrService {
     suspend fun downloadFile(fileId: String, accessToken: String): ByteArray
     suspend fun downloadRange(fileId: String, accessToken: String, start: Long, end: Long): ByteArray
     suspend fun downloadToStream(fileId: String, outputStream: java.io.OutputStream, accessToken: String, onProgress: (bytesRead: Long, totalBytes: Long) -> Unit)
+    /** Resumable disk-first download. Downloads to tmpFile, renames to finalFile on completion. */
+    suspend fun downloadToFile(fileId: String, accessToken: String, tmpFile: java.io.File, finalFile: java.io.File, onProgress: (bytesRead: Long, totalBytes: Long) -> Unit)
 }
 
 interface IBtrAuthManager {

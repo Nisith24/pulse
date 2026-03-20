@@ -46,10 +46,12 @@ class AnnotationState {
     fun viewToPage(screenX: Float, screenY: Float): android.graphics.PointF {
         screenToPdfMapper?.let { return it.invoke(screenX, screenY) }
 
-        // Notebook mapping with zoom/pan
+        // Notebook mapping: Convert to normalized (0.0 to 1.0) coordinates
+        val w = pageWidth.takeIf { it > 0 } ?: 1f
+        val h = pageHeight.takeIf { it > 0 } ?: 1f
         return android.graphics.PointF(
-            (screenX - currentXOffset) / currentZoom,
-            (screenY - currentYOffset) / currentZoom
+            ((screenX - currentXOffset) / currentZoom) / w,
+            ((screenY - currentYOffset) / currentZoom) / h
         )
     }
 
@@ -60,10 +62,12 @@ class AnnotationState {
     fun pageToView(pdfX: Float, pdfY: Float): android.graphics.PointF {
         pdfToScreenMapper?.let { return it.invoke(pdfX, pdfY) }
 
-        // Notebook mapping with zoom/pan
+        // Notebook mapping: Scale from normalized back to screen pixels
+        val w = pageWidth.takeIf { it > 0 } ?: 1f
+        val h = pageHeight.takeIf { it > 0 } ?: 1f
         return android.graphics.PointF(
-            pdfX * currentZoom + currentXOffset,
-            pdfY * currentZoom + currentYOffset
+            (pdfX * w) * currentZoom + currentXOffset,
+            (pdfY * h) * currentZoom + currentYOffset
         )
     }
 

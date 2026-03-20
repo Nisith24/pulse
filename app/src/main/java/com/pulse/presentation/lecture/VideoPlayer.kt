@@ -161,6 +161,12 @@ fun VideoPlayer(
                 when (event) {
                     androidx.lifecycle.Lifecycle.Event.ON_START -> {
                         playerViewRef?.player = player
+                        // Force ExoPlayer to re-render the current frame onto the
+                        // newly attached surface. Without this, a paused player has
+                        // no reason to push a frame, so the surface stays black.
+                        if (!player.isPlaying && player.currentPosition > 0) {
+                            player.seekTo(player.currentPosition)
+                        }
                     }
                     androidx.lifecycle.Lifecycle.Event.ON_RESUME -> {
                         playerViewRef?.onResume()

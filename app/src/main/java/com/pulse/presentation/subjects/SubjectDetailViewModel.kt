@@ -13,7 +13,8 @@ import com.pulse.core.domain.util.onSuccess
 data class SubjectDetailUiState(
     val isLoading: Boolean = false,
     val error: String? = null,
-    val drivePdfs: List<com.pulse.data.services.btr.BtrFile> = emptyList()
+    val drivePdfs: List<com.pulse.data.services.btr.BtrFile> = emptyList(),
+    val folderPdf: com.pulse.data.services.btr.BtrFile? = null
 )
 
 class SubjectDetailViewModel(
@@ -82,7 +83,7 @@ class SubjectDetailViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             val pdfs = lectureRepository.listPdfs(folderId)
-            _uiState.update { it.copy(isLoading = false, drivePdfs = pdfs) }
+            _uiState.update { it.copy(isLoading = false, drivePdfs = pdfs, folderPdf = pdfs.firstOrNull()) }
         }
     }
 
@@ -100,7 +101,7 @@ class SubjectDetailViewModel(
             // Trigger download
             val lecture = lectureRepository.getLectureById(lectureId).first()
             if (lecture != null) {
-                lectureRepository.downloadPdf(lecture)
+                lectureRepository.downloadLecturePdf(lecture)
             }
         }
     }
