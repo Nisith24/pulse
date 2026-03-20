@@ -72,6 +72,9 @@ fun MiniPlayer(
             .clip(RoundedCornerShape(12.dp))
             .background(Color.Black)
     ) {
+        val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+        var playerViewRef by remember { mutableStateOf<PlayerView?>(null) }
+
         // Video surface
         AndroidView(
             modifier = Modifier.fillMaxSize(),
@@ -84,12 +87,40 @@ fun MiniPlayer(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT
                     )
+                    playerViewRef = this
                 }
             },
             update = { view ->
                 view.player = player
             }
         )
+
+        DisposableEffect(lifecycle) {
+            val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+                when (event) {
+                    androidx.lifecycle.Lifecycle.Event.ON_START -> {
+                        playerViewRef?.player = player
+                    }
+                    androidx.lifecycle.Lifecycle.Event.ON_RESUME -> {
+                        playerViewRef?.onResume()
+                    }
+                    androidx.lifecycle.Lifecycle.Event.ON_PAUSE -> {
+                        playerViewRef?.onPause()
+                        player.pause()
+                    }
+                    androidx.lifecycle.Lifecycle.Event.ON_STOP -> {
+                        playerViewRef?.player = null
+                    }
+                    else -> {}
+                }
+            }
+            lifecycle.addObserver(observer)
+            onDispose { 
+                lifecycle.removeObserver(observer)
+                playerViewRef?.player = null
+                playerViewRef = null
+            }
+        }
 
         // Gesture Overlay (Captures drag and zoom)
         Box(

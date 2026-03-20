@@ -33,6 +33,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -92,6 +95,7 @@ fun VideoPlayer(
     var isSeeking by remember { mutableStateOf(false) }
     var seekPosition by remember { mutableLongStateOf(0L) }
     var isPlaying by remember { mutableStateOf(player.isPlaying) }
+    var savedSpeed by remember { mutableFloatStateOf(1f) }
 
     // Sync playing state
     DisposableEffect(player) {
@@ -155,15 +159,28 @@ fun VideoPlayer(
         DisposableEffect(lifecycle) {
             val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
                 when (event) {
-                    androidx.lifecycle.Lifecycle.Event.ON_RESUME -> playerViewRef?.onResume()
-                    androidx.lifecycle.Lifecycle.Event.ON_PAUSE -> playerViewRef?.onPause()
+                    androidx.lifecycle.Lifecycle.Event.ON_START -> {
+                        playerViewRef?.player = player
+                    }
+                    androidx.lifecycle.Lifecycle.Event.ON_RESUME -> {
+                        playerViewRef?.onResume()
+                    }
+                    androidx.lifecycle.Lifecycle.Event.ON_PAUSE -> {
+                        playerViewRef?.onPause()
+                        if (!isPip) {
+                            player.pause()
+                        }
+                    }
+                    androidx.lifecycle.Lifecycle.Event.ON_STOP -> {
+                        playerViewRef?.player = null
+                    }
                     else -> {}
                 }
             }
             lifecycle.addObserver(observer)
             onDispose { 
                 lifecycle.removeObserver(observer)
-                playerViewRef?.onPause()
+                playerViewRef?.player = null
                 playerViewRef = null
             }
         }
@@ -207,6 +224,28 @@ fun VideoPlayer(
                                 }
                             }
                         )
+                    }
+                    .pointerInput(player) {
+                        awaitEachGesture {
+                            val down = awaitFirstDown(requireUnconsumed = false)
+                            val longPress = awaitLongPressOrCancellation(down.id)
+                            if (longPress != null) {
+                                // Long press detected
+                                savedSpeed = player.playbackParameters.speed
+                                player.setPlaybackSpeed(2.0f)
+                                gestureType = "2x"
+                                
+                                // Wait for release
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    if (event.changes.all { !it.pressed }) {
+                                        player.setPlaybackSpeed(savedSpeed)
+                                        gestureType = ""
+                                        break
+                                    }
+                                }
+                            }
+                        }
                     }
                     .pointerInput(Unit) {
                         detectTapGestures(
@@ -290,6 +329,11 @@ fun VideoPlayer(
                             Icon(Icons.Default.FastForward, contentDescription = null, tint = Color.White, modifier = Modifier.size(52.dp))
                             Spacer(Modifier.height(8.dp))
                             Text("+15s", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        }
+                        "2x" -> {
+                            Icon(Icons.Default.FastForward, contentDescription = null, tint = Color.White, modifier = Modifier.size(52.dp))
+                            Spacer(Modifier.height(8.dp))
+                            Text("2x Speed", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                         }
                     }
                 }

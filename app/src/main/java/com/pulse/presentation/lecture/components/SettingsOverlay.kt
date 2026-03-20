@@ -52,7 +52,7 @@ fun SettingsOverlay(
                     .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                listOf(0.5f, 1.0f, 1.25f, 1.5f, 2.0f).forEach { speed ->
+                listOf(0.5f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f).forEach { speed ->
                     val isSelected = player.playbackParameters.speed == speed
                     Surface(
                         onClick = { onSpeedChanged(speed) },

@@ -60,6 +60,8 @@ fun CroppedVideoPlayer(
     showTutorPip: Boolean = true,
     onTapMainView: () -> Unit = {}
 ) {
+    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+
     // Single FrameLayout with one TextureView, Matrix-cropped
     AndroidView(
         modifier = modifier
@@ -89,6 +91,7 @@ fun CroppedVideoPlayer(
                             applySlideCropMatrix(this@apply, w, h)
                         }
                         override fun onSurfaceTextureDestroyed(st: SurfaceTexture): Boolean {
+                            player.clearVideoTextureView(this@apply)
                             return true
                         }
                         override fun onSurfaceTextureUpdated(st: SurfaceTexture) {}
@@ -99,6 +102,21 @@ fun CroppedVideoPlayer(
         },
         update = { /* player reference stays stable */ }
     )
+
+    DisposableEffect(lifecycle) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            when (event) {
+                androidx.lifecycle.Lifecycle.Event.ON_PAUSE -> {
+                    player.pause()
+                }
+                else -> {}
+            }
+        }
+        lifecycle.addObserver(observer)
+        onDispose {
+            lifecycle.removeObserver(observer)
+        }
+    }
 }
 
 /**
