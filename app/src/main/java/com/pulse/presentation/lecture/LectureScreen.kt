@@ -10,16 +10,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Notes
-import androidx.compose.material.icons.filled.Cloud
-import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.runtime.*
@@ -39,12 +33,7 @@ import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
 import com.pulse.presentation.components.DrivePdfPicker
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.max
+import com.pulse.presentation.lecture.components.SplitResizableContainer
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
@@ -94,15 +83,11 @@ fun LectureScreen(
     val highlights by viewModel.notes.collectAsState(initial = emptyList())
     val visuals by viewModel.visuals.collectAsState(initial = emptyList())
     val pdfHorizontalOrientation by viewModel.pdfHorizontalOrientation.collectAsState()
-
-    LaunchedEffect(visuals) {
-        Log.d("AnnotationDebug", "UI received ${visuals.size} visuals")
-    }
     val isBackgroundPlaybackEnabled by settingsManager.backgroundPlaybackFlow.collectAsState(initial = true)
 
     val hasVideo = remember(lecture) {
         val l = lecture
-        l != null && (l.videoId != null && l.videoId != "" || l.videoLocalPath != null && l.videoLocalPath != "")
+        l != null && (!l.videoId.isNullOrEmpty() || !l.videoLocalPath.isNullOrEmpty())
     }
 
     LaunchedEffect(savedRatio, lecture) {
@@ -118,7 +103,7 @@ fun LectureScreen(
         }
     }
 
-    // ── Industry Standard PiP: Observe system PiP state ──
+    // ── PiP state ──
     var isPip by remember { mutableStateOf(false) }
     val annotationState = rememberAnnotationState()
 
@@ -149,9 +134,10 @@ fun LectureScreen(
         uri?.let {
             try {
                 context.contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (_: SecurityException) {
+                // Some providers don't support persistable permissions
             } catch (_: Exception) {}
-            showPdf = true // Ensure panel is shown
-            // Copy to internal storage for stable persistence instead of storing volatile content:// URI
+            showPdf = true
             viewModel.importLocalPdf(it)
         }
     }
@@ -163,14 +149,11 @@ fun LectureScreen(
     }
 
     val onAddLocalPdf = {
-        // SAF OpenDocument doesn't need READ_EXTERNAL_STORAGE, and requesting it can crash on some devices.
         pdfPickerLauncher.launch(arrayOf("application/pdf"))
     }
 
-    // ── PiP button click: request system PiP ──
     val onPipClick = {
         if (context is ComponentActivity && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            // Stability: Clear orientation lock before entering PiP to avoid sizing glitches
             activity?.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_USER
             
             val videoSize = viewModel.player.videoSize
@@ -197,16 +180,14 @@ fun LectureScreen(
         viewModel.updateLocalPdfPath("blank_note")
     }
 
-    // Standard Operating Procedure: Handle Stop on Exit and Lifecycle
+    // ── Lifecycle management ──
     DisposableEffect(lectureId, lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             when (event) {
                 androidx.lifecycle.Lifecycle.Event.ON_PAUSE, 
                 androidx.lifecycle.Lifecycle.Event.ON_STOP -> {
-                    Log.d("LectureScreen", "Lifecycle $event: Saving progress")
                     viewModel.saveProgress()
-                    val activity = context as? androidx.activity.ComponentActivity
-                    val inPip = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                    val inPip = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                         activity?.isInPictureInPictureMode == true
                     } else false
                     if (!inPip && !isBackgroundPlaybackEnabled) {
@@ -224,7 +205,6 @@ fun LectureScreen(
 
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
-            val activity = context as? ComponentActivity
             val isRotating = activity?.isChangingConfigurations == true
             val goingToMiniPlayer = playerProvider.isMiniPlayerActive && playerProvider.miniPlayerLectureId == lectureId
             val inPip = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -233,7 +213,6 @@ fun LectureScreen(
             val isFinishing = activity?.isFinishing == true
 
             if (!isRotating && !goingToMiniPlayer && !inPip && isFinishing) {
-                Log.d("LectureScreen", "Disposing: Exiting session (Finishing)")
                 viewModel.onExit()
             } else {
                 viewModel.saveProgress()
@@ -287,303 +266,112 @@ fun LectureScreen(
         ) {
             val state = playerState
             if (state is PlayerUiState.PERMISSION_REQUIRED) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.PictureAsPdf, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.primary)
-                        Spacer(Modifier.height(16.dp))
-                        Text("Cloud Access Required", style = MaterialTheme.typography.titleMedium)
-                        Text("This video requires additional permission from Google Drive.", 
-                            style = MaterialTheme.typography.bodyMedium, 
-                            modifier = Modifier.padding(horizontal = 32.dp),
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(Modifier.height(24.dp))
-                        Button(onClick = { authLauncher.launch(state.intent) }) {
-                            Text("Grant Permission")
-                        }
-                    }
-                }
+                PermissionRequiredScreen(
+                    onGrant = { authLauncher.launch(state.intent) }
+                )
             } else {
                 val l = lecture
                 if (l == null) {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator()
-                        }
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
                 } else {
                     BoxWithConstraints(
                         modifier = Modifier
                             .fillMaxSize()
                             .pointerInteropFilter { motionEvent ->
-                                // Stylus button → play/pause toggle
-                                val isStylusTool = motionEvent.getToolType(0) == MotionEvent.TOOL_TYPE_STYLUS ||
-                                                   motionEvent.getToolType(0) == MotionEvent.TOOL_TYPE_ERASER
-                                if (isStylusTool && motionEvent.actionMasked == MotionEvent.ACTION_DOWN) {
-                                    val stylusBtn = MotionEvent.BUTTON_STYLUS_PRIMARY or
-                                                    MotionEvent.BUTTON_SECONDARY
-                                    if (motionEvent.buttonState and stylusBtn != 0) {
-                                        if (viewModel.player.isPlaying) viewModel.player.pause()
-                                        else viewModel.player.play()
-                                    }
-                                }
-                                false // Don't consume — let events flow to children
+                                handleStylusInput(motionEvent, viewModel)
                             }
                     ) {
-                        val totalWidth = constraints.maxWidth.toFloat()
                         val isTablet = maxWidth > 840.dp
-                            
-                            val isStandalonePdf = !hasVideo && (l.pdfLocalPath.isNotEmpty() || l.pdfId != null) && l.pdfLocalPath != "blank_note"
+                        val isStandalonePdf = !hasVideo && (l.pdfLocalPath.isNotEmpty() || l.pdfId != null) && l.pdfLocalPath != "blank_note"
 
-                            if (showPdf && !l.isPdfDownloaded && l.pdfId != null) {
-                                LaunchedEffect(l.id) {
-                                    viewModel.downloadPdf()
+                        // Auto-download Drive PDFs
+                        if (showPdf && !l.isPdfDownloaded && l.pdfId != null) {
+                            LaunchedEffect(l.id) {
+                                viewModel.downloadPdf()
+                            }
+                        }
+
+                        if (isStandalonePdf) {
+                            // ── Standalone PDF Mode ──
+                            LecturePdfViewer(
+                                lecture = l,
+                                pdfDownloadState = pdfDownloadState,
+                                visuals = visuals,
+                                annotationState = annotationState,
+                                viewModel = viewModel,
+                                onAddLocalPdf = onAddLocalPdf,
+                                onCreateBlankNote = onCreateBlankNote,
+                                onAddDrivePdf = onAddDrivePdf,
+                                onClosePdf = onClosePdf,
+                                isHorizontal = l.pdfIsHorizontal,
+                                onOrientationChange = { viewModel.updatePdfOrientation(it) },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            // ── Hybrid Split-Screen Mode ──
+                            
+                            // 1. Video panel
+                            if (hasVideo) {
+                                Box(
+                                    modifier = when {
+                                        isPip || isFullscreen -> Modifier.fillMaxSize()
+                                        isTablet && showPdf -> Modifier.fillMaxHeight().fillMaxWidth(splitRatio)
+                                        !isTablet && showPdf -> Modifier.fillMaxWidth().fillMaxHeight(splitRatio)
+                                        else -> Modifier.fillMaxSize()
+                                    }.clipToBounds()
+                                ) {
+                                    if (state is PlayerUiState.ERROR) {
+                                        VideoErrorScreen(
+                                            message = state.message,
+                                            onRetry = { viewModel.playSessionIfNeeded() }
+                                        )
+                                    } else {
+                                        VideoPlayer(
+                                            player = viewModel.player,
+                                            title = if (isPip) "" else (lecture?.name ?: ""),
+                                            modifier = Modifier.fillMaxSize(),
+                                            isFullscreen = isFullscreen,
+                                            isPip = isPip,
+                                            onNavigateBack = onNavigateBack,
+                                            onFullscreenToggle = { isFullscreen = !isFullscreen },
+                                            onPipClick = onPipClick,
+                                            onSpeedChanged = { viewModel.setPlaybackSpeed(it) }
+                                        )
+                                    }
                                 }
                             }
 
-                            if (isStandalonePdf) {
-                                // ── Professional Standalone PDF Mode ──
-                                Box(Modifier.fillMaxSize()) {
-                                    PdfViewer(
-                                        pdfPath = l.pdfLocalPath,
-                                        title = l.name,
-                                        initialPage = l.lastPdfPage,
-                                        isPdfDownloaded = l.isPdfDownloaded,
-                                        pdfDownloadState = pdfDownloadState,
-                                        visuals = visuals,
-                                        annotationState = annotationState,
-                                        onPageChanged = { viewModel.updatePdfState(it) },
-                                        onAddVisual = { type, data, page, color, width, alpha ->
-                                            viewModel.addVisual(type, data, page, color, width, alpha)
-                                        },
-                                        onAddVisualAtPos = { type, x, y, page, color, width, alpha ->
-                                            viewModel.addVisualAtPos(type, x, y, page, color, width, alpha)
-                                        },
-                                        onDeleteVisual = { id -> viewModel.deleteVisual(id) },
-                                        onAddLocalPdf = onAddLocalPdf,
-                                        onCreateBlankNote = onCreateBlankNote,
-                                        onAddDrivePdf = onAddDrivePdf,
-                                        onAddPage = { viewModel.addPage() },
-                                        totalPages = l.pdfPageCount,
-                                        onClose = onClosePdf,
-                                        isHorizontal = l.pdfIsHorizontal,
-                                        onOrientationChange = { viewModel.updatePdfOrientation(it) },
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-                                }
-                            } else {
-                                // ── Hybrid Split-Screen Mode ──
-                                // 1. Video Placement
-                                if (hasVideo) {
-                                    Box(
-                                        modifier = when {
-                                            isPip || isFullscreen -> Modifier.fillMaxSize()
-                                            isTablet && showPdf -> Modifier.fillMaxHeight().fillMaxWidth(splitRatio)
-                                            !isTablet && showPdf -> Modifier.fillMaxWidth().fillMaxHeight(splitRatio)
-                                            else -> Modifier.fillMaxSize()
-                                        }.clipToBounds()
-                                    ) {
-                                        if (state is PlayerUiState.ERROR) {
-                                            Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
-                                                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
-                                                    Icon(Icons.Default.ErrorOutline, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.error)
-                                                    Spacer(Modifier.height(12.dp))
-                                                    Text(state.message, style = MaterialTheme.typography.bodyMedium, color = Color.White, textAlign = TextAlign.Center)
-                                                    Spacer(Modifier.height(16.dp))
-                                                    Button(onClick = { viewModel.playSessionIfNeeded() }) {
-                                                        Text("Retry Video")
-                                                    }
-                                                }
-                                            }
-                                        } else {
-                                            VideoPlayer(
-                                                player = viewModel.player,
-                                                title = if (isPip) "" else (lecture?.name ?: ""),
-                                                modifier = Modifier.fillMaxSize(),
-                                                isFullscreen = isFullscreen,
-                                                isPip = isPip,
-                                                onNavigateBack = onNavigateBack,
-                                                onFullscreenToggle = { isFullscreen = !isFullscreen },
-                                                onPipClick = onPipClick,
-                                                onSpeedChanged = { viewModel.setPlaybackSpeed(it) }
-                                            )
-                                        }
+                            // 2. PDF panel with drag handle (split-screen)
+                            if (!isPip && !isFullscreen && showPdf) {
+                                SplitResizableContainer(
+                                    splitRatio = splitRatio,
+                                    onSplitRatioChange = { splitRatio = it },
+                                    onDragStopped = { finalRatio ->
+                                        scope.launch { settingsManager.saveSplitRatio(finalRatio) }
+                                    },
+                                    isHorizontal = isTablet,
+                                    primaryContent = {
+                                        // Empty — video is already placed above via absolute positioning
+                                    },
+                                    secondaryContent = {
+                                        LecturePdfViewer(
+                                            lecture = l,
+                                            pdfDownloadState = pdfDownloadState,
+                                            visuals = visuals,
+                                            annotationState = annotationState,
+                                            viewModel = viewModel,
+                                            onAddLocalPdf = onAddLocalPdf,
+                                            onCreateBlankNote = onCreateBlankNote,
+                                            onAddDrivePdf = onAddDrivePdf,
+                                            onClosePdf = onClosePdf,
+                                            isHorizontal = pdfHorizontalOrientation,
+                                            onOrientationChange = { viewModel.savePdfOrientation(it) },
+                                            modifier = Modifier.fillMaxSize()
+                                        )
                                     }
-                                }
-
-                                // 2. Multi-Component Layout
-                                if (!isPip && !isFullscreen && showPdf) {
-                                    if (isTablet) {
-                                        // Tablet PDF
-                                        Box(
-                                            Modifier
-                                                .align(Alignment.CenterEnd)
-                                                .fillMaxHeight()
-                                                .fillMaxWidth(1f - splitRatio)
-                                                .clipToBounds()
-                                        ) {
-                                            PdfViewer(
-                                                pdfPath = l.pdfLocalPath,
-                                                title = l.name,
-                                                initialPage = l.lastPdfPage,
-                                                isPdfDownloaded = l.isPdfDownloaded,
-                                                pdfDownloadState = pdfDownloadState,
-                                                visuals = visuals,
-                                                annotationState = annotationState,
-                                                onPageChanged = { viewModel.updatePdfState(it) },
-                                                onAddVisual = { type, data, page, color, width, alpha ->
-                                                    viewModel.addVisual(type, data, page, color, width, alpha)
-                                                },
-                                                onAddVisualAtPos = { type, x, y, page, color, width, alpha ->
-                                                    viewModel.addVisualAtPos(type, x, y, page, color, width, alpha)
-                                                },
-                                                onDeleteVisual = { id -> viewModel.deleteVisual(id) },
-                                                onAddLocalPdf = onAddLocalPdf,
-                                                onCreateBlankNote = onCreateBlankNote,
-                                                onAddDrivePdf = onAddDrivePdf,
-                                                onAddPage = { viewModel.addPage() },
-                                                totalPages = l.pdfPageCount,
-                                                onClose = onClosePdf,
-                                                isHorizontal = pdfHorizontalOrientation,
-                                                onOrientationChange = { viewModel.savePdfOrientation(it) },
-                                                modifier = Modifier.fillMaxSize()
-                                            )
-                                        }
-
-                                        // Tablet Drag Handle
-                                        val haptic = LocalHapticFeedback.current
-                                        val density = androidx.compose.ui.platform.LocalDensity.current
-                                        val dragHandleShift = with(density) { (totalWidth * splitRatio).toDp() }
-                                        var isDraggingByHaptic by remember { mutableStateOf(false) }
-                                        
-                                        val visualWidth by animateDpAsState(if (isDraggingByHaptic) 8.dp else 3.dp, label = "handle_width")
-                                        val handleAlpha by animateFloatAsState(if (isDraggingByHaptic) 1f else 0.4f, label = "handle_alpha")
-                                        val handleColor = if (isDraggingByHaptic) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                                        
-                                        // Invisible touch target (48dp)
-                                        Box(
-                                            Modifier
-                                                .align(Alignment.CenterStart)
-                                                .padding(start = dragHandleShift - 24.dp)
-                                                .width(48.dp)
-                                                .fillMaxHeight()
-                                                .draggable(
-                                                    orientation = Orientation.Horizontal,
-                                                    onDragStarted = { 
-                                                        isDraggingByHaptic = true
-                                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                    },
-                                                    state = rememberDraggableState { delta ->
-                                                        val newRatio = (splitRatio + delta / totalWidth).coerceIn(0.2f, 0.8f)
-                                                        if ((newRatio * 10).toInt() != (splitRatio * 10).toInt()) {
-                                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                        }
-                                                        splitRatio = newRatio
-                                                    },
-                                                    onDragStopped = { 
-                                                        isDraggingByHaptic = false
-                                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                        val snapPoints = listOf(0.3f, 0.5f, 0.7f)
-                                                        val snapped = snapPoints.minByOrNull { kotlin.math.abs(it - splitRatio) } ?: splitRatio
-                                                        if (kotlin.math.abs(snapped - splitRatio) < 0.1f) splitRatio = snapped
-                                                        scope.launch { settingsManager.saveSplitRatio(splitRatio) } 
-                                                    }
-                                                ),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            // Visual Indicator
-                                            Box(
-                                                modifier = Modifier
-                                                    .width(visualWidth)
-                                                    .fillMaxHeight(0.2f)
-                                                    .background(handleColor.copy(alpha = handleAlpha), CircleShape)
-                                            )
-                                        }
-                                    } else {
-                                        // Phone PDF
-                                        Box(
-                                            Modifier
-                                                .align(Alignment.BottomCenter)
-                                                .fillMaxWidth()
-                                                .fillMaxHeight(1f - splitRatio)
-                                                .clipToBounds()
-                                        ) {
-                                            PdfViewer(
-                                                pdfPath = l.pdfLocalPath,
-                                                title = l.name,
-                                                initialPage = l.lastPdfPage,
-                                                isPdfDownloaded = l.isPdfDownloaded,
-                                                pdfDownloadState = pdfDownloadState,
-                                                visuals = visuals,
-                                                annotationState = annotationState,
-                                                onPageChanged = { viewModel.updatePdfState(it) },
-                                                onAddVisual = { type, data, page, color, width, alpha ->
-                                                    viewModel.addVisual(type, data, page, color, width, alpha)
-                                                },
-                                                onAddVisualAtPos = { type, x, y, page, color, width, alpha ->
-                                                    viewModel.addVisualAtPos(type, x, y, page, color, width, alpha)
-                                                },
-                                                onDeleteVisual = { id -> viewModel.deleteVisual(id) },
-                                                onAddLocalPdf = onAddLocalPdf,
-                                                onCreateBlankNote = onCreateBlankNote,
-                                                onAddDrivePdf = onAddDrivePdf,
-                                                onAddPage = { viewModel.addPage() },
-                                                totalPages = l.pdfPageCount,
-                                                onClose = onClosePdf,
-                                                isHorizontal = pdfHorizontalOrientation,
-                                                onOrientationChange = { viewModel.savePdfOrientation(it) },
-                                                modifier = Modifier.fillMaxSize()
-                                            )
-                                        }
-
-                                        // Phone Drag Handle
-                                        val haptic = LocalHapticFeedback.current
-                                        val totalHeightPx = constraints.maxHeight.toFloat()
-                                        val dragHandleShift = maxHeight * splitRatio
-                                        var isDraggingByHaptic by remember { mutableStateOf(false) }
-                                        
-                                        val visualHeight by animateDpAsState(if (isDraggingByHaptic) 8.dp else 3.dp, label = "handle_height")
-                                        val handleAlpha by animateFloatAsState(if (isDraggingByHaptic) 1f else 0.4f, label = "handle_alpha")
-                                        val handleColor = if (isDraggingByHaptic) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-
-                                        // Invisible touch target (48dp)
-                                        Box(
-                                            Modifier
-                                                .align(Alignment.TopCenter)
-                                                .padding(top = dragHandleShift - 24.dp)
-                                                .height(48.dp)
-                                                .fillMaxWidth()
-                                                .draggable(
-                                                    orientation = Orientation.Vertical,
-                                                    onDragStarted = { 
-                                                        isDraggingByHaptic = true
-                                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                    },
-                                                    state = rememberDraggableState { delta ->
-                                                        val newRatio = (splitRatio + delta / totalHeightPx).coerceIn(0.2f, 0.8f)
-                                                        if ((newRatio * 10).toInt() != (splitRatio * 10).toInt()) {
-                                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                        }
-                                                        splitRatio = newRatio
-                                                    },
-                                                    onDragStopped = { 
-                                                        isDraggingByHaptic = false
-                                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                        val snapPoints = listOf(0.3f, 0.5f, 0.7f)
-                                                        val snapped = snapPoints.minByOrNull { kotlin.math.abs(it - splitRatio) } ?: splitRatio
-                                                        if (kotlin.math.abs(snapped - splitRatio) < 0.1f) splitRatio = snapped
-                                                        scope.launch { settingsManager.saveSplitRatio(splitRatio) } 
-                                                    }
-                                                ),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            // Visual Indicator
-                                            Box(
-                                                modifier = Modifier
-                                                    .height(visualHeight)
-                                                    .fillMaxWidth(0.2f)
-                                                    .background(handleColor.copy(alpha = handleAlpha), CircleShape)
-                                            )
-                                        }
-                                    }
+                                )
                             }
                         }
                     }
@@ -608,7 +396,7 @@ fun LectureScreen(
                 pdfs = drivePdfs,
                 onPdfSelected = { pdf ->
                     showDrivePdfPicker = false
-                    showPdf = true // Ensure panel is shown
+                    showPdf = true
                     viewModel.attachDrivePdf(pdf)
                 },
                 onDismissRequest = { showDrivePdfPicker = false },
@@ -617,4 +405,102 @@ fun LectureScreen(
             )
         }
     }
+}
+
+// ── Extracted helper: Eliminates 3x duplicate PdfViewer call sites ──
+
+@Composable
+private fun LecturePdfViewer(
+    lecture: com.pulse.core.data.db.Lecture,
+    pdfDownloadState: com.pulse.data.repository.PdfDownloadState,
+    visuals: List<com.pulse.core.data.db.NoteVisual>,
+    annotationState: AnnotationState,
+    viewModel: LectureViewModel,
+    onAddLocalPdf: () -> Unit,
+    onCreateBlankNote: () -> Unit,
+    onAddDrivePdf: () -> Unit,
+    onClosePdf: () -> Unit,
+    isHorizontal: Boolean,
+    onOrientationChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    PdfViewer(
+        pdfPath = lecture.pdfLocalPath,
+        title = lecture.name,
+        initialPage = lecture.lastPdfPage,
+        isPdfDownloaded = lecture.isPdfDownloaded,
+        pdfDownloadState = pdfDownloadState,
+        visuals = visuals,
+        annotationState = annotationState,
+        onPageChanged = { viewModel.updatePdfState(it) },
+        onAddVisual = { type, data, page, color, width, alpha ->
+            viewModel.addVisual(type, data, page, color, width, alpha)
+        },
+        onAddVisualAtPos = { type, x, y, page, color, width, alpha ->
+            viewModel.addVisualAtPos(type, x, y, page, color, width, alpha)
+        },
+        onDeleteVisual = { id -> viewModel.deleteVisual(id) },
+        onAddLocalPdf = onAddLocalPdf,
+        onCreateBlankNote = onCreateBlankNote,
+        onAddDrivePdf = onAddDrivePdf,
+        onAddPage = { viewModel.addPage() },
+        totalPages = lecture.pdfPageCount,
+        onClose = onClosePdf,
+        isHorizontal = isHorizontal,
+        onOrientationChange = onOrientationChange,
+        modifier = modifier
+    )
+}
+
+// ── Extracted sub-screens ──
+
+@Composable
+private fun PermissionRequiredScreen(onGrant: () -> Unit) {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(Icons.Default.PictureAsPdf, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.height(16.dp))
+            Text("Cloud Access Required", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "This video requires additional permission from Google Drive.",
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(horizontal = 32.dp),
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(24.dp))
+            Button(onClick = onGrant) {
+                Text("Grant Permission")
+            }
+        }
+    }
+}
+
+@Composable
+private fun VideoErrorScreen(message: String, onRetry: () -> Unit) {
+    Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
+            Icon(Icons.Default.ErrorOutline, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.error)
+            Spacer(Modifier.height(12.dp))
+            Text(message, style = MaterialTheme.typography.bodyMedium, color = Color.White, textAlign = TextAlign.Center)
+            Spacer(Modifier.height(16.dp))
+            Button(onClick = onRetry) {
+                Text("Retry Video")
+            }
+        }
+    }
+}
+
+// ── Stylus handler: Extract touch logic from lambda ──
+
+private fun handleStylusInput(motionEvent: MotionEvent, viewModel: LectureViewModel): Boolean {
+    val isStylusTool = motionEvent.getToolType(0) == MotionEvent.TOOL_TYPE_STYLUS ||
+                       motionEvent.getToolType(0) == MotionEvent.TOOL_TYPE_ERASER
+    if (isStylusTool && motionEvent.actionMasked == MotionEvent.ACTION_DOWN) {
+        val stylusBtn = MotionEvent.BUTTON_STYLUS_PRIMARY or MotionEvent.BUTTON_SECONDARY
+        if (motionEvent.buttonState and stylusBtn != 0) {
+            if (viewModel.player.isPlaying) viewModel.player.pause()
+            else viewModel.player.play()
+        }
+    }
+    return false // Don't consume — let events flow to children
 }

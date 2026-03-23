@@ -15,7 +15,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import android.util.Log
 
 import com.pulse.data.local.SettingsManager
 
@@ -63,14 +62,20 @@ class LectureViewModel(
     }
 
     val notes: Flow<List<Note>> = noteRepository.getNotes(lectureId)
+
+    // Gate: visuals flow waits until migration completes to avoid querying stale pdfId values
+    private val _migrationDone = MutableStateFlow(false)
     
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    val visuals: Flow<List<NoteVisual>> = lecture.filterNotNull()
-        .map { resolveActivePdfId(it) }
-        .distinctUntilChanged()
-        .flatMapLatest { pdfId ->
-            Log.d("AnnotationDebug", "Querying visuals: lectureId=$lectureId, pdfId=$pdfId")
-            noteVisualRepository.getVisualsForFile(lectureId, pdfId)
+    val visuals: Flow<List<NoteVisual>> = _migrationDone
+        .filter { it } // Wait until migration is done
+        .flatMapLatest {
+            lecture.filterNotNull()
+                .map { resolveActivePdfId(it) }
+                .distinctUntilChanged()
+                .flatMapLatest { pdfId ->
+                    noteVisualRepository.getVisualsForFile(lectureId, pdfId)
+                }
         }
     val player = playerProvider.player
     
@@ -82,7 +87,11 @@ class LectureViewModel(
 
     init {
         // Migrate old annotations (saved under volatile pdfId) to use stable lecture.id
-        viewModelScope.launch { noteVisualRepository.migrateToLectureId(lectureId) }
+        // Must complete BEFORE the visuals flow starts querying
+        viewModelScope.launch {
+            noteVisualRepository.migrateToLectureId(lectureId)
+            _migrationDone.value = true
+        }
         observePlayerState()
         loadLectureAndPlay()
         startPeriodicSave()
@@ -133,8 +142,8 @@ class LectureViewModel(
             hasStartedPlayback = true 
             _playerState.value = PlayerUiState.LOADING
             
-            val hasVideo = lecture.videoId != null || (lecture.videoLocalPath != null && lecture.videoLocalPath != "")
-            val hasPdf = lecture.pdfId != null || (lecture.pdfLocalPath.isNotEmpty() && lecture.pdfLocalPath != "")
+            val hasVideo = !lecture.videoId.isNullOrEmpty() || !lecture.videoLocalPath.isNullOrEmpty()
+            val hasPdf = !lecture.pdfId.isNullOrEmpty() || lecture.pdfLocalPath.isNotEmpty()
 
             if (hasVideo) {
                 val result = getLectureStreamUrlUseCase(lecture.videoId)
@@ -149,7 +158,7 @@ class LectureViewModel(
                     val actualSeek = if (shouldResume) lecture.lastPosition else 0L
                     val actualSpeed = if (lecture.speed != 1.0f) lecture.speed else defSpeed
                     
-                    Log.d("LectureViewModel", "Requesting session for ${lecture.name} at $actualSeek with speed $actualSpeed")
+                    logger.d("LectureViewModel", "Requesting session for ${lecture.name} at $actualSeek with speed $actualSpeed")
                     
                     playerProvider.prepareSession(
                         sessionId = lectureId,
@@ -170,10 +179,10 @@ class LectureViewModel(
                 _playerState.value = PlayerUiState.ERROR("No media available in this lecture")
             }
         } catch (e: com.pulse.data.services.btr.PulseAuthException.PermissionRequired) {
-            Log.w("LectureViewModel", "Permission required for Drive")
+            logger.d("LectureViewModel", "Permission required for Drive")
             _playerState.value = PlayerUiState.PERMISSION_REQUIRED(e.intent)
         } catch (e: Exception) {
-            Log.e("LectureViewModel", "Failed to process playback", e)
+            logger.e("LectureViewModel", "Failed to process playback", e)
             _playerState.value = PlayerUiState.ERROR("Init failed: ${e.localizedMessage}")
         }
     }
@@ -183,7 +192,7 @@ class LectureViewModel(
             playerProvider.playbackState.collect { state ->
                 if (!playerProvider.isSessionActive(lectureId)) return@collect
                 
-                Log.d("LectureViewModel", "ExoPlayer State: $state")
+
                 when (state) {
                     Player.STATE_BUFFERING -> _playerState.value = PlayerUiState.LOADING
                     Player.STATE_READY -> {
@@ -219,7 +228,7 @@ class LectureViewModel(
                     val currentPos = player.currentPosition
                     try {
                         _playerState.value = PlayerUiState.LOADING
-                        Log.d("LectureViewModel", "Network/Auth error detected. Invalidating token and retrying...")
+                        logger.d("LectureViewModel", "Network/Auth error. Invalidating token and retrying...")
                         
                         getLectureStreamUrlUseCase.invalidateToken()
                         
@@ -235,13 +244,13 @@ class LectureViewModel(
                                 title = lecture.name,
                                 seekTo = currentPos,
                                 speed = player.playbackParameters.speed,
-                                fileId = lecture?.videoId
+                                fileId = lecture.videoId
                             )
                         } else {
                             _playerState.value = PlayerUiState.ERROR("Failed to refresh stream")
                         }
                     } catch (e: Exception) {
-                        Log.e("LectureViewModel", "Token/URL refresh failed", e)
+                        logger.e("LectureViewModel", "Token/URL refresh failed", e)
                         _playerState.value = PlayerUiState.ERROR("Link expired. Sign in again.")
                     }
                 } else {
@@ -291,7 +300,7 @@ class LectureViewModel(
 
     fun addVisual(type: VisualType, data: String, page: Int, color: Int, width: Float, alpha: Float = 1f) {
         val currentPdfId = _lecture.value?.let { resolveActivePdfId(it) } ?: "blank_note"
-        Log.d("AnnotationDebug", "SAVING visual: lectureId=$lectureId, pdfId=$currentPdfId, page=$page, type=$type")
+
         viewModelScope.launch {
             noteVisualRepository.insert(
                 NoteVisual(
@@ -398,7 +407,7 @@ class LectureViewModel(
     }
 
     fun onExit() {
-        Log.d("LectureViewModel", "Exiting session: $lectureId")
+        logger.d("LectureViewModel", "Exiting session: $lectureId")
         saveProgress()
         repository.syncPushOnExit(lectureId)
         playerProvider.stopSession(lectureId)
@@ -411,7 +420,7 @@ class LectureViewModel(
     }
 
     override fun onCleared() {
-        Log.d("LectureViewModel", "ViewModel cleared for $lectureId")
+        logger.d("LectureViewModel", "ViewModel cleared for $lectureId")
         periodicSaveJob?.cancel()
         saveProgress()
         repository.syncPushOnExit(lectureId)
