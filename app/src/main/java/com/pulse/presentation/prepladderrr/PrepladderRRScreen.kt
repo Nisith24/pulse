@@ -39,6 +39,7 @@ fun PrepladderRRScreen(
     val customLists by customListViewModel.customLists.collectAsState()
     var selectedLongPressLecture by remember { mutableStateOf<Lecture?>(null) }
     var showDrivePdfPicker by remember { mutableStateOf(false) }
+    val searchQuery by viewModel.searchQuery.collectAsState()
 
     // Handle back press when inside a subfolder
     if (uiState.currentFolder != null) {
@@ -135,7 +136,7 @@ fun PrepladderRRScreen(
 
                 // Inside a subfolder — show videos
                 uiState.currentFolder != null -> {
-                    if (lectures.isEmpty() && !uiState.isLoadingVideos) {
+                    if (lectures.isEmpty() && !uiState.isLoadingVideos && searchQuery.isBlank()) {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text(
                                 "No videos in this folder yet.",
@@ -144,24 +145,43 @@ fun PrepladderRRScreen(
                             )
                         }
                     } else {
-                        LazyVerticalGrid(
-                            columns = GridCells.Adaptive(240.dp),
-                            contentPadding = PaddingValues(16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp),
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            items(lectures, key = { it.id }) { lecture ->
-                                LectureCard(
-                                    lecture = lecture,
-                                    isLibraryHome = false,
-                                    onLectureSelected = { id ->
-                                        onNavigateToLecture(id, uiState.currentFolder?.id)
-                                    },
-                                    onToggleFavorite = { viewModel.toggleFavorite(it) },
-                                    onDelete = { viewModel.deleteLecture(it) },
-                                    onLongPress = { selectedLongPressLecture = it }
-                                )
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            OutlinedTextField(
+                                value = searchQuery,
+                                onValueChange = viewModel::updateSearchQuery,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                placeholder = { Text("Search files...") },
+                                singleLine = true,
+                                shape = MaterialTheme.shapes.medium
+                            )
+                            
+                            if (lectures.isEmpty() && searchQuery.isNotBlank()) {
+                                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                     Text("No files match your search.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                 }
+                            } else {
+                                LazyVerticalGrid(
+                                    columns = GridCells.Adaptive(240.dp),
+                                    contentPadding = PaddingValues(16.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                                    modifier = Modifier.fillMaxSize()
+                                ) {
+                                    items(lectures, key = { it.id }) { lecture ->
+                                        LectureCard(
+                                            lecture = lecture,
+                                            isLibraryHome = false,
+                                            onLectureSelected = { id ->
+                                                onNavigateToLecture(id, uiState.currentFolder?.id)
+                                            },
+                                            onToggleFavorite = { viewModel.toggleFavorite(it) },
+                                            onDelete = { viewModel.deleteLecture(it) },
+                                            onLongPress = { selectedLongPressLecture = it }
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -185,49 +205,77 @@ fun PrepladderRRScreen(
                 }
 
                 else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(uiState.subfolders, key = { it.id }) { folder ->
-                            ElevatedCard(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { viewModel.openFolder(folder) },
-                                colors = CardDefaults.elevatedCardColors(
-                                    containerColor = MaterialTheme.colorScheme.surface
-                                ),
-                                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = viewModel::updateSearchQuery,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            placeholder = { Text("Search folders...") },
+                            singleLine = true,
+                            shape = MaterialTheme.shapes.medium
+                        )
+                        
+                        val filteredFolders = if (searchQuery.isBlank()) {
+                            uiState.subfolders
+                        } else {
+                            uiState.subfolders.filter { it.name.contains(searchQuery, ignoreCase = true) }
+                        }
+                        
+                        if (filteredFolders.isEmpty() && searchQuery.isNotBlank()) {
+                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Text("No folders match your search.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                ListItem(
-                                    headlineContent = {
-                                        Text(
-                                            folder.name,
-                                            fontWeight = FontWeight.SemiBold,
-                                            style = MaterialTheme.typography.titleMedium
-                                        )
-                                    },
-                                    leadingContent = {
-                                        Surface(
-                                            shape = MaterialTheme.shapes.medium,
-                                            color = MaterialTheme.colorScheme.primaryContainer,
-                                            modifier = Modifier.size(48.dp)
-                                        ) {
-                                            Box(contentAlignment = Alignment.Center) {
-                                                Icon(
-                                                    Icons.Default.Folder,
-                                                    contentDescription = null,
-                                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                                    modifier = Modifier.size(28.dp)
+                                items(filteredFolders, key = { it.id }) { folder ->
+                                    ElevatedCard(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { 
+                                                viewModel.updateSearchQuery("") // Clear text on folder open
+                                                viewModel.openFolder(folder) 
+                                            },
+                                        colors = CardDefaults.elevatedCardColors(
+                                            containerColor = MaterialTheme.colorScheme.surface
+                                        ),
+                                        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
+                                    ) {
+                                        ListItem(
+                                            headlineContent = {
+                                                Text(
+                                                    folder.name,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    style = MaterialTheme.typography.titleMedium
                                                 )
-                                            }
-                                        }
-                                    },
-                                    colors = ListItemDefaults.colors(
-                                        containerColor = androidx.compose.ui.graphics.Color.Transparent
-                                    )
-                                )
+                                            },
+                                            leadingContent = {
+                                                Surface(
+                                                    shape = MaterialTheme.shapes.medium,
+                                                    color = MaterialTheme.colorScheme.primaryContainer,
+                                                    modifier = Modifier.size(48.dp)
+                                                ) {
+                                                    Box(contentAlignment = Alignment.Center) {
+                                                        Icon(
+                                                            Icons.Default.Folder,
+                                                            contentDescription = null,
+                                                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                            modifier = Modifier.size(28.dp)
+                                                        )
+                                                    }
+                                                }
+                                            },
+                                            colors = ListItemDefaults.colors(
+                                                containerColor = androidx.compose.ui.graphics.Color.Transparent
+                                            )
+                                        )
+                                    }
+                                }
                             }
                         }
                     }

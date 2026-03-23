@@ -47,4 +47,12 @@ interface NoteVisualDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(visuals: List<NoteVisual>)
+
+    /** Migrate all existing visuals for a lecture to use lectureId as pdfId (skips blank_note) */
+    @Query("UPDATE note_visuals SET pdfId = :lectureId WHERE lectureId = :lectureId AND pdfId != 'blank_note' AND pdfId != :lectureId")
+    suspend fun migrateToLectureId(lectureId: String)
+
+    /** Get ALL visuals for a lecture (ignoring pdfId) — used as fallback */
+    @Query("SELECT * FROM note_visuals WHERE lectureId = :lectureId AND isDeleted = 0")
+    fun getAllVisualsForLecture(lectureId: String): Flow<List<NoteVisual>>
 }

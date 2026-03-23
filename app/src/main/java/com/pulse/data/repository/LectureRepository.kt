@@ -58,6 +58,10 @@ class LectureRepository(
     val activeDownloads = _activeDownloads.asStateFlow()
     private val downloadJobs = ConcurrentHashMap<String, Job>()
 
+    // ── Simple Caches (for fast navigation) ──
+    private val subfolderCache = ConcurrentHashMap<String, List<com.pulse.data.services.btr.BtrFile>>()
+    private val pdfCache = ConcurrentHashMap<String, List<com.pulse.data.services.btr.BtrFile>>()
+
     // ── PDF Download State (observed by ViewModel) ──
     private val _pdfDownloadState = MutableStateFlow<PdfDownloadState>(PdfDownloadState.Idle)
     val pdfDownloadState = _pdfDownloadState.asStateFlow()
@@ -190,6 +194,21 @@ class LectureRepository(
             id = lectureId, count = count, updatedAt = now, hlcTimestamp = hlc
         )
         // Local-only, no sync needed
+    }
+
+    /** Copy a content:// PDF to internal storage and update the lecture's path to the stable copy */
+    suspend fun copyLocalPdfToInternal(lectureId: String, contentUri: android.net.Uri): String? = withContext(Dispatchers.IO) {
+        val stablePath = fileStorage.copyContentUriToInternal(contentUri, lectureId) ?: return@withContext null
+        val now = System.currentTimeMillis()
+        val hlc = hlcGenerator.generate()
+        val lecture = lectureDao.getById(lectureId).first() ?: return@withContext null
+        lectureDao.update(lecture.copy(
+            pdfLocalPath = stablePath,
+            isPdfDownloaded = true,
+            updatedAt = now,
+            hlcTimestamp = hlc
+        ))
+        stablePath
     }
 
     suspend fun updatePdfState(lectureId: String, page: Int, isHorizontal: Boolean) {
@@ -352,14 +371,20 @@ class LectureRepository(
 
     /** List PDF files in a Drive folder */
     suspend fun listPdfs(folderId: String): List<com.pulse.data.services.btr.BtrFile> = withContext(Dispatchers.IO) {
+        pdfCache[folderId]?.let { return@withContext it }
         val token = try { authManager.getToken() } catch (e: Exception) { "" }
-        btrService.listFolder(folderId, token).filter { it.mimeType == "application/pdf" || it.name.endsWith(".pdf", ignoreCase = true) }
+        val result = btrService.listFolder(folderId, token).filter { it.mimeType == "application/pdf" || it.name.endsWith(".pdf", ignoreCase = true) }
+        if (result.isNotEmpty()) pdfCache[folderId] = result
+        result
     }
 
     /** List subfolders in a Drive folder */
     suspend fun listSubfolders(folderId: String): List<com.pulse.data.services.btr.BtrFile> = withContext(Dispatchers.IO) {
+        subfolderCache[folderId]?.let { return@withContext it }
         val token = try { authManager.getToken() } catch (e: Exception) { "" }
-        btrService.listSubfolders(folderId, token)
+        val result = btrService.listSubfolders(folderId, token)
+        if (result.isNotEmpty()) subfolderCache[folderId] = result
+        result
     }
 
     /** Compute the local path where a Drive PDF would be cached */

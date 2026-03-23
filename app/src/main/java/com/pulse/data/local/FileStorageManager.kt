@@ -52,4 +52,22 @@ class FileStorageManager(private val context: Context) {
         pdfDir.deleteRecursively()
         pdfDir.mkdirs()
     }
+
+    /**
+     * Copy a SAF content:// URI PDF into internal storage with a stable lectureId-based filename.
+     * Returns the stable internal file path, or null on failure.
+     */
+    suspend fun copyContentUriToInternal(contentUri: android.net.Uri, lectureId: String): String? = withContext(Dispatchers.IO) {
+        try {
+            val destFile = File(pdfDir, "local_$lectureId.pdf")
+            context.contentResolver.openInputStream(contentUri)?.use { input ->
+                destFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            } ?: return@withContext null
+            destFile.absolutePath
+        } catch (e: Exception) {
+            null
+        }
+    }
 }

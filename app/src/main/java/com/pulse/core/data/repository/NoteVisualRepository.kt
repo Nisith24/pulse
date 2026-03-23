@@ -28,4 +28,9 @@ class NoteVisualRepository(
     suspend fun getUpdatesSince(since: String): List<NoteVisual> {
         return dao.getUpdatesSince(since)
     }
+
+    /** Migrate old annotations to use lectureId as pdfId (fixes volatile key issue) */
+    suspend fun migrateToLectureId(lectureId: String) {
+        dao.migrateToLectureId(lectureId)
+    }
 }

@@ -25,12 +25,19 @@ class SubjectDetailViewModel(
     private val _uiState = MutableStateFlow(SubjectDetailUiState())
     val uiState: StateFlow<SubjectDetailUiState> = _uiState.asStateFlow()
 
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
     private val _currentSubject = MutableStateFlow("")
 
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val lectures: StateFlow<List<Lecture>> = _currentSubject
         .filter { it.isNotEmpty() }
         .flatMapLatest { subject ->
-            lectureRepository.getLecturesBySubject(subject)
+            lectureRepository.getLecturesBySubject(subject).combine(_searchQuery) { list, query ->
+                val sorted = list.sortedBy { it.name }
+                if (query.isBlank()) sorted else sorted.filter { it.name.contains(query, ignoreCase = true) }
+            }
         }
         .stateIn(
             scope = viewModelScope,
@@ -104,5 +111,8 @@ class SubjectDetailViewModel(
                 lectureRepository.downloadLecturePdf(lecture)
             }
         }
+    }
+    fun updateSearchQuery(query: String) {
+        _searchQuery.value = query
     }
 }

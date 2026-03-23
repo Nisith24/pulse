@@ -79,7 +79,9 @@ fun SubjectDetailScreen(
                         onLectureSelected = onNavigateToLecture,
                         onToggleFavorite = { viewModel.toggleFavorite(it) },
                         onDelete = { viewModel.deleteLecture(it) },
-                        onLongPress = { selectedLongPressLecture = it }
+                        onLongPress = { selectedLongPressLecture = it },
+                        searchQuery = viewModel.searchQuery.collectAsState().value,
+                        onSearchQueryChange = viewModel::updateSearchQuery
                     )
                 }
                 else -> {
@@ -176,7 +178,9 @@ private fun FolderContent(
     onLectureSelected: (String, String?) -> Unit,
     onToggleFavorite: (String) -> Unit,
     onDelete: (Lecture) -> Unit,
-    onLongPress: (Lecture) -> Unit
+    onLongPress: (Lecture) -> Unit,
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
@@ -206,28 +210,47 @@ private fun FolderContent(
                     Text(uiState.error, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
                 }
             }
-            lectures.isEmpty() && !uiState.isLoading -> {
+            lectures.isEmpty() && !uiState.isLoading && searchQuery.isBlank() -> {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text("Folder is empty.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             else -> {
-                LazyVerticalGrid(
-                    columns = GridCells.Adaptive(240.dp),
-                    contentPadding = PaddingValues(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    items(lectures, key = { it.id }) { lecture ->
-                        LectureCard(
-                            lecture = lecture,
-                            isLibraryHome = false,
-                            onLectureSelected = { id -> onLectureSelected(id, currentFolderId) },
-                            onToggleFavorite = onToggleFavorite,
-                            onDelete = onDelete,
-                            onLongPress = onLongPress
-                        )
+                Column(modifier = Modifier.fillMaxSize()) {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = onSearchQueryChange,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        placeholder = { Text("Search files...") },
+                        singleLine = true,
+                        shape = MaterialTheme.shapes.medium
+                    )
+                    
+                    if (lectures.isEmpty() && searchQuery.isNotBlank()) {
+                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                             Text("No files match your search.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                         }
+                    } else {
+                        LazyVerticalGrid(
+                            columns = GridCells.Adaptive(240.dp),
+                            contentPadding = PaddingValues(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            items(lectures, key = { it.id }) { lecture ->
+                                LectureCard(
+                                    lecture = lecture,
+                                    isLibraryHome = false,
+                                    onLectureSelected = { id -> onLectureSelected(id, currentFolderId) },
+                                    onToggleFavorite = onToggleFavorite,
+                                    onDelete = onDelete,
+                                    onLongPress = onLongPress
+                                )
+                            }
+                        }
                     }
                 }
             }

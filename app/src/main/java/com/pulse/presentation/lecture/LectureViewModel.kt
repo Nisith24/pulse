@@ -53,12 +53,13 @@ class LectureViewModel(
     private val _folderPdf = MutableStateFlow<com.pulse.data.services.btr.BtrFile?>(null)
     val folderPdf: StateFlow<com.pulse.data.services.btr.BtrFile?> = _folderPdf.asStateFlow()
 
+    /**
+     * Single source of truth for annotation lookup key.
+     * ALWAYS uses lecture.id — the only truly stable identifier.
+     * Annotations are per-lecture, not per-file.
+     */
     private fun resolveActivePdfId(lecture: Lecture): String {
-        return if (lecture.pdfLocalPath == "blank_note") {
-            "blank_note"
-        } else {
-            lecture.pdfId.takeIf { !it.isNullOrEmpty() } ?: lecture.pdfLocalPath.ifEmpty { lecture.id }
-        }
+        return if (lecture.pdfLocalPath == "blank_note") "blank_note" else lecture.id
     }
 
     val notes: Flow<List<Note>> = noteRepository.getNotes(lectureId)
@@ -68,6 +69,7 @@ class LectureViewModel(
         .map { resolveActivePdfId(it) }
         .distinctUntilChanged()
         .flatMapLatest { pdfId ->
+            Log.d("AnnotationDebug", "Querying visuals: lectureId=$lectureId, pdfId=$pdfId")
             noteVisualRepository.getVisualsForFile(lectureId, pdfId)
         }
     val player = playerProvider.player
@@ -79,6 +81,8 @@ class LectureViewModel(
     private var hasStartedPlayback = false
 
     init {
+        // Migrate old annotations (saved under volatile pdfId) to use stable lecture.id
+        viewModelScope.launch { noteVisualRepository.migrateToLectureId(lectureId) }
         observePlayerState()
         loadLectureAndPlay()
         startPeriodicSave()
@@ -287,6 +291,7 @@ class LectureViewModel(
 
     fun addVisual(type: VisualType, data: String, page: Int, color: Int, width: Float, alpha: Float = 1f) {
         val currentPdfId = _lecture.value?.let { resolveActivePdfId(it) } ?: "blank_note"
+        Log.d("AnnotationDebug", "SAVING visual: lectureId=$lectureId, pdfId=$currentPdfId, page=$page, type=$type")
         viewModelScope.launch {
             noteVisualRepository.insert(
                 NoteVisual(
@@ -349,6 +354,21 @@ class LectureViewModel(
                 }
                 
                 repository.updateLocalPdfPath(l, path) 
+            }
+        }
+    }
+
+    /** Import a local PDF by copying it to internal storage for stable persistence */
+    fun importLocalPdf(contentUri: android.net.Uri) {
+        _lecture.value?.let { l ->
+            viewModelScope.launch {
+                // Copy to internal storage for a stable path that survives app restarts
+                val stablePath = repository.copyLocalPdfToInternal(l.id, contentUri)
+                if (stablePath == null) {
+                    // Fallback: use the content URI directly (old behavior)
+                    repository.updateLocalPdfPath(l, contentUri.toString())
+                }
+                // If copy succeeded, the repository already updated the lecture's pdfLocalPath
             }
         }
     }

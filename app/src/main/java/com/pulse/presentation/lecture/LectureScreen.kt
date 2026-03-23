@@ -94,6 +94,10 @@ fun LectureScreen(
     val highlights by viewModel.notes.collectAsState(initial = emptyList())
     val visuals by viewModel.visuals.collectAsState(initial = emptyList())
     val pdfHorizontalOrientation by viewModel.pdfHorizontalOrientation.collectAsState()
+
+    LaunchedEffect(visuals) {
+        Log.d("AnnotationDebug", "UI received ${visuals.size} visuals")
+    }
     val isBackgroundPlaybackEnabled by settingsManager.backgroundPlaybackFlow.collectAsState(initial = true)
 
     val hasVideo = remember(lecture) {
@@ -147,7 +151,8 @@ fun LectureScreen(
                 context.contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
             } catch (_: Exception) {}
             showPdf = true // Ensure panel is shown
-            viewModel.updateLocalPdfPath(it.toString())
+            // Copy to internal storage for stable persistence instead of storing volatile content:// URI
+            viewModel.importLocalPdf(it)
         }
     }
 

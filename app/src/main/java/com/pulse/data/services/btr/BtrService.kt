@@ -9,6 +9,7 @@ import java.io.OutputStream
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.async
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -26,44 +27,60 @@ class GoogleDriveBtrService(
         accessToken: String,
         recursive: Boolean
     ): List<BtrFile> = withContext(Dispatchers.IO) {
-        val rootList = mutableListOf<BtrFile>()
-        val foldersToProcess = mutableListOf(Pair(folderId, "Drive"))
-        val processedFolders = mutableSetOf<String>()
+        val rootList = java.util.Collections.synchronizedList(mutableListOf<BtrFile>())
+        val foldersToProcess = java.util.Collections.synchronizedList(mutableListOf(Pair(folderId, "Drive")))
+        val processedFolders = java.util.Collections.synchronizedSet(mutableSetOf<String>())
 
         while (foldersToProcess.isNotEmpty()) {
-            val (currentFolderId, currentFolderName) = foldersToProcess.removeAt(0)
-            if (processedFolders.contains(currentFolderId)) continue
-            processedFolders.add(currentFolderId)
-
-            // Google Drive API requires either a Bearer token OR an API key — even for public folders.
-            // When the user is not signed in, append the API key to authenticate the request.
-            val apiKeyParam = if (accessToken.isEmpty()) "&key=${Constants.GOOGLE_API_KEY}" else ""
-            val url = "https://www.googleapis.com/drive/v3/files?q='${currentFolderId}'+in+parents+and+trashed=false&fields=files(id,name,mimeType,size)&pageSize=1000&supportsAllDrives=true&includeItemsFromAllDrives=true$apiKeyParam"
-            val request = Request.Builder()
-                .url(url)
-                .apply { if (accessToken.isNotEmpty()) addHeader("Authorization", "Bearer $accessToken") }
-                .addHeader("User-Agent", "Pulse/1.0")
-                .build()
-
-            try {
-                logger.d("BtrService", "Listing folder: $currentFolderName ($currentFolderId) at $url")
-                client.newCall(request).execute().use { response ->
-                    val body = response.body?.string() ?: ""
-                    logger.d("BtrService", "Response [${response.code}] for $currentFolderName: ${if (body.length > 200) body.take(200) + "..." else body}")
-                    
-                    if (response.isSuccessful) {
-                        val files = parseBtrFiles(body)
-                        logger.d("BtrService", "Parsed ${files.size} files from $currentFolderName")
-                        handleFiles(files, rootList, foldersToProcess, currentFolderName, recursive)
-                    } else {
-                        logger.e("BtrService", "API Error [${response.code}]: $body")
-                    }
-                }
-            } catch (e: Exception) {
-                logger.e("BtrService", "Network/API exception for $currentFolderId", e)
+            val tasks = mutableListOf<kotlinx.coroutines.Deferred<*>>()
+            val batch = synchronized(foldersToProcess) {
+                val copy = foldersToProcess.toList()
+                foldersToProcess.clear()
+                copy
             }
+
+            for ((currentFolderId, currentFolderName) in batch) {
+                if (!processedFolders.add(currentFolderId)) continue
+
+                tasks.add(async {
+                    val apiKeyParam = if (accessToken.isEmpty()) "&key=${Constants.GOOGLE_API_KEY}" else ""
+                    val url = "https://www.googleapis.com/drive/v3/files?q='${currentFolderId}'+in+parents+and+trashed=false&fields=files(id,name,mimeType,size)&pageSize=1000&supportsAllDrives=true&includeItemsFromAllDrives=true$apiKeyParam"
+                    val request = Request.Builder()
+                        .url(url)
+                        .apply { if (accessToken.isNotEmpty()) addHeader("Authorization", "Bearer $accessToken") }
+                        .addHeader("User-Agent", "Pulse/1.0")
+                        .build()
+
+                    try {
+                        logger.d("BtrService", "Listing folder: $currentFolderName ($currentFolderId)")
+                        client.newCall(request).execute().use { response ->
+                            val body = response.body?.string() ?: ""
+                            if (response.isSuccessful) {
+                                val files = parseBtrFiles(body)
+                                val localFolders = mutableListOf<Pair<String, String>>()
+                                for (file in files) {
+                                    if (file.mimeType == "application/vnd.google-apps.folder") {
+                                        if (recursive) localFolders.add(Pair(file.id, file.name))
+                                    } else {
+                                        rootList.add(file.copy(parentName = currentFolderName))
+                                    }
+                                }
+                                synchronized(foldersToProcess) {
+                                    foldersToProcess.addAll(localFolders)
+                                }
+                            } else {
+                                logger.e("BtrService", "API Error [${response.code}]: $body")
+                            }
+                        }
+                    } catch (e: Exception) {
+                        logger.e("BtrService", "Network/API exception for $currentFolderId", e)
+                    }
+                })
+            }
+            // Wait for all fetches in this level to finish before moving to sub-branches
+            tasks.forEach { it.await() }
         }
-        rootList
+        rootList.toList()
     }
 
     private fun handleFiles(files: List<BtrFile>, rootList: MutableList<BtrFile>, foldersToProcess: MutableList<Pair<String, String>>, parentName: String, recursive: Boolean) {

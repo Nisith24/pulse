@@ -425,17 +425,29 @@ private fun PdfMode(
     val activeMode = annotationState.isDrawingMode
 
     // Sync the Compose overlay content
+    // ── REACTIVE STATE HOLDERS for the overlay's independent Compose tree ──
+    val overlayVisuals = remember { mutableStateOf<List<NoteVisual>>(emptyList()) }
+    val overlayPage = remember { mutableIntStateOf(currentPage) }
+    val overlayPdfView = remember { mutableStateOf(pdfViewRef.value) }
+
+    // Keep overlay state in sync with parent composition reactively
     SideEffect {
+        overlayVisuals.value = visuals.filter { it.pageNumber == currentPage }
+        overlayPage.intValue = currentPage
+        overlayPdfView.value = pdfViewRef.value
+    }
+
+    LaunchedEffect(Unit) {
         composeOverlay.setContent {
             DrawingCanvas(
                 annotationState = annotationState,
-                pdfView = pdfViewRef.value,
-                visuals = visuals.filter { it.pageNumber == currentPage },
+                pdfView = overlayPdfView.value,
+                visuals = overlayVisuals.value,
                 onDrawComplete = { type, data, color, width, alpha ->
-                    onAddVisual(type, data, currentPage, color.toArgb(), width, alpha)
+                    onAddVisual(type, data, overlayPage.intValue, color.toArgb(), width, alpha)
                 },
                 onAddVisualAtPos = { type, x, y, color, width, alpha ->
-                    onAddVisualAtPos(type, x, y, currentPage, color, width, alpha)
+                    onAddVisualAtPos(type, x, y, overlayPage.intValue, color, width, alpha)
                 },
                 onDeleteVisual = onDeleteVisual,
                 modifier = Modifier.fillMaxSize()
