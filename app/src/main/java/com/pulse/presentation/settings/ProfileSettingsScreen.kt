@@ -27,6 +27,12 @@ import com.pulse.data.local.SettingsManager
 import com.pulse.domain.services.btr.IBtrAuthManager
 import com.pulse.presentation.theme.ThemeViewModel
 import com.pulse.presentation.theme.ThemeMode
+import com.pulse.data.sync.FirestoreSyncManager
+import com.pulse.data.db.NoteDao
+import com.pulse.data.db.NoteVisualDao
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import android.widget.Toast
 import org.koin.compose.koinInject
 import org.koin.androidx.compose.koinViewModel
 
@@ -40,6 +46,10 @@ fun ProfileSettingsScreen(
 ) {
     val settingsManager: SettingsManager = koinInject()
     val authManager: IBtrAuthManager = koinInject()
+    val syncManager: FirestoreSyncManager = koinInject()
+    val noteDao: NoteDao = koinInject()
+    val noteVisualDao: NoteVisualDao = koinInject()
+
     val scrollState = rememberScrollState()
     val themeMode by themeViewModel.themeMode.collectAsState()
 
@@ -226,17 +236,65 @@ fun ProfileSettingsScreen(
                     checked = cloudSyncEnabled,
                     onCheckedChange = { cloudSyncEnabled = it }
                 )
+                val currentContext = LocalContext.current
+                var isBackingUp by remember { mutableStateOf(false) }
                 SettingsClickItem(
                     icon = Icons.Default.Backup,
-                    title = "Backup Notes",
-                    subtitle = "Backup all notes to cloud",
-                    onClick = { /* TODO: Firestore backup */ }
+                    title = if (isBackingUp) "Backing up..." else "Backup Notes",
+                    subtitle = "Backup all notes & annotations to cloud",
+                    onClick = {
+                        if (isBackingUp) return@SettingsClickItem
+                        isBackingUp = true
+                        scope.launch(Dispatchers.IO) {
+                            try {
+                                val notes = noteDao.getAllNotesAsList()
+                                val visuals = noteVisualDao.getAllNoteVisualsAsList()
+                                syncManager.pushNotes(notes)
+                                syncManager.pushNoteVisuals(visuals)
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(currentContext, "Backup successful (${notes.size} notes, ${visuals.size} annotations)", Toast.LENGTH_SHORT).show()
+                                }
+                            } catch (e: Exception) {
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(currentContext, "Backup failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                                }
+                            } finally {
+                                isBackingUp = false
+                            }
+                        }
+                    }
                 )
+
+                var isRestoring by remember { mutableStateOf(false) }
                 SettingsClickItem(
                     icon = Icons.Default.Restore,
-                    title = "Restore Data",
-                    subtitle = "Restore progress & notes from cloud",
-                    onClick = { /* TODO: Firestore restore */ }
+                    title = if (isRestoring) "Restoring..." else "Restore Data",
+                    subtitle = "Restore notes & annotations from cloud",
+                    onClick = {
+                        if (isRestoring) return@SettingsClickItem
+                        isRestoring = true
+                        scope.launch(Dispatchers.IO) {
+                            try {
+                                val remoteNotes = syncManager.pullNotes()
+                                val remoteVisuals = syncManager.pullNoteVisuals()
+                                if (remoteNotes.isNotEmpty()) {
+                                    noteDao.insertAll(remoteNotes)
+                                }
+                                if (remoteVisuals.isNotEmpty()) {
+                                    noteVisualDao.insertAll(remoteVisuals)
+                                }
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(currentContext, "Restore successful (${remoteNotes.size} notes, ${remoteVisuals.size} annotations)", Toast.LENGTH_SHORT).show()
+                                }
+                            } catch (e: Exception) {
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(currentContext, "Restore failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                                }
+                            } finally {
+                                isRestoring = false
+                            }
+                        }
+                    }
                 )
             }
 

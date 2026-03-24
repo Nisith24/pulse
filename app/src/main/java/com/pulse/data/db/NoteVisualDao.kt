@@ -45,6 +45,9 @@ interface NoteVisualDao {
     @Query("SELECT * FROM note_visuals WHERE updatedAt > :since")
     suspend fun getModifiedSince(since: Long): List<NoteVisual>
 
+    @Query("SELECT * FROM note_visuals")
+    suspend fun getAllNoteVisualsAsList(): List<NoteVisual>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(visuals: List<NoteVisual>)
 
