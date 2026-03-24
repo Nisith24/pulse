@@ -29,6 +29,7 @@ import com.pulse.presentation.theme.ThemeViewModel
 import com.pulse.presentation.theme.ThemeMode
 import org.koin.compose.koinInject
 import org.koin.androidx.compose.koinViewModel
+import com.pulse.data.local.FileStorageManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,6 +41,7 @@ fun ProfileSettingsScreen(
 ) {
     val settingsManager: SettingsManager = koinInject()
     val authManager: IBtrAuthManager = koinInject()
+    val fileStorageManager: FileStorageManager = koinInject()
     val scrollState = rememberScrollState()
     val themeMode by themeViewModel.themeMode.collectAsState()
 
@@ -300,11 +302,17 @@ fun ProfileSettingsScreen(
                     subtitle = "Free up space by clearing cached video data",
                     onClick = { /* TODO: Clear cache */ }
                 )
+                val currentContext = LocalContext.current
                 SettingsClickItem(
                     icon = Icons.Default.FolderDelete,
                     title = "Clear Downloaded PDFs",
                     subtitle = "Remove offline PDF copies",
-                    onClick = { /* TODO: Clear PDFs */ }
+                    onClick = {
+                        scope.launch {
+                            fileStorageManager.clearPdfCache()
+                            android.widget.Toast.makeText(currentContext, "PDFs cleared successfully", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 )
             }
 
