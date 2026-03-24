@@ -70,7 +70,6 @@ fun AnnotationToolbar(
     modifier: Modifier = Modifier
 ) {
     var expandedSection by remember { mutableStateOf(ExpandedSection.NONE) }
-    val haptic = LocalHapticFeedback.current
 
     var offsetX by remember { mutableFloatStateOf(0f) }
     var offsetY by remember { mutableFloatStateOf(0f) }
@@ -123,81 +122,10 @@ fun AnnotationToolbar(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // ── Expandable Sections (Color, Stroke, Opacity) ──
-        AnimatedContent(
-            targetState = expandedSection,
-            transitionSpec = {
-                (fadeIn(tween(220)) + expandVertically(tween(220))).togetherWith(
-                    fadeOut(tween(180)) + shrinkVertically(tween(180))
-                )
-            },
-            label = "expanded_content"
-        ) { section ->
-            when (section) {
-                ExpandedSection.COLOR -> {
-                    Column(
-                        modifier = Modifier.padding(14.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        SectionHeader("COLOR PALETTE")
-                        ColorPickerGrid(
-                            selectedColor = state.strokeColor,
-                            onColorSelected = {
-                                state.strokeColor = it
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            }
-                        )
-                    }
-                }
-                ExpandedSection.STROKE -> {
-                    Column(
-                        modifier = Modifier.padding(14.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        SectionHeader("STROKE WEIGHT")
-                        StrokeWidthSelector(
-                            width = state.strokeWidth,
-                            color = state.strokeColor,
-                            onWidthChange = { state.strokeWidth = it }
-                        )
-                        
-                        if (state.currentTool == VisualType.BOX) {
-                            Spacer(Modifier.height(12.dp))
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.4f))
-                                    .clickable { state.fillEnabled = !state.fillEnabled }
-                                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("Fill Shape", style = MaterialTheme.typography.bodySmall)
-                                Switch(
-                                    checked = state.fillEnabled,
-                                    onCheckedChange = { state.fillEnabled = it },
-                                    modifier = Modifier.scale(0.7f)
-                                )
-                            }
-                        }
-                    }
-                }
-                ExpandedSection.OPACITY -> {
-                    Column(
-                        modifier = Modifier.padding(14.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        SectionHeader("OPACITY / ALPHA")
-                        OpacitySelector(
-                            alpha = state.strokeAlpha,
-                            color = state.strokeColor,
-                            onAlphaChange = { state.strokeAlpha = it }
-                        )
-                    }
-                }
-                ExpandedSection.NONE -> Spacer(Modifier.height(0.dp))
-            }
-        }
+        ExpandableSectionContent(
+            expandedSection = expandedSection,
+            state = state
+        )
 
         if (expandedSection != ExpandedSection.NONE) {
             HorizontalDivider(
@@ -208,97 +136,11 @@ fun AnnotationToolbar(
         }
 
         // ── Main Row: Tools + Undo/Redo + System ──
-        Row(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Undo Button
-            IconButton(
-                onClick = { /* ViewModel should handle this, passed via lambda */ },
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(
-                    Icons.Default.Undo,
-                    contentDescription = "Undo",
-                    modifier = Modifier.size(20.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                )
-            }
-
-            PrimaryTools.forEach { tool ->
-                ToolButton(
-                    icon = tool.icon,
-                    label = tool.label,
-                    isSelected = state.currentTool == tool.type,
-                    activeColor = if (tool.type == VisualType.ERASER)
-                        MaterialTheme.colorScheme.error
-                    else
-                        state.strokeColor,
-                    onClick = {
-                        state.currentTool = tool.type
-                        state.activeTool = tool.type
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        if (tool.type == VisualType.ERASER) {
-                            expandedSection = ExpandedSection.NONE
-                        }
-                    }
-                )
-            }
-
-            VerticalDivider(
-                modifier = Modifier.padding(horizontal = 4.dp).height(24.dp),
-                thickness = 1.dp,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-            )
-
-            if (state.currentTool != VisualType.ERASER) {
-                // Color Button
-                ColorIndicatorButton(
-                    color = state.strokeColor,
-                    isExpanded = expandedSection == ExpandedSection.COLOR,
-                    onClick = {
-                        expandedSection = if (expandedSection == ExpandedSection.COLOR)
-                            ExpandedSection.NONE else ExpandedSection.COLOR
-                    }
-                )
-
-                // Stroke Button
-                StrokeIndicatorButton(
-                    width = state.strokeWidth,
-                    color = state.strokeColor,
-                    isExpanded = expandedSection == ExpandedSection.STROKE,
-                    onClick = {
-                        expandedSection = if (expandedSection == ExpandedSection.STROKE)
-                            ExpandedSection.NONE else ExpandedSection.STROKE
-                    }
-                )
-
-                // Opacity Button
-                OpacityIndicatorButton(
-                    alpha = state.strokeAlpha,
-                    color = state.strokeColor,
-                    isExpanded = expandedSection == ExpandedSection.OPACITY,
-                    onClick = {
-                        expandedSection = if (expandedSection == ExpandedSection.OPACITY)
-                            ExpandedSection.NONE else ExpandedSection.OPACITY
-                    }
-                )
-            }
-
-            // Redo Button
-            IconButton(
-                onClick = { /* ViewModel redo */ },
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(
-                    Icons.Default.Redo,
-                    contentDescription = "Redo",
-                    modifier = Modifier.size(20.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                )
-            }
-        }
+        MainToolRow(
+            state = state,
+            expandedSection = expandedSection,
+            onSectionExpanded = { newSection -> expandedSection = newSection }
+        )
 
         // ── Drag Handle ──
         Box(
@@ -327,6 +169,199 @@ private fun SectionHeader(text: String) {
 }
 
 private enum class ExpandedSection { NONE, COLOR, STROKE, OPACITY }
+
+@Composable
+private fun ExpandableSectionContent(
+    expandedSection: ExpandedSection,
+    state: AnnotationState
+) {
+    val haptic = LocalHapticFeedback.current
+
+    AnimatedContent(
+        targetState = expandedSection,
+        transitionSpec = {
+            (fadeIn(tween(220)) + expandVertically(tween(220))).togetherWith(
+                fadeOut(tween(180)) + shrinkVertically(tween(180))
+            )
+        },
+        label = "expanded_content"
+    ) { section ->
+        when (section) {
+            ExpandedSection.COLOR -> {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    SectionHeader("COLOR PALETTE")
+                    ColorPickerGrid(
+                        selectedColor = state.strokeColor,
+                        onColorSelected = {
+                            state.strokeColor = it
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        }
+                    )
+                }
+            }
+            ExpandedSection.STROKE -> {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    SectionHeader("STROKE WEIGHT")
+                    StrokeWidthSelector(
+                        width = state.strokeWidth,
+                        color = state.strokeColor,
+                        onWidthChange = { state.strokeWidth = it }
+                    )
+
+                    if (state.currentTool == VisualType.BOX) {
+                        Spacer(Modifier.height(12.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.4f))
+                                .clickable { state.fillEnabled = !state.fillEnabled }
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Fill Shape", style = MaterialTheme.typography.bodySmall)
+                            Switch(
+                                checked = state.fillEnabled,
+                                onCheckedChange = { state.fillEnabled = it },
+                                modifier = Modifier.scale(0.7f)
+                            )
+                        }
+                    }
+                }
+            }
+            ExpandedSection.OPACITY -> {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    SectionHeader("OPACITY / ALPHA")
+                    OpacitySelector(
+                        alpha = state.strokeAlpha,
+                        color = state.strokeColor,
+                        onAlphaChange = { state.strokeAlpha = it }
+                    )
+                }
+            }
+            ExpandedSection.NONE -> Spacer(Modifier.height(0.dp))
+        }
+    }
+}
+
+@Composable
+private fun MainToolRow(
+    state: AnnotationState,
+    expandedSection: ExpandedSection,
+    onSectionExpanded: (ExpandedSection) -> Unit
+) {
+    val haptic = LocalHapticFeedback.current
+
+    Row(
+        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Undo Button
+        IconButton(
+            onClick = { /* ViewModel should handle this, passed via lambda */ },
+            modifier = Modifier.size(36.dp)
+        ) {
+            Icon(
+                Icons.Default.Undo,
+                contentDescription = "Undo",
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+            )
+        }
+
+        PrimaryTools.forEach { tool ->
+            ToolButton(
+                icon = tool.icon,
+                label = tool.label,
+                isSelected = state.currentTool == tool.type,
+                activeColor = if (tool.type == VisualType.ERASER)
+                    MaterialTheme.colorScheme.error
+                else
+                    state.strokeColor,
+                onClick = {
+                    state.currentTool = tool.type
+                    state.activeTool = tool.type
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    if (tool.type == VisualType.ERASER) {
+                        onSectionExpanded(ExpandedSection.NONE)
+                    }
+                }
+            )
+        }
+
+        VerticalDivider(
+            modifier = Modifier
+                .padding(horizontal = 4.dp)
+                .height(24.dp),
+            thickness = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+        )
+
+        if (state.currentTool != VisualType.ERASER) {
+            // Color Button
+            ColorIndicatorButton(
+                color = state.strokeColor,
+                isExpanded = expandedSection == ExpandedSection.COLOR,
+                onClick = {
+                    onSectionExpanded(
+                        if (expandedSection == ExpandedSection.COLOR)
+                            ExpandedSection.NONE else ExpandedSection.COLOR
+                    )
+                }
+            )
+
+            // Stroke Button
+            StrokeIndicatorButton(
+                width = state.strokeWidth,
+                color = state.strokeColor,
+                isExpanded = expandedSection == ExpandedSection.STROKE,
+                onClick = {
+                    onSectionExpanded(
+                        if (expandedSection == ExpandedSection.STROKE)
+                            ExpandedSection.NONE else ExpandedSection.STROKE
+                    )
+                }
+            )
+
+            // Opacity Button
+            OpacityIndicatorButton(
+                alpha = state.strokeAlpha,
+                color = state.strokeColor,
+                isExpanded = expandedSection == ExpandedSection.OPACITY,
+                onClick = {
+                    onSectionExpanded(
+                        if (expandedSection == ExpandedSection.OPACITY)
+                            ExpandedSection.NONE else ExpandedSection.OPACITY
+                    )
+                }
+            )
+        }
+
+        // Redo Button
+        IconButton(
+            onClick = { /* ViewModel redo */ },
+            modifier = Modifier.size(36.dp)
+        ) {
+            Icon(
+                Icons.Default.Redo,
+                contentDescription = "Redo",
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+            )
+        }
+    }
+}
 
 // ── Tool Button ──
 @Composable
