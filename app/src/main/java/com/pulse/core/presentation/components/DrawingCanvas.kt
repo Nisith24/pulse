@@ -190,159 +190,193 @@ fun DrawingCanvas(
             )
     ) {
         // LAYER 1: ── SAVED VISUALS ──
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val tick = annotationState.invalidationTick // Observe tick for coordinate sync
-            val zoom = if (pdfView != null) pdfView.zoom else annotationState.currentZoom
+        SavedVisualsLayer(
+            annotationState = annotationState,
+            pdfView = pdfView,
+            visuals = visuals,
+            parsedVisualMap = parsedVisualMap,
+            pendingDeletions = pendingDeletions
+        )
 
-            if (!annotationState.isFocused) {
-                visuals.forEach { visual ->
-                    if (pendingDeletions.value.contains(visual.id)) return@forEach // Local hide during erasure for "fast" feel
-                    val preParsedData = parsedVisualMap[visual.id] ?: return@forEach
+        // LAYER 2: ── LIVE DRAWING ──
+        LiveDrawingLayer(
+            annotationState = annotationState,
+            pdfView = pdfView,
+            currentPathPoints = currentPathPoints,
+            effectiveTool = effectiveTool,
+            eraserPosition = eraserPosition
+        )
+    }
+}
 
-                    val renderColor = Color(visual.color).copy(alpha = visual.alpha)
-                    val baseScaledWidth = visual.strokeWidth * zoom
+@Composable
+private fun SavedVisualsLayer(
+    annotationState: AnnotationState,
+    pdfView: com.github.barteksc.pdfviewer.PDFView?,
+    visuals: List<NoteVisual>,
+    parsedVisualMap: Map<Long, Any?>,
+    pendingDeletions: State<Set<Long>>
+) {
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val tick = annotationState.invalidationTick // Observe tick for coordinate sync
+        val zoom = if (pdfView != null) pdfView.zoom else annotationState.currentZoom
 
-                    when (visual.type) {
-                        VisualType.TEXT -> {
-                            val data = preParsedData as? Offset ?: return@forEach
-                            val pos = if (pdfView != null) annotationState.pageToView(data.x, data.y)
-                            else android.graphics.PointF(data.x * annotationState.pageWidth, data.y * annotationState.pageHeight)
-                            drawCircle(renderColor, radius = 10f, center = Offset(pos.x, pos.y))
+        if (!annotationState.isFocused) {
+            visuals.forEach { visual ->
+                if (pendingDeletions.value.contains(visual.id)) return@forEach // Local hide during erasure for "fast" feel
+                val preParsedData = parsedVisualMap[visual.id] ?: return@forEach
+
+                val renderColor = Color(visual.color).copy(alpha = visual.alpha)
+                val baseScaledWidth = visual.strokeWidth * zoom
+
+                when (visual.type) {
+                    VisualType.TEXT -> {
+                        val data = preParsedData as? Offset ?: return@forEach
+                        val pos = if (pdfView != null) annotationState.pageToView(data.x, data.y)
+                        else android.graphics.PointF(data.x * annotationState.pageWidth, data.y * annotationState.pageHeight)
+                        drawCircle(renderColor, radius = 10f, center = Offset(pos.x, pos.y))
+                    }
+                    VisualType.STICKY_NOTE -> {
+                        val data = preParsedData as? Offset ?: return@forEach
+                        val pos = if (pdfView != null) annotationState.pageToView(data.x, data.y)
+                        else android.graphics.PointF(data.x * annotationState.pageWidth, data.y * annotationState.pageHeight)
+                        drawRect(renderColor, topLeft = Offset(pos.x - 15f, pos.y - 15f), size = androidx.compose.ui.geometry.Size(30f, 30f))
+                    }
+                    VisualType.RULER -> {
+                        val points = preParsedData as? List<Triple<Float, Float, Float>> ?: return@forEach
+                        if (points.size >= 2) {
+                            val sP = points.first()
+                            val eP = points.last()
+                            val startPos = if (pdfView != null) annotationState.pageToView(sP.first, sP.second)
+                            else android.graphics.PointF(sP.first * annotationState.pageWidth, sP.second * annotationState.pageHeight)
+                            val endPos = if (pdfView != null) annotationState.pageToView(eP.first, eP.second)
+                            else android.graphics.PointF(eP.first * annotationState.pageWidth, eP.second * annotationState.pageHeight)
+
+                            drawLine(color = renderColor, start = Offset(startPos.x, startPos.y), end = Offset(endPos.x, endPos.y), strokeWidth = baseScaledWidth, cap = androidx.compose.ui.graphics.StrokeCap.Round)
                         }
-                        VisualType.STICKY_NOTE -> {
-                            val data = preParsedData as? Offset ?: return@forEach
-                            val pos = if (pdfView != null) annotationState.pageToView(data.x, data.y)
-                            else android.graphics.PointF(data.x * annotationState.pageWidth, data.y * annotationState.pageHeight)
-                            drawRect(renderColor, topLeft = Offset(pos.x - 15f, pos.y - 15f), size = androidx.compose.ui.geometry.Size(30f, 30f))
-                        }
-                        VisualType.RULER -> {
-                            val points = preParsedData as? List<Triple<Float, Float, Float>> ?: return@forEach
-                            if (points.size >= 2) {
-                                val sP = points.first()
-                                val eP = points.last()
-                                val startPos = if (pdfView != null) annotationState.pageToView(sP.first, sP.second)
-                                else android.graphics.PointF(sP.first * annotationState.pageWidth, sP.second * annotationState.pageHeight)
-                                val endPos = if (pdfView != null) annotationState.pageToView(eP.first, eP.second)
-                                else android.graphics.PointF(eP.first * annotationState.pageWidth, eP.second * annotationState.pageHeight)
+                    }
+                    VisualType.BOX -> {
+                        val points = preParsedData as? List<Triple<Float, Float, Float>> ?: return@forEach
+                        if (points.size >= 2) {
+                            val sP = points.first()
+                            val eP = points.last()
+                            val startPos = if (pdfView != null) annotationState.pageToView(sP.first, sP.second)
+                            else android.graphics.PointF(sP.first * annotationState.pageWidth, sP.second * annotationState.pageHeight)
+                            val endPos = if (pdfView != null) annotationState.pageToView(eP.first, eP.second)
+                            else android.graphics.PointF(eP.first * annotationState.pageWidth, eP.second * annotationState.pageHeight)
 
-                                drawLine(color = renderColor, start = Offset(startPos.x, startPos.y), end = Offset(endPos.x, endPos.y), strokeWidth = baseScaledWidth, cap = androidx.compose.ui.graphics.StrokeCap.Round)
-                            }
+                            val rect = androidx.compose.ui.geometry.Rect(Offset(startPos.x, startPos.y), Offset(endPos.x, endPos.y))
+                            drawRect(color = renderColor, topLeft = rect.topLeft, size = rect.size, style = Stroke(width = baseScaledWidth))
                         }
-                        VisualType.BOX -> {
-                            val points = preParsedData as? List<Triple<Float, Float, Float>> ?: return@forEach
-                            if (points.size >= 2) {
-                                val sP = points.first()
-                                val eP = points.last()
-                                val startPos = if (pdfView != null) annotationState.pageToView(sP.first, sP.second)
-                                else android.graphics.PointF(sP.first * annotationState.pageWidth, sP.second * annotationState.pageHeight)
-                                val endPos = if (pdfView != null) annotationState.pageToView(eP.first, eP.second)
-                                else android.graphics.PointF(eP.first * annotationState.pageWidth, eP.second * annotationState.pageHeight)
-
-                                val rect = androidx.compose.ui.geometry.Rect(Offset(startPos.x, startPos.y), Offset(endPos.x, endPos.y))
-                                drawRect(color = renderColor, topLeft = rect.topLeft, size = rect.size, style = Stroke(width = baseScaledWidth))
-                            }
-                        }
-                        else -> {
-                            val points = preParsedData as? List<Triple<Float, Float, Float>> ?: return@forEach
-                            if (points.size == 1) {
-                                val p = points.first()
-                                val pos = if (pdfView != null) annotationState.pageToView(p.first, p.second)
-                                else android.graphics.PointF(p.first * annotationState.pageWidth, p.second * annotationState.pageHeight)
-                                drawCircle(color = renderColor, radius = baseScaledWidth / 2f, center = Offset(pos.x, pos.y))
-                            } else if (points.size > 1) {
-                                val path = Path().apply {
-                                    val start = points.first()
-                                    val startPos = if (pdfView != null) annotationState.pageToView(start.first, start.second)
-                                    else android.graphics.PointF(start.first * annotationState.pageWidth, start.second * annotationState.pageHeight)
-                                    moveTo(startPos.x, startPos.y)
-                                    for (i in 1 until points.size) {
-                                        val p = points[i]
-                                        val screenPos = if (pdfView != null) annotationState.pageToView(p.first, p.second)
-                                        else android.graphics.PointF(p.first * annotationState.pageWidth, p.second * annotationState.pageHeight)
-                                        lineTo(screenPos.x, screenPos.y)
-                                    }
+                    }
+                    else -> {
+                        val points = preParsedData as? List<Triple<Float, Float, Float>> ?: return@forEach
+                        if (points.size == 1) {
+                            val p = points.first()
+                            val pos = if (pdfView != null) annotationState.pageToView(p.first, p.second)
+                            else android.graphics.PointF(p.first * annotationState.pageWidth, p.second * annotationState.pageHeight)
+                            drawCircle(color = renderColor, radius = baseScaledWidth / 2f, center = Offset(pos.x, pos.y))
+                        } else if (points.size > 1) {
+                            val path = Path().apply {
+                                val start = points.first()
+                                val startPos = if (pdfView != null) annotationState.pageToView(start.first, start.second)
+                                else android.graphics.PointF(start.first * annotationState.pageWidth, start.second * annotationState.pageHeight)
+                                moveTo(startPos.x, startPos.y)
+                                for (i in 1 until points.size) {
+                                    val p = points[i]
+                                    val screenPos = if (pdfView != null) annotationState.pageToView(p.first, p.second)
+                                    else android.graphics.PointF(p.first * annotationState.pageWidth, p.second * annotationState.pageHeight)
+                                    lineTo(screenPos.x, screenPos.y)
                                 }
-                                drawPath(path = path, color = renderColor, style = Stroke(width = baseScaledWidth, cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
                             }
+                            drawPath(path = path, color = renderColor, style = Stroke(width = baseScaledWidth, cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
                         }
                     }
                 }
             }
         }
+    }
+}
 
-        // LAYER 2: ── LIVE DRAWING ──
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            if (!annotationState.isFocused && currentPathPoints.isNotEmpty() && effectiveTool != VisualType.ERASER) {
-                val screenPoints = currentPathPoints.map { 
-                    val s = if (pdfView != null) {
-                        annotationState.pageToView(it.first, it.second)
-                    } else {
-                        android.graphics.PointF(it.first * (annotationState.pageWidth.takeIf { it > 0 } ?: 1f), it.second * (annotationState.pageHeight.takeIf { it > 0 } ?: 1f))
-                    }
-                    Offset(s.x, s.y)
+@Composable
+private fun LiveDrawingLayer(
+    annotationState: AnnotationState,
+    pdfView: com.github.barteksc.pdfviewer.PDFView?,
+    currentPathPoints: List<Triple<Float, Float, Float>>,
+    effectiveTool: VisualType,
+    eraserPosition: Offset?
+) {
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        if (!annotationState.isFocused && currentPathPoints.isNotEmpty() && effectiveTool != VisualType.ERASER) {
+            val screenPoints = currentPathPoints.map {
+                val s = if (pdfView != null) {
+                    annotationState.pageToView(it.first, it.second)
+                } else {
+                    android.graphics.PointF(it.first * (annotationState.pageWidth.takeIf { it > 0 } ?: 1f), it.second * (annotationState.pageHeight.takeIf { it > 0 } ?: 1f))
                 }
-                
-                val zoom = if (pdfView != null) pdfView.zoom else annotationState.currentZoom
-                val scaledWidth = annotationState.strokeWidth * zoom
-                val renderColor = annotationState.strokeColor.copy(alpha = annotationState.strokeAlpha)
+                Offset(s.x, s.y)
+            }
 
-                when (effectiveTool) {
-                    VisualType.RULER -> {
-                        drawLine(
-                            color = renderColor,
-                            start = screenPoints.first(),
-                            end = screenPoints.last(),
-                            strokeWidth = scaledWidth,
-                            cap = androidx.compose.ui.graphics.StrokeCap.Round
-                        )
-                    }
-                    VisualType.BOX -> {
-                        val start = screenPoints.first()
-                        val end = screenPoints.last()
-                        val rect = androidx.compose.ui.geometry.Rect(start, end)
-                        drawRect(
-                            color = renderColor,
-                            topLeft = rect.topLeft,
-                            size = rect.size,
-                            style = if (annotationState.fillEnabled) androidx.compose.ui.graphics.drawscope.Fill else Stroke(width = scaledWidth)
-                        )
-                    }
-                    else -> {
-                        val path = Path().apply {
-                            moveTo(screenPoints.first().x, screenPoints.first().y)
-                            for (i in 1 until screenPoints.size) {
-                                lineTo(screenPoints[i].x, screenPoints[i].y)
-                            }
+            val zoom = if (pdfView != null) pdfView.zoom else annotationState.currentZoom
+            val scaledWidth = annotationState.strokeWidth * zoom
+            val renderColor = annotationState.strokeColor.copy(alpha = annotationState.strokeAlpha)
+
+            when (effectiveTool) {
+                VisualType.RULER -> {
+                    drawLine(
+                        color = renderColor,
+                        start = screenPoints.first(),
+                        end = screenPoints.last(),
+                        strokeWidth = scaledWidth,
+                        cap = androidx.compose.ui.graphics.StrokeCap.Round
+                    )
+                }
+                VisualType.BOX -> {
+                    val start = screenPoints.first()
+                    val end = screenPoints.last()
+                    val rect = androidx.compose.ui.geometry.Rect(start, end)
+                    drawRect(
+                        color = renderColor,
+                        topLeft = rect.topLeft,
+                        size = rect.size,
+                        style = if (annotationState.fillEnabled) androidx.compose.ui.graphics.drawscope.Fill else Stroke(width = scaledWidth)
+                    )
+                }
+                else -> {
+                    val path = Path().apply {
+                        moveTo(screenPoints.first().x, screenPoints.first().y)
+                        for (i in 1 until screenPoints.size) {
+                            lineTo(screenPoints[i].x, screenPoints[i].y)
                         }
-                        drawPath(
-                            path = path,
-                            color = renderColor,
-                            style = Stroke(
-                                width = scaledWidth,
-                                cap = androidx.compose.ui.graphics.StrokeCap.Round,
-                                join = androidx.compose.ui.graphics.StrokeJoin.Round
-                            )
-                        )
                     }
+                    drawPath(
+                        path = path,
+                        color = renderColor,
+                        style = Stroke(
+                            width = scaledWidth,
+                            cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                            join = androidx.compose.ui.graphics.StrokeJoin.Round
+                        )
+                    )
                 }
             }
+        }
 
-            // Eraser indicator
-            eraserPosition?.let { pos ->
-                val zoom = if (pdfView != null) pdfView.zoom else annotationState.currentZoom
-                val radius = (120f * zoom).coerceIn(20f, 250f)
-                drawCircle(
-                    color = Color.White.copy(alpha = 0.5f),
-                    radius = radius,
-                    center = pos,
-                    style = Stroke(width = 2f)
-                )
-                drawCircle(
-                    color = Color.LightGray.copy(alpha = 0.2f),
-                    radius = radius,
-                    center = pos
-                )
-            }
+        // Eraser indicator
+        eraserPosition?.let { pos ->
+            val zoom = if (pdfView != null) pdfView.zoom else annotationState.currentZoom
+            val radius = (120f * zoom).coerceIn(20f, 250f)
+            drawCircle(
+                color = Color.White.copy(alpha = 0.5f),
+                radius = radius,
+                center = pos,
+                style = Stroke(width = 2f)
+            )
+            drawCircle(
+                color = Color.LightGray.copy(alpha = 0.2f),
+                radius = radius,
+                center = pos
+            )
         }
     }
 }
