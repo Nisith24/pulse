@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.launch
 import com.pulse.data.local.SettingsManager
+import com.pulse.data.sync.FirestoreSyncWorker
 import com.pulse.domain.services.btr.IBtrAuthManager
 import com.pulse.presentation.theme.ThemeViewModel
 import com.pulse.presentation.theme.ThemeMode
@@ -44,6 +45,7 @@ fun ProfileSettingsScreen(
     val themeMode by themeViewModel.themeMode.collectAsState()
 
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     
     // Settings states
     val autoPipEnabled by settingsManager.autoPipEnabledFlow.collectAsState(initial = true)
@@ -199,13 +201,12 @@ fun ProfileSettingsScreen(
                     subtitle = "${defaultSpeed}x",
                     onClick = { showSpeedDialog = true }
                 )
-                val currentContext = LocalContext.current
                 SettingsClickItem(
                     icon = Icons.Default.HighQuality,
                     title = "Video Quality",
                     subtitle = "Auto (Locked for now)",
                     onClick = { 
-                        android.widget.Toast.makeText(currentContext, "Only Auto quality is supported in this version", android.widget.Toast.LENGTH_SHORT).show()
+                        android.widget.Toast.makeText(context, "Only Auto quality is supported in this version", android.widget.Toast.LENGTH_SHORT).show()
                     }
                 )
             }
@@ -230,13 +231,19 @@ fun ProfileSettingsScreen(
                     icon = Icons.Default.Backup,
                     title = "Backup Notes",
                     subtitle = "Backup all notes to cloud",
-                    onClick = { /* TODO: Firestore backup */ }
+                    onClick = {
+                        FirestoreSyncWorker.enqueueDebouncedSync(context)
+                        android.widget.Toast.makeText(context, "Cloud sync initiated", android.widget.Toast.LENGTH_SHORT).show()
+                    }
                 )
                 SettingsClickItem(
                     icon = Icons.Default.Restore,
                     title = "Restore Data",
                     subtitle = "Restore progress & notes from cloud",
-                    onClick = { /* TODO: Firestore restore */ }
+                    onClick = {
+                        FirestoreSyncWorker.enqueueDebouncedSync(context)
+                        android.widget.Toast.makeText(context, "Cloud sync initiated", android.widget.Toast.LENGTH_SHORT).show()
+                    }
                 )
             }
 
