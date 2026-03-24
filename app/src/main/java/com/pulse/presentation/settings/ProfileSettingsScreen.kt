@@ -24,11 +24,15 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.launch
 import com.pulse.data.local.SettingsManager
+import com.pulse.data.sync.FirestoreSyncWorker
 import com.pulse.domain.services.btr.IBtrAuthManager
 import com.pulse.presentation.theme.ThemeViewModel
 import com.pulse.presentation.theme.ThemeMode
 import org.koin.compose.koinInject
 import org.koin.androidx.compose.koinViewModel
+import androidx.work.WorkManager
+import androidx.work.WorkInfo
+import androidx.lifecycle.compose.LocalLifecycleOwner
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,6 +48,9 @@ fun ProfileSettingsScreen(
     val themeMode by themeViewModel.themeMode.collectAsState()
 
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val workManager = remember { WorkManager.getInstance(context) }
     
     // Settings states
     val autoPipEnabled by settingsManager.autoPipEnabledFlow.collectAsState(initial = true)
@@ -230,13 +237,37 @@ fun ProfileSettingsScreen(
                     icon = Icons.Default.Backup,
                     title = "Backup Notes",
                     subtitle = "Backup all notes to cloud",
-                    onClick = { /* TODO: Firestore backup */ }
+                    onClick = {
+                        android.widget.Toast.makeText(context, "Backup started...", android.widget.Toast.LENGTH_SHORT).show()
+                        val workerId = FirestoreSyncWorker.enqueueImmediateSync(context, "PUSH", false)
+                        workManager.getWorkInfoByIdLiveData(workerId).observe(lifecycleOwner) { workInfo ->
+                            if (workInfo != null) {
+                                if (workInfo.state == WorkInfo.State.SUCCEEDED) {
+                                    android.widget.Toast.makeText(context, "Backup complete", android.widget.Toast.LENGTH_SHORT).show()
+                                } else if (workInfo.state == WorkInfo.State.FAILED) {
+                                    android.widget.Toast.makeText(context, "Backup failed", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+                    }
                 )
                 SettingsClickItem(
                     icon = Icons.Default.Restore,
                     title = "Restore Data",
                     subtitle = "Restore progress & notes from cloud",
-                    onClick = { /* TODO: Firestore restore */ }
+                    onClick = {
+                        android.widget.Toast.makeText(context, "Restore started...", android.widget.Toast.LENGTH_SHORT).show()
+                        val workerId = FirestoreSyncWorker.enqueueImmediateSync(context, "PULL", false)
+                        workManager.getWorkInfoByIdLiveData(workerId).observe(lifecycleOwner) { workInfo ->
+                            if (workInfo != null) {
+                                if (workInfo.state == WorkInfo.State.SUCCEEDED) {
+                                    android.widget.Toast.makeText(context, "Restore complete", android.widget.Toast.LENGTH_SHORT).show()
+                                } else if (workInfo.state == WorkInfo.State.FAILED) {
+                                    android.widget.Toast.makeText(context, "Restore failed", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+                    }
                 )
             }
 
