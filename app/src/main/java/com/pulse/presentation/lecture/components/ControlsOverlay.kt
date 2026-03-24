@@ -164,9 +164,16 @@ private fun formatTime(ms: Long): String {
     val hours = totalSec / 3600
     val minutes = (totalSec % 3600) / 60
     val seconds = totalSec % 60
-    return if (hours > 0) {
-        String.format("%d:%02d:%02d", hours, minutes, seconds)
-    } else {
-        String.format("%d:%02d", minutes, seconds)
+
+    return buildString {
+        if (hours > 0) {
+            append(hours).append(':')
+            if (minutes < 10) append('0')
+            append(minutes).append(':')
+        } else {
+            append(minutes).append(':')
+        }
+        if (seconds < 10) append('0')
+        append(seconds)
     }
 }
