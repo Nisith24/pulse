@@ -44,6 +44,7 @@ fun ProfileSettingsScreen(
     val themeMode by themeViewModel.themeMode.collectAsState()
 
     val scope = rememberCoroutineScope()
+    val currentContext = LocalContext.current
     
     // Settings states
     val autoPipEnabled by settingsManager.autoPipEnabledFlow.collectAsState(initial = true)
@@ -199,7 +200,6 @@ fun ProfileSettingsScreen(
                     subtitle = "${defaultSpeed}x",
                     onClick = { showSpeedDialog = true }
                 )
-                val currentContext = LocalContext.current
                 SettingsClickItem(
                     icon = Icons.Default.HighQuality,
                     title = "Video Quality",
@@ -230,13 +230,19 @@ fun ProfileSettingsScreen(
                     icon = Icons.Default.Backup,
                     title = "Backup Notes",
                     subtitle = "Backup all notes to cloud",
-                    onClick = { /* TODO: Firestore backup */ }
+                    onClick = {
+                        com.pulse.data.sync.FirestoreSyncWorker.enqueueBackup(currentContext)
+                        android.widget.Toast.makeText(currentContext, "Backup started in background", android.widget.Toast.LENGTH_SHORT).show()
+                    }
                 )
                 SettingsClickItem(
                     icon = Icons.Default.Restore,
                     title = "Restore Data",
                     subtitle = "Restore progress & notes from cloud",
-                    onClick = { /* TODO: Firestore restore */ }
+                    onClick = {
+                        com.pulse.data.sync.FirestoreSyncWorker.enqueueRestore(currentContext)
+                        android.widget.Toast.makeText(currentContext, "Restore started in background", android.widget.Toast.LENGTH_SHORT).show()
+                    }
                 )
             }
 
