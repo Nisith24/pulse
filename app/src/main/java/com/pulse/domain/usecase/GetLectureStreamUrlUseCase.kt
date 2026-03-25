@@ -3,17 +3,31 @@ package com.pulse.domain.usecase
 import com.pulse.domain.services.btr.IBtrAuthManager
 import com.pulse.domain.services.btr.IBtrService
 
+import java.util.concurrent.ConcurrentHashMap
+
 class GetLectureStreamUrlUseCase(
     private val btrService: IBtrService,
     private val authManager: IBtrAuthManager
 ) {
+    private val cache = ConcurrentHashMap<String, Pair<Pair<String, String?>, Long>>()
+
     suspend operator fun invoke(videoId: String?): Pair<String, String?>? {
         if (videoId == null) return null
+
+        val now = System.currentTimeMillis()
+        val cached = cache[videoId]
+        if (cached != null && (now - cached.second) < 12 * 60 * 60 * 1000L) {
+            return cached.first
+        }
 
         // Try to get auth token; for publicly shared Drive folders (e.g. Microbiology)
         // a null/empty token still allows streaming — no sign-in required
         val token = try { authManager.getToken() } catch (e: Exception) { null }
-        return Pair(btrService.streamUrl(videoId), token)
+        val streamUrl = btrService.streamUrl(videoId)
+        val result = Pair(streamUrl, token)
+
+        cache[videoId] = Pair(result, now)
+        return result
     }
 
     suspend fun invalidateToken() {

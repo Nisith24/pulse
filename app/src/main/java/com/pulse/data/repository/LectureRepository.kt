@@ -21,11 +21,16 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import com.pulse.data.services.btr.BtrFile
+import com.pulse.data.db.DriveFileDao
+import com.pulse.core.data.db.toDomainModel
+import com.pulse.core.data.db.toEntity
 
 sealed class DownloadStatus {
     data class Downloading(val progress: Float, val speed: String, val eta: String, val size: String) : DownloadStatus()
@@ -51,16 +56,16 @@ class LectureRepository(
     private val logger: ILogger,
     private val context: android.content.Context,
     private val syncManager: com.pulse.data.sync.FirestoreSyncManager,
-    private val customListDao: CustomListDao
+    private val customListDao: CustomListDao,
+    private val driveFileDao: DriveFileDao
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val _activeDownloads = MutableStateFlow<Map<String, DownloadStatus>>(emptyMap())
     val activeDownloads = _activeDownloads.asStateFlow()
     private val downloadJobs = ConcurrentHashMap<String, Job>()
 
-    // ── Simple Caches (for fast navigation) ──
-    private val subfolderCache = ConcurrentHashMap<String, List<com.pulse.data.services.btr.BtrFile>>()
-    private val pdfCache = ConcurrentHashMap<String, List<com.pulse.data.services.btr.BtrFile>>()
+    // ── Memory Caches (for fallback/short-lived) ──
+    private val streamUrlCache = ConcurrentHashMap<String, Pair<String, Long>>()
 
     // ── PDF Download State (observed by ViewModel) ──
     private val _pdfDownloadState = MutableStateFlow<PdfDownloadState>(PdfDownloadState.Idle)
@@ -369,23 +374,62 @@ class LectureRepository(
         }
     }
 
-    /** List PDF files in a Drive folder */
-    suspend fun listPdfs(folderId: String): List<com.pulse.data.services.btr.BtrFile> = withContext(Dispatchers.IO) {
-        pdfCache[folderId]?.let { return@withContext it }
-        val token = try { authManager.getToken() } catch (e: Exception) { "" }
-        val result = btrService.listFolder(folderId, token).filter { it.mimeType == "application/pdf" || it.name.endsWith(".pdf", ignoreCase = true) }
-        if (result.isNotEmpty()) pdfCache[folderId] = result
-        result
+    /** Observe PDF files in a Drive folder locally, syncing if needed */
+    fun observePdfs(folderId: String): Flow<List<BtrFile>> {
+        triggerFolderSyncIfNeeded(folderId, true)
+        return driveFileDao.observeFilesByParentId(folderId).map { files ->
+            files.map { it.toDomainModel() }
+                 .filter { it.mimeType == "application/pdf" || it.name.endsWith(".pdf", ignoreCase = true) }
+        }
     }
 
-    /** List subfolders in a Drive folder */
-    suspend fun listSubfolders(folderId: String): List<com.pulse.data.services.btr.BtrFile> = withContext(Dispatchers.IO) {
-        subfolderCache[folderId]?.let { return@withContext it }
-        val token = try { authManager.getToken() } catch (e: Exception) { "" }
-        val result = btrService.listSubfolders(folderId, token)
-        if (result.isNotEmpty()) subfolderCache[folderId] = result
-        result
+    /** Observe subfolders in a Drive folder locally, syncing if needed */
+    fun observeSubfolders(folderId: String): Flow<List<BtrFile>> {
+        triggerFolderSyncIfNeeded(folderId, false)
+        return driveFileDao.observeFilesByParentId(folderId).map { files ->
+            files.map { it.toDomainModel() }
+                 .filter { it.mimeType == "application/vnd.google-apps.folder" }
+        }
     }
+
+    private fun triggerFolderSyncIfNeeded(folderId: String, isPdfRequest: Boolean) {
+        scope.launch {
+            try {
+                val lastSyncTime = driveFileDao.getLastSyncTime(folderId) ?: 0L
+                val now = System.currentTimeMillis()
+                val twelveHoursInMillis = 12 * 60 * 60 * 1000L
+
+                if (now - lastSyncTime > twelveHoursInMillis) {
+                    val token = try { authManager.getToken() } catch (e: Exception) { "" }
+
+                    // Fallback to anonymous access if token fails, since shared folders can often be viewed publicly
+                    val actualToken = if (token.isEmpty()) null else token
+
+                    val remoteFiles = try {
+                        if (isPdfRequest) {
+                            btrService.listFolder(folderId, actualToken ?: "")
+                        } else {
+                            btrService.listSubfolders(folderId, actualToken ?: "")
+                        }
+                    } catch (e: Exception) {
+                        logger.e("LectureRepo", "Network call failed for background sync $folderId", e)
+                        return@launch // Silently fallback to Room cache
+                    }
+
+                    val entities = remoteFiles.map { it.toEntity(folderId, now) }
+                    // Update Room DB safely
+                    driveFileDao.replaceFolderContents(folderId, entities)
+                }
+            } catch (e: Exception) {
+                logger.e("LectureRepo", "Background sync completely failed for $folderId", e)
+                // Let it fail silently, UI will just show the cached data from Room
+            }
+        }
+    }
+
+    /** Old suspended versions (can wrap the flow for compatibility if needed elsewhere) */
+    suspend fun listPdfs(folderId: String): List<BtrFile> = observePdfs(folderId).first()
+    suspend fun listSubfolders(folderId: String): List<BtrFile> = observeSubfolders(folderId).first()
 
     /** Compute the local path where a Drive PDF would be cached */
     fun getLecturePdfPath(lectureId: String, pdf: com.pulse.data.services.btr.BtrFile): String {
