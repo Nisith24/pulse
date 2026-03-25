@@ -59,6 +59,9 @@ fun PdfViewer(
     onAddVisual: (VisualType, String, Int, Int, Float, Float) -> Unit,
     onAddVisualAtPos: (VisualType, Float, Float, Int, Int, Float, Float) -> Unit,
     onDeleteVisual: (Long) -> Unit,
+    onUndoVisual: () -> Unit = {},
+    onRedoVisual: () -> Unit = {},
+    onClearAllVisuals: (Int) -> Unit = {},
     onCreateBlankNote: () -> Unit = {},
     onAddPage: () -> Unit = {},
     onAddLocalPdf: () -> Unit = {},
@@ -194,6 +197,9 @@ fun PdfViewer(
                 ) {
                     AnnotationToolbar(
                         state = annotationState,
+                        onUndo = onUndoVisual,
+                        onRedo = onRedoVisual,
+                        onClearAll = { onClearAllVisuals(currentPage) },
                         modifier = Modifier.padding(bottom = 12.dp)
                     )
                 }
@@ -414,6 +420,9 @@ private fun PdfMode(
     onAddVisual: (VisualType, String, Int, Int, Float, Float) -> Unit,
     onAddVisualAtPos: (VisualType, Float, Float, Int, Int, Float, Float) -> Unit,
     onDeleteVisual: (Long) -> Unit,
+    onUndoVisual: () -> Unit = {},
+    onRedoVisual: () -> Unit = {},
+    onClearAllVisuals: (Int) -> Unit = {},
     onError: (String) -> Unit,
     pdfViewRef: MutableState<PDFView?>
 ) {

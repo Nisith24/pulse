@@ -89,6 +89,7 @@ fun DrawingCanvas(
                                 
                                 val isStylus = down.type == PointerType.Stylus || down.type == PointerType.Eraser
                                 val isEraserHardware = down.type == PointerType.Eraser
+                                var isStylusActive = isStylus
                                 // Determine the tool for THIS gesture: hardware eraser overrides,
                                 // otherwise always read the latest from annotationState
                                 val gestureTool = if (isEraserHardware) VisualType.ERASER else annotationState.currentTool
@@ -148,7 +149,8 @@ fun DrawingCanvas(
                                         // Single-touch/Stylus drawing logic
                                         val dragChange = event.changes.find { it.id == activePointerId }
                                         
-                                        if (isStylus) {
+                                        if (isStylusActive) {
+                                            // Palm rejection
                                             event.changes.forEach { if (it.type == PointerType.Touch) it.consume() }
                                         }
 
@@ -159,11 +161,13 @@ fun DrawingCanvas(
                                                 pendingDeletions.value.forEach { currentOnDeleteVisual(it) }
                                                 pendingDeletions.value = emptySet()
                                             } else if (gestureTool != VisualType.TEXT && gestureTool != VisualType.STICKY_NOTE && currentPathPoints.isNotEmpty()) {
-                                                val data = currentPathPoints.joinToString(";") { "${it.first},${it.second},${it.third}" }
+                                                val smoothedPoints = simplifyAndSmoothPath(currentPathPoints)
+                                                val data = smoothedPoints.joinToString(";") { "${it.first},${it.second},${it.third}" }
                                                 currentOnDrawComplete(gestureTool, data, annotationState.strokeColor, annotationState.strokeWidth, annotationState.strokeAlpha)
                                             }
                                             currentPathPoints.clear()
                                             eraserPosition = null
+                                            isStylusActive = false
                                             break
                                         } else {
                                             dragChange.consume()
@@ -175,8 +179,7 @@ fun DrawingCanvas(
                                                 // Simple distance-based point suppression for "less write" and smoother strings
                                                 val lastPoint = currentPathPoints.lastOrNull()
                                                 if (lastPoint == null || 
-                                                    (pdfPoint.x - lastPoint.first).let { it * it } + 
-                                                    (pdfPoint.y - lastPoint.second).let { it * it } > 0.000001f) {
+                                                    (pdfPoint.x - lastPoint.first).let { it * it } + (pdfPoint.y - lastPoint.second).let { it * it } > 0.00001f) {
                                                     currentPathPoints.add(Triple(pdfPoint.x, pdfPoint.y, dragChange.pressure))
                                                 }
                                             }
@@ -250,19 +253,58 @@ fun DrawingCanvas(
                                 else android.graphics.PointF(p.first * annotationState.pageWidth, p.second * annotationState.pageHeight)
                                 drawCircle(color = renderColor, radius = baseScaledWidth / 2f, center = Offset(pos.x, pos.y))
                             } else if (points.size > 1) {
-                                val path = Path().apply {
-                                    val start = points.first()
-                                    val startPos = if (pdfView != null) annotationState.pageToView(start.first, start.second)
-                                    else android.graphics.PointF(start.first * annotationState.pageWidth, start.second * annotationState.pageHeight)
-                                    moveTo(startPos.x, startPos.y)
-                                    for (i in 1 until points.size) {
-                                        val p = points[i]
-                                        val screenPos = if (pdfView != null) annotationState.pageToView(p.first, p.second)
-                                        else android.graphics.PointF(p.first * annotationState.pageWidth, p.second * annotationState.pageHeight)
-                                        lineTo(screenPos.x, screenPos.y)
+                                // Draw each smoothed segment individually to support variable stylus pressure
+                                var prevPos: android.graphics.PointF? = null
+
+                                for (i in 1 until points.size) {
+                                    val p = points[i]
+                                    val prevP = points[i-1]
+
+                                    val screenPos = if (pdfView != null) annotationState.pageToView(p.first, p.second)
+                                    else android.graphics.PointF(p.first * annotationState.pageWidth, p.second * annotationState.pageHeight)
+
+                                    val startPos = prevPos ?: if (pdfView != null) annotationState.pageToView(prevP.first, prevP.second)
+                                    else android.graphics.PointF(prevP.first * annotationState.pageWidth, prevP.second * annotationState.pageHeight)
+
+                                    // Use pressure if available, otherwise default to 1f. Pressure maps nicely using a base offset + multiplier.
+                                    val pressure = p.third.takeIf { it > 0f } ?: 1f
+                                    val variableWidth = baseScaledWidth * (0.3f + (pressure * 0.7f))
+
+                                    val segmentPath = Path().apply {
+                                        moveTo(startPos.x, startPos.y)
+                                        quadraticTo(
+                                            startPos.x, startPos.y,
+                                            (startPos.x + screenPos.x) / 2, (startPos.y + screenPos.y) / 2
+                                        )
                                     }
+
+                                    drawPath(
+                                        path = segmentPath,
+                                        color = renderColor,
+                                        style = Stroke(
+                                            width = variableWidth,
+                                            cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                                            join = androidx.compose.ui.graphics.StrokeJoin.Round
+                                        )
+                                    )
+                                    // Update start for next iteration (this creates a smoother connection)
+                                    prevPos = android.graphics.PointF((startPos.x + screenPos.x) / 2, (startPos.y + screenPos.y) / 2)
                                 }
-                                drawPath(path = path, color = renderColor, style = Stroke(width = baseScaledWidth, cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+
+                                // Draw the final tip
+                                val last = points.last()
+                                val lastPos = if (pdfView != null) annotationState.pageToView(last.first, last.second)
+                                else android.graphics.PointF(last.first * annotationState.pageWidth, last.second * annotationState.pageHeight)
+                                prevPos?.let {
+                                    val lastPressure = last.third.takeIf { it > 0f } ?: 1f
+                                    drawLine(
+                                        color = renderColor,
+                                        start = Offset(it.x, it.y),
+                                        end = Offset(lastPos.x, lastPos.y),
+                                        strokeWidth = baseScaledWidth * (0.3f + (lastPressure * 0.7f)),
+                                        cap = androidx.compose.ui.graphics.StrokeCap.Round
+                                    )
+                                }
                             }
                         }
                     }
@@ -308,21 +350,48 @@ fun DrawingCanvas(
                         )
                     }
                     else -> {
-                        val path = Path().apply {
-                            moveTo(screenPoints.first().x, screenPoints.first().y)
-                            for (i in 1 until screenPoints.size) {
-                                lineTo(screenPoints[i].x, screenPoints[i].y)
+                        var prevPos: Offset? = null
+                        for (i in 1 until screenPoints.size) {
+                            val current = screenPoints[i]
+                            val prevP = screenPoints[i-1]
+
+                            val startPos = prevPos ?: prevP
+
+                            // The underlying data still holds the pressure at the same index
+                            val pressure = currentPathPoints[i].third.takeIf { it > 0f } ?: 1f
+                            val variableWidth = scaledWidth * (0.3f + (pressure * 0.7f))
+
+                            val segmentPath = Path().apply {
+                                moveTo(startPos.x, startPos.y)
+                                quadraticTo(
+                                    startPos.x, startPos.y,
+                                    (startPos.x + current.x) / 2, (startPos.y + current.y) / 2
+                                )
                             }
-                        }
-                        drawPath(
-                            path = path,
-                            color = renderColor,
-                            style = Stroke(
-                                width = scaledWidth,
-                                cap = androidx.compose.ui.graphics.StrokeCap.Round,
-                                join = androidx.compose.ui.graphics.StrokeJoin.Round
+
+                            drawPath(
+                                path = segmentPath,
+                                color = renderColor,
+                                style = Stroke(
+                                    width = variableWidth,
+                                    cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                                    join = androidx.compose.ui.graphics.StrokeJoin.Round
+                                )
                             )
-                        )
+                            prevPos = Offset((startPos.x + current.x) / 2, (startPos.y + current.y) / 2)
+                        }
+
+                        val lastPoint = screenPoints.last()
+                        prevPos?.let {
+                            val lastPressure = currentPathPoints.last().third.takeIf { it > 0f } ?: 1f
+                            drawLine(
+                                color = renderColor,
+                                start = it,
+                                end = lastPoint,
+                                strokeWidth = scaledWidth * (0.3f + (lastPressure * 0.7f)),
+                                cap = androidx.compose.ui.graphics.StrokeCap.Round
+                            )
+                        }
                     }
                 }
             }
@@ -414,4 +483,43 @@ private fun getDistanceToSegment(p: Offset, a: Offset, b: Offset): Float {
     var t = ((p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y)) / l2
     t = t.coerceIn(0f, 1f)
     return (p - Offset(a.x + t * (b.x - a.x), a.y + t * (b.y - a.y))).getDistance()
+}
+
+/**
+ * Simplifies the drawing path by removing unnecessary collinear points,
+ * significantly reducing the data string size saved to the database.
+ */
+private fun simplifyAndSmoothPath(points: List<Triple<Float, Float, Float>>): List<Triple<Float, Float, Float>> {
+    if (points.size <= 2) return points
+    val simplified = mutableListOf<Triple<Float, Float, Float>>()
+    simplified.add(points.first())
+
+    var lastSaved = points.first()
+    for (i in 1 until points.size - 1) {
+        val current = points[i]
+
+        val dx = current.first - lastSaved.first
+        val dy = current.second - lastSaved.second
+        val distSq = dx * dx + dy * dy
+
+        // If the point is extremely close to the last saved one, skip it
+        if (distSq < 0.00002f) {
+            continue
+        }
+
+        // Check pressure difference
+        val pressureDiff = Math.abs(current.third - lastSaved.third)
+
+        // Save point if it's far enough, or if pressure changed significantly
+        if (distSq > 0.0001f || pressureDiff > 0.05f) {
+            simplified.add(current)
+            lastSaved = current
+        }
+    }
+
+    val last = points.last()
+    if (simplified.last() != last) {
+        simplified.add(last)
+    }
+    return simplified
 }

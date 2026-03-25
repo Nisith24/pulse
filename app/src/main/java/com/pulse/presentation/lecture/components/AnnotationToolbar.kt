@@ -67,6 +67,9 @@ private val PrimaryTools = listOf(
 @Composable
 fun AnnotationToolbar(
     state: AnnotationState,
+    onUndo: () -> Unit = {},
+    onRedo: () -> Unit = {},
+    onClearAll: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var expandedSection by remember { mutableStateOf(ExpandedSection.NONE) }
@@ -122,6 +125,34 @@ fun AnnotationToolbar(
             },
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // ── Utility Row (Undo, Redo, Clear) ──
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                IconButton(onClick = onUndo, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Default.Undo, contentDescription = "Undo", modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                IconButton(onClick = onRedo, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Default.Redo, contentDescription = "Redo", modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            TextButton(
+                onClick = onClearAll,
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                modifier = Modifier.height(32.dp)
+            ) {
+                Icon(Icons.Default.DeleteSweep, contentDescription = null, modifier = Modifier.size(16.dp).padding(end = 4.dp), tint = MaterialTheme.colorScheme.error)
+                Text("Clear", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
+            }
+        }
+
+        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
         // ── Expandable Sections (Color, Stroke, Opacity) ──
         AnimatedContent(
             targetState = expandedSection,

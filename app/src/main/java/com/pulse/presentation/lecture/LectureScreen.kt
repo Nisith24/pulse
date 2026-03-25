@@ -440,6 +440,9 @@ private fun LecturePdfViewer(
             viewModel.addVisualAtPos(type, x, y, page, color, width, alpha)
         },
         onDeleteVisual = { id -> viewModel.deleteVisual(id) },
+        onUndoVisual = { viewModel.undoVisual(visuals) },
+        onRedoVisual = { viewModel.redoVisual() },
+        onClearAllVisuals = { page -> viewModel.clearAllVisuals(visuals, page) },
         onAddLocalPdf = onAddLocalPdf,
         onCreateBlankNote = onCreateBlankNote,
         onAddDrivePdf = onAddDrivePdf,

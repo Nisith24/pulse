@@ -341,6 +341,91 @@ class LectureViewModel(
         viewModelScope.launch { noteVisualRepository.delete(id) }
     }
 
+    // --- Annotation Tools: Undo, Redo, Clear All ---
+
+    sealed class VisualAction {
+        data class Add(val visual: NoteVisual) : VisualAction()
+        data class Delete(val visual: NoteVisual) : VisualAction()
+        data class ClearPage(val visuals: List<NoteVisual>) : VisualAction()
+    }
+
+    // Because DB updates can take a moment to propagate back up via Flow,
+    // we use these stacks to track local history safely.
+    private val undoStack = mutableListOf<VisualAction>()
+    private val redoStack = mutableListOf<VisualAction>()
+
+    // Push an action and clear the redo stack (used whenever a new drawing is made).
+    // Note: To fully integrate this, we should really be returning the newly inserted
+    // NoteVisual ID from the DAO and pushing it, but the Flow automatically updates visuals.
+    // Instead, we will infer the action by examining the `currentVisuals` before/after.
+    // However, it's safer to just rely on the Flow output for Undo/Redo operations.
+
+    fun undoVisual(currentVisuals: List<NoteVisual>) {
+        if (currentVisuals.isEmpty()) return
+
+        // Find the most recently added visual ON THE CURRENT PAGE by checking the max ID
+        // (assuming higher ID = newer insert).
+        val lastVisual = currentVisuals.maxByOrNull { it.id }
+
+        if (lastVisual != null) {
+            viewModelScope.launch {
+                noteVisualRepository.delete(lastVisual.id)
+                redoStack.add(VisualAction.Add(lastVisual))
+            }
+            return
+        }
+
+        // If there are no normal visuals to undo, check if we need to undo a ClearAll
+        val lastAction = undoStack.removeLastOrNull()
+        if (lastAction is VisualAction.ClearPage) {
+             viewModelScope.launch {
+                 lastAction.visuals.forEach { visual ->
+                     noteVisualRepository.insert(visual.copy(id = 0, isDeleted = false, hlcTimestamp = ""))
+                 }
+             }
+        }
+    }
+
+    fun redoVisual() {
+        val actionToRedo = redoStack.removeLastOrNull() ?: return
+
+        viewModelScope.launch {
+            when (actionToRedo) {
+                is VisualAction.Add -> {
+                    // Re-insert the visual we previously undid (deleted).
+                    // We set ID to 0 so Room generates a new one, keeping it at the top of the stack.
+                    noteVisualRepository.insert(
+                        actionToRedo.visual.copy(id = 0, isDeleted = false, hlcTimestamp = "")
+                    )
+                    // We don't push back to undoStack here because the Flow will pick up the new
+                    // insertion, and our `undoVisual` relies on the Flow state directly.
+                }
+                is VisualAction.ClearPage -> {
+                    // Re-clear the page if we want to support redos of clear
+                    actionToRedo.visuals.forEach { noteVisualRepository.delete(it.id) }
+                }
+                is VisualAction.Delete -> {
+                     noteVisualRepository.delete(actionToRedo.visual.id)
+                }
+            }
+        }
+    }
+
+    fun clearAllVisuals(currentVisuals: List<NoteVisual>, pageIndex: Int) {
+        val pageVisuals = currentVisuals.filter { it.pageNumber == pageIndex }
+        if (pageVisuals.isEmpty()) return
+
+        viewModelScope.launch {
+            pageVisuals.forEach { visual ->
+                noteVisualRepository.delete(visual.id)
+            }
+            // Add a single ClearPage action to the undo stack.
+            // When undone, we should restore all these visuals.
+            undoStack.add(VisualAction.ClearPage(pageVisuals))
+        }
+    }
+
+
     fun setPlaybackSpeed(speed: Float) {
         player.setPlaybackSpeed(speed)
         _lecture.value?.let { l ->
