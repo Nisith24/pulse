@@ -449,6 +449,17 @@ fun LibraryScreen(
                     }
                 }
             } else {
+                val groupedLectures = remember(currentLectures, currentTab) {
+                    if (currentTab != LibraryTab.HOME) {
+                        val digitRegex = Regex("\\d+")
+                        currentLectures.groupBy { lecture ->
+                            digitRegex.find(lecture.name)?.value ?: "Misc"
+                        }
+                    } else {
+                        emptyMap()
+                    }
+                }
+
                 LazyVerticalGrid(
                     columns = GridCells.Adaptive(240.dp),
                     contentPadding = PaddingValues(16.dp),
@@ -468,9 +479,6 @@ fun LibraryScreen(
                             )
                         }
                     } else {
-                        val groupedLectures = currentLectures.groupBy { lecture ->
-                            Regex("\\d+").find(lecture.name)?.value ?: "Misc"
-                        }
                         groupedLectures.forEach { (moduleNumber, lectures) ->
                             item(span = { GridItemSpan(maxLineSpan) }) {
                                 Text(
