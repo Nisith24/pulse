@@ -107,178 +107,49 @@ fun PrepladderRRScreen(
                 .padding(padding)
         ) {
             when {
-                // Error state
                 uiState.error != null -> {
-                    Box(
-                        Modifier.fillMaxSize().padding(32.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                uiState.error ?: "",
-                                color = MaterialTheme.colorScheme.error,
-                                textAlign = TextAlign.Center,
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                            Spacer(Modifier.height(16.dp))
-                            OutlinedButton(onClick = {
-                                if (uiState.currentFolder != null) {
-                                    viewModel.openFolder(uiState.currentFolder!!)
-                                } else {
-                                    viewModel.loadSubfolders()
-                                }
-                            }) {
-                                Text("Retry")
-                            }
-                        }
-                    }
-                }
-
-                // Inside a subfolder — show videos
-                uiState.currentFolder != null -> {
-                    if (lectures.isEmpty() && !uiState.isLoadingVideos && searchQuery.isBlank()) {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(
-                                "No videos in this folder yet.",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                        }
-                    } else {
-                        Column(modifier = Modifier.fillMaxSize()) {
-                            OutlinedTextField(
-                                value = searchQuery,
-                                onValueChange = viewModel::updateSearchQuery,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                                placeholder = { Text("Search files...") },
-                                singleLine = true,
-                                shape = MaterialTheme.shapes.medium
-                            )
-                            
-                            if (lectures.isEmpty() && searchQuery.isNotBlank()) {
-                                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                     Text("No files match your search.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                 }
+                    PrepladderRRErrorState(
+                        error = uiState.error ?: "",
+                        onRetryClick = {
+                            if (uiState.currentFolder != null) {
+                                viewModel.openFolder(uiState.currentFolder!!)
                             } else {
-                                LazyVerticalGrid(
-                                    columns = GridCells.Adaptive(240.dp),
-                                    contentPadding = PaddingValues(16.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                                    modifier = Modifier.fillMaxSize()
-                                ) {
-                                    items(lectures, key = { it.id }) { lecture ->
-                                        LectureCard(
-                                            lecture = lecture,
-                                            isLibraryHome = false,
-                                            onLectureSelected = { id ->
-                                                onNavigateToLecture(id, uiState.currentFolder?.id)
-                                            },
-                                            onToggleFavorite = { viewModel.toggleFavorite(it) },
-                                            onDelete = { viewModel.deleteLecture(it) },
-                                            onLongPress = { selectedLongPressLecture = it }
-                                        )
-                                    }
-                                }
+                                viewModel.loadSubfolders()
                             }
                         }
-                    }
+                    )
                 }
 
-                // Root — show subfolders list
+                uiState.currentFolder != null -> {
+                    PrepladderRRVideoList(
+                        lectures = lectures,
+                        isLoadingVideos = uiState.isLoadingVideos,
+                        searchQuery = searchQuery,
+                        currentFolder = uiState.currentFolder,
+                        onSearchQueryChange = viewModel::updateSearchQuery,
+                        onNavigateToLecture = onNavigateToLecture,
+                        onToggleFavorite = { viewModel.toggleFavorite(it) },
+                        onDelete = { viewModel.deleteLecture(it) },
+                        onLongPress = { selectedLongPressLecture = it }
+                    )
+                }
+
                 uiState.subfolders.isEmpty() && !uiState.isLoadingFolders -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                "No folders found.",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                            Spacer(Modifier.height(16.dp))
-                            OutlinedButton(onClick = { viewModel.loadSubfolders() }) {
-                                Text("Refresh")
-                            }
-                        }
-                    }
+                    PrepladderRREmptyFolderState(
+                        onRefreshClick = { viewModel.loadSubfolders() }
+                    )
                 }
 
                 else -> {
-                    Column(modifier = Modifier.fillMaxSize()) {
-                        OutlinedTextField(
-                            value = searchQuery,
-                            onValueChange = viewModel::updateSearchQuery,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            placeholder = { Text("Search folders...") },
-                            singleLine = true,
-                            shape = MaterialTheme.shapes.medium
-                        )
-                        
-                        val filteredFolders = if (searchQuery.isBlank()) {
-                            uiState.subfolders
-                        } else {
-                            uiState.subfolders.filter { it.name.contains(searchQuery, ignoreCase = true) }
+                    PrepladderRRFolderList(
+                        subfolders = uiState.subfolders,
+                        searchQuery = searchQuery,
+                        onSearchQueryChange = viewModel::updateSearchQuery,
+                        onFolderClick = { folder ->
+                            viewModel.updateSearchQuery("")
+                            viewModel.openFolder(folder)
                         }
-                        
-                        if (filteredFolders.isEmpty() && searchQuery.isNotBlank()) {
-                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Text("No folders match your search.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        } else {
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                items(filteredFolders, key = { it.id }) { folder ->
-                                    ElevatedCard(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable { 
-                                                viewModel.updateSearchQuery("") // Clear text on folder open
-                                                viewModel.openFolder(folder) 
-                                            },
-                                        colors = CardDefaults.elevatedCardColors(
-                                            containerColor = MaterialTheme.colorScheme.surface
-                                        ),
-                                        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
-                                    ) {
-                                        ListItem(
-                                            headlineContent = {
-                                                Text(
-                                                    folder.name,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    style = MaterialTheme.typography.titleMedium
-                                                )
-                                            },
-                                            leadingContent = {
-                                                Surface(
-                                                    shape = MaterialTheme.shapes.medium,
-                                                    color = MaterialTheme.colorScheme.primaryContainer,
-                                                    modifier = Modifier.size(48.dp)
-                                                ) {
-                                                    Box(contentAlignment = Alignment.Center) {
-                                                        Icon(
-                                                            Icons.Default.Folder,
-                                                            contentDescription = null,
-                                                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                                            modifier = Modifier.size(28.dp)
-                                                        )
-                                                    }
-                                                }
-                                            },
-                                            colors = ListItemDefaults.colors(
-                                                containerColor = androidx.compose.ui.graphics.Color.Transparent
-                                            )
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    )
                 }
             }
         }
