@@ -2,6 +2,7 @@ package com.pulse.data.services.btr
 
 import com.pulse.core.domain.util.ILogger
 import com.pulse.core.domain.util.Constants
+import com.pulse.core.domain.util.executeWithRetry
 import com.pulse.domain.services.btr.IBtrAuthManager
 import com.pulse.domain.services.btr.IBtrService
 import java.io.File
@@ -53,7 +54,7 @@ class GoogleDriveBtrService(
 
                     try {
                         logger.d("BtrService", "Listing folder: $currentFolderName ($currentFolderId)")
-                        client.newCall(request).execute().use { response ->
+                        client.executeWithRetry(request).use { response ->
                             val body = response.body?.string() ?: ""
                             if (response.isSuccessful) {
                                 val files = parseBtrFiles(body)
@@ -106,7 +107,7 @@ class GoogleDriveBtrService(
             .build()
 
         try {
-            client.newCall(request).execute().use { response ->
+            client.executeWithRetry(request).use { response ->
                 val body = response.body?.string() ?: ""
                 if (response.isSuccessful) {
                     parseBtrFiles(body)
@@ -131,7 +132,7 @@ class GoogleDriveBtrService(
             .url(url)
             .apply { if (accessToken.isNotEmpty()) addHeader("Authorization", "Bearer $accessToken") }
             .build()
-        client.newCall(request).execute().use { response ->
+        client.executeWithRetry(request).use { response ->
             if (!response.isSuccessful) error("Download failed: ${response.code}")
             val body = response.body ?: error("Empty response body from Drive API")
             body.bytes()
@@ -146,7 +147,7 @@ class GoogleDriveBtrService(
             .addHeader("Range", "bytes=$start-$end")
             .apply { if (accessToken.isNotEmpty()) addHeader("Authorization", "Bearer $accessToken") }
             .build()
-        client.newCall(request).execute().use { response ->
+        client.executeWithRetry(request).use { response ->
             if (response.code != 206 && response.code != 200) error("Range download failed: ${response.code}")
             val body = response.body ?: error("Empty response body from Drive API")
             body.bytes()
@@ -160,7 +161,7 @@ class GoogleDriveBtrService(
             .url(url)
             .apply { if (accessToken.isNotEmpty()) addHeader("Authorization", "Bearer $accessToken") }
             .build()
-        client.newCall(request).execute().use { response ->
+        client.executeWithRetry(request).use { response ->
             if (!response.isSuccessful) error("Fetch failed: ${response.code}")
             streamBody(response, outputStream, onProgress)
         }
@@ -231,7 +232,7 @@ class GoogleDriveBtrService(
             requestBuilder.addHeader("Range", "bytes=$existingBytes-")
         }
 
-        client.newCall(requestBuilder.build()).execute().use { response ->
+        client.executeWithRetry(requestBuilder.build()).use { response ->
             val isResume = response.code == 206
             val isFullDownload = response.code == 200
 
