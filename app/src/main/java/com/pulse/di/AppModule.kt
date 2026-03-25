@@ -69,30 +69,9 @@ val appModule = module {
     single<IBtrAuthManager> { get<FirebasePulseAuthManager>() }
     
     single {
-        val retryInterceptor = okhttp3.Interceptor { chain ->
-            val request = chain.request()
-            var lastException: Exception? = null
-            for (attempt in 0..2) {
-                try {
-                    val response = chain.proceed(request)
-                    if (response.isSuccessful || response.code !in listOf(502, 503, 504)) {
-                        return@Interceptor response
-                    }
-                    response.close()
-                } catch (e: java.io.IOException) {
-                    lastException = e
-                }
-                if (attempt < 2) {
-                    try { Thread.sleep((300L * (attempt + 1))) } catch (ignored: InterruptedException) {}
-                }
-            }
-            throw lastException ?: java.io.IOException("Retry exhausted for ${request.url}")
-        }
-
         OkHttpClient.Builder()
             .protocols(listOf(okhttp3.Protocol.HTTP_2, okhttp3.Protocol.HTTP_1_1))
             .connectionPool(okhttp3.ConnectionPool(5, 5, TimeUnit.MINUTES))
-            .addInterceptor(retryInterceptor)
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
             .writeTimeout(60, TimeUnit.SECONDS)

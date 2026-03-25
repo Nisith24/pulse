@@ -75,28 +75,6 @@ class PlayerProvider(private val context: Context, fileStorageManager: FileStora
         chain.proceed(request)
     }
 
-    // ── Retry Interceptor: 3 attempts with exponential backoff ──
-    private val retryInterceptor = Interceptor { chain ->
-        val request = chain.request()
-        var lastException: Exception? = null
-        for (attempt in 0..2) {
-            try {
-                val response = chain.proceed(request)
-                // Retry on server errors (502, 503, 504) — Google Drive occasionally returns these
-                if (response.isSuccessful || response.code !in listOf(502, 503, 504)) {
-                    return@Interceptor response
-                }
-                response.close()
-            } catch (e: java.io.IOException) {
-                lastException = e
-            }
-            if (attempt < 2) {
-                try { Thread.sleep((300L * (attempt + 1))) } catch (ignored: InterruptedException) {}
-            }
-        }
-        throw lastException ?: java.io.IOException("Retry exhausted for ${request.url}")
-    }
-
     // ── DNS Cache: Avoids repeated DNS lookups for Google domains ──
     private val dnsCache = ConcurrentHashMap<String, Pair<List<InetAddress>, Long>>()
     private val DNS_TTL_MS = 3 * 60 * 1000L // 3 minutes
