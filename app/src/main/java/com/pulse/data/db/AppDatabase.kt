@@ -10,10 +10,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 import com.pulse.core.data.db.CustomList
 import com.pulse.core.data.db.CustomListLectureCrossRef
+import com.pulse.core.data.db.DriveFileEntity
 
 @Database(
-    entities = [Lecture::class, Note::class, NoteVisual::class, CustomList::class, CustomListLectureCrossRef::class], 
-    version = 14, 
+    entities = [Lecture::class, Note::class, NoteVisual::class, CustomList::class, CustomListLectureCrossRef::class, DriveFileEntity::class],
+    version = 15,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -21,8 +22,14 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun noteDao(): NoteDao
     abstract fun noteVisualDao(): NoteVisualDao
     abstract fun customListDao(): com.pulse.data.db.CustomListDao
+    abstract fun driveFileDao(): DriveFileDao
 
     companion object {
+        val MIGRATION_14_15 = object : Migration(14, 15) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("CREATE TABLE IF NOT EXISTS `drive_files` (`id` TEXT NOT NULL, `parentId` TEXT NOT NULL, `name` TEXT NOT NULL, `mimeType` TEXT NOT NULL, `size` INTEGER, `lastSyncedAt` INTEGER NOT NULL, PRIMARY KEY(`id`))")
+            }
+        }
         val MIGRATION_12_13 = object : Migration(12, 13) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("ALTER TABLE lectures ADD COLUMN subject TEXT DEFAULT NULL")
