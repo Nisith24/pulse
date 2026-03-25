@@ -1,0 +1,282 @@
+﻿--------- beginning of system
+03-08 13:39:47.029 I/ActivityManager( 1782): Start proc 19248:com.android.traceur/u0a86 for service {com.android.traceur/com.android.traceur.QsService}
+03-08 13:39:47.178 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 10086. pid: 19248
+03-08 13:39:47.493 I/ActivityManager( 1782): Start proc 19264:com.heytap.mcs.biz.message/1000 for service {com.heytap.mcs/com.heytap.mcs.biz.message.MessageDealService}
+03-08 13:39:47.631 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 1000. pid: 19264
+03-08 13:39:49.888 I/ActivityManager( 1782): Start proc 19292:com.pulse/u0a291 for next-top-activity {com.pulse/com.pulse.MainActivity}
+03-08 13:39:50.887 I/ActivityManager( 1782): Showing crash dialog for package com.pulse u0
+03-08 13:39:51.399 I/ActivityManager( 1782): Killing 18640:com.coloros.floatassistant/u0a166 (adj 975): empty #17
+03-08 13:39:51.515 I/ActivityManager( 1782): Process com.oplus.aod (pid 18654) has died: cch+65 CEM 
+03-08 13:39:51.526 W/ActivityManager( 1782): Process 17936 does not match uid 10259 ignore setting hits oom adj
+03-08 13:39:51.528 W/ActivityManager( 1782): Process 18984 does not match uid 10177 ignore setting hits oom adj
+03-08 13:39:51.528 W/ActivityManager( 1782): Process 17017 does not match uid 10108 ignore setting hits oom adj
+03-08 13:39:51.532 W/ActivityManager( 1782): Process 18984 does not match uid 10177 ignore setting hits oom adj
+03-08 13:39:51.532 W/ActivityManager( 1782): Process 17017 does not match uid 10108 ignore setting hits oom adj
+03-08 13:39:51.533 I/ActivityManager( 1782): Process com.coloros.operationManual (pid 18722) has died: cch+55 CEM 
+03-08 13:39:51.546 W/ActivityManager( 1782): Process 18675 does not match uid 10276 ignore setting hits oom adj
+03-08 13:39:51.547 I/ActivityManager( 1782): Process com.oplus.notificationmanager (pid 17667) has died: cch+5 CEM 
+03-08 13:39:51.549 W/ActivityManager( 1782): Process 16315 does not match uid 10110 ignore setting hits oom adj
+03-08 13:39:51.549 W/ActivityManager( 1782): Process 19081 does not match uid 99910114 ignore setting hits oom adj
+03-08 13:39:51.549 W/ActivityManager( 1782): Process 17936 does not match uid 10259 ignore setting hits oom adj
+03-08 13:39:51.549 W/ActivityManager( 1782): Process 17017 does not match uid 10108 ignore setting hits oom adj
+03-08 13:39:51.550 I/ActivityManager( 1782): Process com.oplus.ndsf (pid 17017) has died: cch+45 CEM 
+03-08 13:39:51.561 W/ActivityManager( 1782): Process 18984 does not match uid 10177 ignore setting hits oom adj
+03-08 13:39:51.561 W/ActivityManager( 1782): Process 16315 does not match uid 10110 ignore setting hits oom adj
+03-08 13:39:51.561 W/ActivityManager( 1782): Process 19081 does not match uid 99910114 ignore setting hits oom adj
+03-08 13:39:51.561 W/ActivityManager( 1782): Process 17866 does not match uid 10275 ignore setting hits oom adj
+03-08 13:39:51.561 W/ActivityManager( 1782): Process 17936 does not match uid 10259 ignore setting hits oom adj
+03-08 13:39:51.561 W/ActivityManager( 1782): Process 18751 does not match uid 10114 ignore setting hits oom adj
+03-08 13:39:51.562 W/ActivityManager( 1782): Process 18675 does not match uid 10276 ignore setting hits oom adj
+03-08 13:39:51.562 I/ActivityManager( 1782): Process com.google.process.gservices (pid 19081) has died: cch+55 CEM 
+03-08 13:39:51.564 W/ActivityManager( 1782): Process 17866 does not match uid 10275 ignore setting hits oom adj
+03-08 13:39:51.564 W/ActivityManager( 1782): Process 17936 does not match uid 10259 ignore setting hits oom adj
+03-08 13:39:51.564 W/ActivityManager( 1782): Process 18751 does not match uid 10114 ignore setting hits oom adj
+03-08 13:39:51.564 W/ActivityManager( 1782): Process 18675 does not match uid 10276 ignore setting hits oom adj
+03-08 13:39:51.564 I/ActivityManager( 1782): Process com.google.android.apps.photos (pid 17936) has died: cch+65 CEM 
+03-08 13:39:51.571 W/ActivityManager( 1782): Process 18751 does not match uid 10114 ignore setting hits oom adj
+03-08 13:39:51.571 W/ActivityManager( 1782): Process 18675 does not match uid 10276 ignore setting hits oom adj
+03-08 13:39:51.573 I/ActivityManager( 1782): Process com.android.vending (pid 16315) has died: cch+35 CEM 
+03-08 13:39:51.576 W/ActivityManager( 1782): Process 18751 does not match uid 10114 ignore setting hits oom adj
+03-08 13:39:51.581 W/ActivityManager( 1782): Process 17866 does not match uid 10275 ignore setting hits oom adj
+03-08 13:39:51.581 W/ActivityManager( 1782): Process 18751 does not match uid 10114 ignore setting hits oom adj
+03-08 13:39:51.581 W/ActivityManager( 1782): Process 18675 does not match uid 10276 ignore setting hits oom adj
+03-08 13:39:51.581 I/ActivityManager( 1782): Process com.google.android.gms.ui (pid 18751) has died: cch+45 CEM 
+03-08 13:39:51.583 W/ActivityManager( 1782): Process 18675 does not match uid 10276 ignore setting hits oom adj
+03-08 13:39:51.584 I/ActivityManager( 1782): Process com.google.android.healthconnect.controller (pid 18675) has died: cch+45 CEM 
+03-08 13:39:51.590 I/ActivityManager( 1782): Process com.google.android.permissioncontroller (pid 17866) has died: cch+35 CEM 
+03-08 13:39:51.599 I/ActivityManager( 1782): Process com.coloros.weather.service (pid 18984) has died: cch+25 CEM 
+03-08 13:39:54.196 I/ActivityManager( 1782): Killing 19292:com.pulse/u0a291 (adj 900): crash
+03-08 13:39:54.734 I/ActivityManager( 1782): Start proc 19365:com.pulse/u0a291 for next-top-activity {com.pulse/com.pulse.MainActivity}
+03-08 13:39:55.650 I/ActivityManager( 1782): hookHandleApplicationCrashBeforeInner do not showErrorDialog shouldThottle= true
+03-08 13:39:55.695 I/ActivityManager( 1782): Process com.pulse (pid 19365) has died: fg  TOP 
+03-08 13:40:01.837 I/ActivityManager( 1782): Waited long enough for: ServiceRecord{38d1470 u999 com.google.android.gms/.chimera.PersistentIntentOperationService}
+03-08 13:40:09.668 I/ActivityManager( 1782): PendingStartActivityUids startActivity to updateOomAdj delay:13524ms, uid:10202
+03-08 13:40:11.479 E/ActivityManager( 1782): Cancel pending or running compactions as system is awake
+03-08 13:40:11.509 I/ActivityManager( 1782): updateOomAdj start time is before than pendingPid added, don't delete it
+03-08 13:40:11.689 I/ActivityManager( 1782): Start proc 19449:com.oplus.notificationmanager/1000 for service {com.oplus.notificationmanager/com.oplus.notification.NotificationCenterService}
+03-08 13:40:11.845 I/ActivityManager( 1782): Start proc 19470:com.coloros.weather.service/u0a177 for service {com.coloros.weather.service/com.oplus.weather.external.WeatherCommonService}
+03-08 13:40:11.899 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 1000. pid: 19449
+03-08 13:40:11.922 I/ActivityManager( 1782): Start proc 19487:com.oplus.romupdate/u0a179 for content provider {com.oplus.romupdate/com.oplusos.romupdate.provider.RomUpdateProvider}
+03-08 13:40:12.005 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 10177. pid: 19470
+03-08 13:40:12.076 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 10179. pid: 19487
+03-08 13:40:15.385 I/ActivityManager( 1782): Start proc 19560:com.pulse/u0a291 for next-top-activity {com.pulse/com.pulse.MainActivity}
+03-08 13:40:16.293 I/ActivityManager( 1782): hookHandleApplicationCrashBeforeInner do not showErrorDialog shouldThottle= true
+03-08 13:40:16.352 I/ActivityManager( 1782): Process com.pulse (pid 19560) has died: fg  TOP 
+03-08 13:40:16.482 W/ActivityManager( 1782): Process 19470 does not match uid 10177 ignore setting hits oom adj
+03-08 13:40:16.484 W/ActivityManager( 1782): Process 19470 does not match uid 10177 ignore setting hits oom adj
+03-08 13:40:16.485 I/ActivityManager( 1782): Process com.oplus.romupdate (pid 19487) has died: cch+15 CEM 
+03-08 13:40:16.508 W/ActivityManager( 1782): Process 19470 does not match uid 10177 ignore setting hits oom adj
+03-08 13:40:16.508 W/ActivityManager( 1782): Process 18695 does not match uid 10110 ignore setting hits oom adj
+03-08 13:40:16.508 W/ActivityManager( 1782): Process 15434 does not match uid 10114 ignore setting hits oom adj
+03-08 13:40:16.509 I/ActivityManager( 1782): Process com.oplus.notificationmanager (pid 19449) has died: cch+5 CEM 
+03-08 13:40:16.511 W/ActivityManager( 1782): Process 19470 does not match uid 10177 ignore setting hits oom adj
+03-08 13:40:16.511 W/ActivityManager( 1782): Process 18695 does not match uid 10110 ignore setting hits oom adj
+03-08 13:40:16.512 W/ActivityManager( 1782): Process 15434 does not match uid 10114 ignore setting hits oom adj
+03-08 13:40:16.512 I/ActivityManager( 1782): Process com.google.process.gservices (pid 15434) has died: cch+55 CEM 
+03-08 13:40:16.514 I/ActivityManager( 1782): Process com.android.vending:background (pid 18695) has died: cch+15 CEM 
+03-08 13:40:16.522 I/ActivityManager( 1782): Process com.coloros.weather.service (pid 19470) has died: cch+5 CEM 
+03-08 13:40:18.106 I/ActivityManager( 1782): PendingStartActivityUids startActivity to updateOomAdj delay:1320ms, uid:10202
+03-08 13:40:26.294 I/ActivityManager( 1782): Start proc 19633:com.android.vending/u0a110 for broadcast {com.android.vending/com.google.android.finsky.verifier.impl.PackageVerificationReceiver}
+03-08 13:40:26.327 W/ActivityManager( 1782): Slow operation: 55ms so far, now at startProcess: returned from zygote!
+03-08 13:40:26.333 W/ActivityManager( 1782): Slow operation: 60ms so far, now at startProcess: done updating battery stats
+03-08 13:40:26.333 W/ActivityManager( 1782): Slow operation: 61ms so far, now at startProcess: building log message
+03-08 13:40:26.333 I/ActivityManager( 1782): Start proc 19644:com.google.android.partnersetup/u0a100 for service {com.google.android.partnersetup/com.google.android.partnersetup.InstalledAppJobService}
+03-08 13:40:26.333 W/ActivityManager( 1782): Slow operation: 61ms so far, now at startProcess: starting to update pids map
+03-08 13:40:26.334 W/ActivityManager( 1782): Slow operation: 61ms so far, now at startProcess: done updating pids map
+03-08 13:40:26.361 W/ActivityManager( 1782): Slow operation: 72ms so far, now at startProcess: returned from zygote!
+03-08 13:40:26.374 W/ActivityManager( 1782): Slow operation: 86ms so far, now at startProcess: done updating battery stats
+03-08 13:40:26.375 W/ActivityManager( 1782): Slow operation: 87ms so far, now at startProcess: building log message
+03-08 13:40:26.375 I/ActivityManager( 1782): Start proc 19656:com.google.android.youtube/u0a160 for service {com.google.android.youtube/androidx.work.impl.background.systemjob.SystemJobService}
+03-08 13:40:26.375 W/ActivityManager( 1782): Slow operation: 87ms so far, now at startProcess: starting to update pids map
+03-08 13:40:26.375 W/ActivityManager( 1782): Slow operation: 87ms so far, now at startProcess: done updating pids map
+03-08 13:40:26.376 W/ActivityManager( 1782): Slow operation: 73ms so far, now at startProcess: asking zygote to start proc
+03-08 13:40:26.399 W/ActivityManager( 1782): Slow operation: 97ms so far, now at startProcess: returned from zygote!
+03-08 13:40:26.405 W/ActivityManager( 1782): Slow operation: 103ms so far, now at startProcess: done updating battery stats
+03-08 13:40:26.406 W/ActivityManager( 1782): Slow operation: 104ms so far, now at startProcess: building log message
+03-08 13:40:26.406 I/ActivityManager( 1782): Start proc 19669:com.google.android.apps.nbu.files/u0a236 for service {com.google.android.apps.nbu.files/androidx.work.impl.background.systemjob.SystemJobService}
+03-08 13:40:26.406 W/ActivityManager( 1782): Slow operation: 104ms so far, now at startProcess: starting to update pids map
+03-08 13:40:26.407 W/ActivityManager( 1782): Slow operation: 104ms so far, now at startProcess: done updating pids map
+03-08 13:40:26.407 W/ActivityManager( 1782): Slow operation: 91ms so far, now at startProcess: asking zygote to start proc
+03-08 13:40:26.430 W/ActivityManager( 1782): Slow operation: 114ms so far, now at startProcess: returned from zygote!
+03-08 13:40:26.431 W/ActivityManager( 1782): Slow operation: 116ms so far, now at startProcess: done updating battery stats
+03-08 13:40:26.431 W/ActivityManager( 1782): Slow operation: 116ms so far, now at startProcess: building log message
+03-08 13:40:26.431 I/ActivityManager( 1782): Start proc 19672:com.glance.internet/u0a248 for service {com.glance.internet/com.google.android.datatransport.runtime.scheduling.jobscheduling.JobInfoSchedulerService}
+03-08 13:40:26.431 W/ActivityManager( 1782): Slow operation: 116ms so far, now at startProcess: starting to update pids map
+03-08 13:40:26.432 W/ActivityManager( 1782): Slow operation: 116ms so far, now at startProcess: done updating pids map
+03-08 13:40:26.478 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 10100. pid: 19644
+03-08 13:40:26.524 I/ActivityManager( 1782): Start proc 19719:com.google.process.gservices/u0a114 for content provider {com.google.android.gsf/com.google.android.gsf.gservices.GservicesProvider}
+03-08 13:40:26.526 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 10110. pid: 19633
+03-08 13:40:26.757 W/ActivityManager( 1782): Unable to start service Intent { act=com.google.android.gms.gservices.START pkg=com.google.android.gms mCallingUid=10114 } U=0: not found
+03-08 13:40:26.758 W/ActivityManager( 1782): Unbind failed: could not find connection for android.os.BinderProxy@eee0d4b
+03-08 13:40:26.767 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 10236. pid: 19669
+03-08 13:40:26.796 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 10114. pid: 19719
+03-08 13:40:26.921 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 10248. pid: 19672
+03-08 13:40:26.962 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 10160. pid: 19656
+03-08 13:40:27.172 I/ActivityManager( 1782): Start proc 19888:com.google.process.gapps/u0a114 for content provider {com.google.android.gsf/com.google.android.gsf.settings.GoogleSettingsProvider}
+03-08 13:40:27.394 I/ActivityManager( 1782): Start proc 19928:com.pulse/u0a291 for next-top-activity {com.pulse/com.pulse.MainActivity}
+03-08 13:40:27.683 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 10114. pid: 19888
+03-08 13:40:27.974 I/ActivityManager( 1782): Start proc 19997:com.android.chrome/u0a146 for broadcast {com.android.chrome/com.google.android.apps.chrome.rlz.RevenueStatsConfigurationUpdateReceiver}
+03-08 13:40:28.252 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 10146. pid: 19997
+03-08 13:40:28.392 I/ActivityManager( 1782): hookHandleApplicationCrashBeforeInner do not showErrorDialog shouldThottle= true
+03-08 13:40:28.427 I/ActivityManager( 1782): Process com.pulse (pid 19928) has died: fg  TOP 
+03-08 13:40:28.563 I/ActivityManager( 1782): Process com.google.android.partnersetup (pid 19644) has died: cch+15 CEM 
+03-08 13:40:28.574 W/ActivityManager( 1782): Process 19888 does not match uid 10114 ignore setting hits oom adj
+03-08 13:40:28.575 I/ActivityManager( 1782): Process com.google.process.gapps (pid 19888) has died: cch+25 CEM 
+03-08 13:40:28.589 I/ActivityManager( 1782): Process com.google.android.gms (pid 19032) has died: cch+45 CEM 
+03-08 13:40:28.597 W/ActivityManager( 1782): Process 19248 does not match uid 10086 ignore setting hits oom adj
+03-08 13:40:28.598 I/ActivityManager( 1782): Process com.android.chrome (pid 19997) has died: cch+15 CEM 
+03-08 13:40:28.604 W/ActivityManager( 1782): Process 19669 does not match uid 10236 ignore setting hits oom adj
+03-08 13:40:28.604 W/ActivityManager( 1782): Process 19248 does not match uid 10086 ignore setting hits oom adj
+03-08 13:40:28.610 I/ActivityManager( 1782): Process com.google.android.apps.nbu.files (pid 19669) has died: cch+25 CEM 
+03-08 13:40:28.616 W/ActivityManager( 1782): Process 19248 does not match uid 10086 ignore setting hits oom adj
+03-08 13:40:28.618 I/ActivityManager( 1782): Process com.android.traceur (pid 19248) has died: cch+35 CEM 
+03-08 13:40:28.621 I/ActivityManager( 1782): Process com.google.android.youtube (pid 19656) has died: cch+5 CEM 
+03-08 13:40:29.259 I/ActivityManager( 1782): Start proc 20080:com.android.vending:com.google.android.finsky.verifier.apkanalysis.service.ApkContentsScanService/u0i140 for service {com.android.vending/com.google.android.finsky.verifier.apkanalysis.service.ApkContentsScanService}
+03-08 13:40:29.386 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 99140. pid: 20080
+03-08 13:40:31.503 I/ActivityManager( 1782): Killing 20080:com.android.vending:com.google.android.finsky.verifier.apkanalysis.service.ApkContentsScanService/u0a110i140 (adj 0): isolated not needed
+03-08 13:40:31.578 I/ActivityManager( 1782): PendingStartActivityUids startActivity to updateOomAdj delay:2700ms, uid:10202
+03-08 13:40:36.527 I/ActivityManager( 1782): Start proc 20124:com.google.process.gapps/u0a114 for content provider {com.google.android.gsf/com.google.android.gsf.settings.GoogleSettingsProvider}
+03-08 13:40:36.741 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 10114. pid: 20124
+03-08 13:40:36.997 I/ActivityManager( 1782): Start proc 20161:com.android.vending:background/u0a110 for service {com.android.vending/com.google.frameworks.client.data.android.server.play.BackgroundProcessEndpointService}
+03-08 13:40:37.321 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 10110. pid: 20161
+03-08 13:40:41.307 I/ActivityManager( 1782): Start proc 20231:com.coloros.phonemanager/u0a132 for broadcast {com.coloros.phonemanager/com.oplus.phonemanager.securitycheck.PackageChangedReceiver2}
+03-08 13:40:41.317 I/ActivityManager( 1782): Force stopping com.pulse appid=10291 user=-1: installPackageLI
+03-08 13:40:41.979 I/ActivityManager( 1782): Force stopping com.pulse appid=10291 user=0: pkg removed
+03-08 13:40:42.020 I/ActivityManager( 1782): Force stopping com.pulse appid=10291 user=0: pkg removed
+03-08 13:40:42.076 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 10132. pid: 20231
+03-08 13:40:42.204 I/ActivityManager( 1782): Start proc 20294:com.google.android.permissioncontroller/u0a275 for broadcast {com.google.android.permissioncontroller/com.android.permissioncontroller.safetylabel.SafetyLabelChangedBroadcastReceiver}
+03-08 13:40:42.259 W/ActivityManager( 1782): Unable to start service Intent { act=android.intent.action.VIEW dat=oaps://mk/... pkg=com.heytap.market (has extras) mCallingUid=1000 } U=0: not found
+03-08 13:40:42.263 W/ActivityManager( 1782): Slow operation: 65ms so far, now at startProcess: returned from zygote!
+03-08 13:40:42.310 W/ActivityManager( 1782): Slow operation: 112ms so far, now at startProcess: done updating battery stats
+03-08 13:40:42.310 W/ActivityManager( 1782): Slow operation: 112ms so far, now at startProcess: building log message
+03-08 13:40:42.310 I/ActivityManager( 1782): Start proc 20309:com.android.keychain/1000 for service {com.android.keychain/com.android.keychain.KeyChainService}
+03-08 13:40:42.310 W/ActivityManager( 1782): Slow operation: 112ms so far, now at startProcess: starting to update pids map
+03-08 13:40:42.310 W/ActivityManager( 1782): Slow operation: 113ms so far, now at startProcess: done updating pids map
+03-08 13:40:42.310 W/ActivityManager( 1782): Slow operation: 100ms so far, now at startProcess: asking zygote to start proc
+03-08 13:40:42.333 W/ActivityManager( 1782): Slow operation: 122ms so far, now at startProcess: returned from zygote!
+03-08 13:40:42.400 W/ActivityManager( 1782): Slow operation: 190ms so far, now at startProcess: done updating battery stats
+03-08 13:40:42.400 W/ActivityManager( 1782): Slow operation: 190ms so far, now at startProcess: building log message
+03-08 13:40:42.400 I/ActivityManager( 1782): Start proc 20326:com.heytap.mcs.appservice/1000 for content provider {com.heytap.mcs/com.heytap.mcs.biz.appservice.provider.AppServiceContentProvider}
+03-08 13:40:42.400 W/ActivityManager( 1782): Slow operation: 190ms so far, now at startProcess: starting to update pids map
+03-08 13:40:42.401 W/ActivityManager( 1782): Slow operation: 190ms so far, now at startProcess: done updating pids map
+03-08 13:40:42.401 W/ActivityManager( 1782): Slow operation: 86ms so far, now at startProcess: asking zygote to start proc
+03-08 13:40:42.416 W/ActivityManager( 1782): Slow operation: 102ms so far, now at startProcess: returned from zygote!
+03-08 13:40:42.557 W/ActivityManager( 1782): Slow operation: 86ms so far, now at attachApplicationLocked: before bindApplication
+03-08 13:40:42.558 W/ActivityManager( 1782): Slow operation: 87ms so far, now at attachApplicationLocked: immediately before bindApplication
+03-08 13:40:42.559 W/ActivityManager( 1782): Slow operation: 88ms so far, now at attachApplicationLocked: immediately after bindApplication
+03-08 13:40:42.559 W/ActivityManager( 1782): Slow operation: 89ms so far, now at attachApplicationLocked: after updateLruProcessLocked
+03-08 13:40:42.561 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 1000. pid: 20309
+03-08 13:40:42.570 W/ActivityManager( 1782): Slow operation: 255ms so far, now at startProcess: done updating battery stats
+03-08 13:40:42.570 W/ActivityManager( 1782): Slow operation: 255ms so far, now at startProcess: building log message
+03-08 13:40:42.570 I/ActivityManager( 1782): Start proc 20345:com.heytap.mcs.statistics/1000 for content provider {com.heytap.mcs/com.heytap.mcs.biz.statistics.provider.StatisticsContentProvider}
+03-08 13:40:42.570 W/ActivityManager( 1782): Slow operation: 255ms so far, now at startProcess: starting to update pids map
+03-08 13:40:42.573 W/ActivityManager( 1782): Slow operation: 258ms so far, now at startProcess: done updating pids map
+03-08 13:40:42.573 W/ActivityManager( 1782): Slow operation: 182ms so far, now at startProcess: asking zygote to start proc
+03-08 13:40:42.606 W/ActivityManager( 1782): Slow operation: 214ms so far, now at startProcess: returned from zygote!
+03-08 13:40:42.620 W/ActivityManager( 1782): Slow operation: 228ms so far, now at startProcess: done updating battery stats
+03-08 13:40:42.620 W/ActivityManager( 1782): Slow operation: 228ms so far, now at startProcess: building log message
+03-08 13:40:42.620 I/ActivityManager( 1782): Start proc 20413:com.oplus.safecenter/1000 for broadcast {com.oplus.safecenter/com.oplus.safecenter.privacy.control.DeepProtectReceiver}
+03-08 13:40:42.620 W/ActivityManager( 1782): Slow operation: 228ms so far, now at startProcess: starting to update pids map
+03-08 13:40:42.646 W/ActivityManager( 1782): Slow operation: 255ms so far, now at startProcess: done updating pids map
+03-08 13:40:42.752 W/ActivityManager( 1782): Slow operation: 60ms so far, now at finishAttachApplicationInner: after updateOomAdjLocked
+03-08 13:40:42.864 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 1000. pid: 20326
+03-08 13:40:42.994 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 1000. pid: 20345
+03-08 13:40:43.015 I/ActivityManager( 1782): Start proc 20471:com.oplus.deepthinker:worker/u0a194 for service {com.oplus.deepthinker/com.oplus.deepthinker.internal.inner.proton.schedule.TrainJobService}
+03-08 13:40:43.133 W/ActivityManager( 1782): Slow operation: 114ms so far, now at startProcess: returned from zygote!
+03-08 13:40:43.136 W/ActivityManager( 1782): Slow operation: 117ms so far, now at startProcess: done updating battery stats
+03-08 13:40:43.137 W/ActivityManager( 1782): Slow operation: 119ms so far, now at startProcess: building log message
+03-08 13:40:43.137 I/ActivityManager( 1782): Start proc 20490:com.oplus.notificationmanager/1000 for service {com.oplus.notificationmanager/com.oplus.notification.NotificationCenterService}
+03-08 13:40:43.137 W/ActivityManager( 1782): Slow operation: 119ms so far, now at startProcess: starting to update pids map
+03-08 13:40:43.138 W/ActivityManager( 1782): Slow operation: 119ms so far, now at startProcess: done updating pids map
+03-08 13:40:43.355 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 10275. pid: 20294
+03-08 13:40:43.581 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 10194. pid: 20471
+03-08 13:40:43.734 W/ActivityManager( 1782): Slow operation: 52ms so far, now at startProcess: returned from zygote!
+03-08 13:40:43.748 W/ActivityManager( 1782): Slow operation: 65ms so far, now at startProcess: done updating battery stats
+03-08 13:40:43.748 W/ActivityManager( 1782): Slow operation: 65ms so far, now at startProcess: building log message
+03-08 13:40:43.748 I/ActivityManager( 1782): Start proc 20581:com.google.android.webview:sandboxed_process0:org.chromium.content.app.SandboxedProcessService0:0/u0i141 for  {com.coloros.phonemanager/org.chromium.content.app.SandboxedProcessService0:0}
+03-08 13:40:43.748 W/ActivityManager( 1782): Slow operation: 65ms so far, now at startProcess: starting to update pids map
+03-08 13:40:43.748 W/ActivityManager( 1782): Slow operation: 66ms so far, now at startProcess: done updating pids map
+03-08 13:40:44.410 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 1000. pid: 20490
+03-08 13:40:44.418 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 99141. pid: 20581
+03-08 13:40:44.464 I/ActivityManager( 1782): Start proc 20654:com.oplus.romupdate/u0a179 for content provider {com.oplus.romupdate/com.oplusos.romupdate.provider.RomUpdateProvider}
+03-08 13:40:44.514 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 1000. pid: 20413
+03-08 13:40:44.746 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 10179. pid: 20654
+03-08 13:40:44.829 I/ActivityManager( 1782): Start proc 20711:com.google.android.webview:webview_service/u0a152 for service {com.google.android.webview/org.chromium.android_webview.services.ComponentsProviderService}
+03-08 13:40:45.428 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 10152. pid: 20711
+03-08 13:40:48.383 I/ActivityManager( 1782): Process com.heytap.mcs.statistics (pid 20345) has died: vis IMPF
+03-08 13:40:48.771 I/ActivityManager( 1782): Start proc 20975:com.android.chrome/u0a146 for service {com.android.chrome/org.chromium.chrome.browser.customtabs.CustomTabsConnectionService}
+03-08 13:40:49.045 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 10146. pid: 20975
+03-08 13:40:52.828 I/ActivityManager( 1782): Start proc 21029:com.coloros.securepay/u0a185 for broadcast {com.coloros.securepay/com.coloros.securepay.SecurePayReceiver}
+03-08 13:40:53.023 I/ActivityManager( 1782): Process com.heytap.mcs.appservice (pid 20326) has died: vis IMPF
+03-08 13:40:53.208 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 10185. pid: 21029
+03-08 13:40:54.552 I/ActivityManager( 1782): Start proc 21051:com.oplus.aiunit/u0a155 for service {com.oplus.aiunit/com.oplus.aiunit.core.AIUnitService}
+03-08 13:40:54.624 I/ActivityManager( 1782): Killing 16418:com.heytap.pictorial/u0a257 (adj 915): empty #17
+03-08 13:40:54.954 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 10155. pid: 21051
+03-08 13:40:55.078 W/ActivityManager( 1782): stopServiceToken startId 15 is last, but have 1 remaining args
+03-08 13:40:55.086 I/ActivityManager( 1782): Killing 12878:com.coloros.alarmclock:clockWidget/u0a163 (adj 915): empty #17
+03-08 13:41:01.200 I/ActivityManager( 1782): Killing 20413:com.oplus.safecenter/1000 (adj 965): empty #17
+03-08 13:41:01.202 I/ActivityManager( 1782): Killing 20309:com.android.keychain/1000 (adj 965): empty #18
+03-08 13:41:01.204 I/ActivityManager( 1782): Killing 19264:com.heytap.mcs.biz.message/1000 (adj 935): empty #19
+03-08 13:41:01.205 I/ActivityManager( 1782): Killing 19672:com.glance.internet/u0a248 (adj 935): empty #20
+03-08 13:41:02.319 I/ActivityManager( 1782): Start proc 21115:com.heytap.mcs.biz.message/1000 for service {com.heytap.mcs/com.heytap.mcs.biz.message.MessageDealService}
+03-08 13:41:02.411 I/ActivityManager( 1782): Killing 20161:com.android.vending:background/u0a110 (adj 925): empty #17
+03-08 13:41:02.498 W/ActivityManager( 1782): Exception when unbinding service com.android.vending/com.google.frameworks.client.data.android.server.play.BackgroundProcessEndpointService
+03-08 13:41:02.498 W/ActivityManager( 1782): android.os.DeadObjectException
+03-08 13:41:02.498 W/ActivityManager( 1782): 	at android.os.BinderProxy.transactNative(Native Method)
+03-08 13:41:02.498 W/ActivityManager( 1782): 	at android.os.BinderProxy.transact(BinderProxy.java:685)
+03-08 13:41:02.498 W/ActivityManager( 1782): 	at android.app.IApplicationThread$Stub$Proxy.scheduleUnbindService(IApplicationThread.java:1590)
+03-08 13:41:02.498 W/ActivityManager( 1782): 	at com.android.server.am.ActiveServices.removeConnectionLocked(ActiveServices.java:6287)
+03-08 13:41:02.498 W/ActivityManager( 1782): 	at com.android.server.am.ActiveServices.unbindServiceLocked(ActiveServices.java:4157)
+03-08 13:41:02.498 W/ActivityManager( 1782): 	at com.android.server.am.ActivityManagerService.unbindService(ActivityManagerService.java:14379)
+03-08 13:41:02.498 W/ActivityManager( 1782): 	at android.app.IActivityManager$Stub.onTransact(IActivityManager.java:2907)
+03-08 13:41:02.498 W/ActivityManager( 1782): 	at com.android.server.am.ActivityManagerService.onTransact(ActivityManagerService.java:3005)
+03-08 13:41:02.498 W/ActivityManager( 1782): 	at android.os.Binder.execTransactInternal(Binder.java:1387)
+03-08 13:41:02.498 W/ActivityManager( 1782): 	at android.os.Binder.execTransact(Binder.java:1299)
+03-08 13:41:02.511 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 1000. pid: 21115
+03-08 13:41:04.420 I/ActivityManager( 1782): Process com.oplus.deepthinker:worker (pid 20471) has died: cch+65 CEM 
+03-08 13:41:18.310 E/ActivityManager( 1782): Cancel pending or running compactions as system is awake
+03-08 13:41:20.945 I/ActivityManager( 1782): Start proc 21204:com.coloros.alarmclock:clockWidget/u0a163 for broadcast {com.coloros.alarmclock/com.coloros.widget.smallweather.WidgetLauncherStateReceiver}
+03-08 13:41:21.203 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 10163. pid: 21204
+03-08 13:41:21.332 I/ActivityManager( 1782): Start proc 21222:com.coloros.weather.service/u0a177 for service {com.coloros.weather.service/com.oplus.weather.external.WeatherCommonService}
+03-08 13:41:21.564 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 10177. pid: 21222
+03-08 13:41:21.611 I/ActivityManager( 1782): Start proc 21276:com.google.android.gms/u999a114 for service {com.google.android.gms/com.google.android.gms.chimera.GmsIntentOperationService}
+03-08 13:41:21.941 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 99910114. pid: 21276
+03-08 13:41:22.026 I/ActivityManager( 1782): Start proc 21329:com.google.process.gservices/u999a114 for content provider {com.google.android.gsf/com.google.android.gsf.gservices.GservicesProvider}
+03-08 13:41:22.134 I/ActivityManager( 1782): Start proc 21350:com.pulse/u0a291 for next-top-activity {com.pulse/com.pulse.MainActivity}
+03-08 13:41:22.289 W/ActivityManager( 1782): Unable to start service Intent { act=com.google.android.gms.gservices.START pkg=com.google.android.gms mCallingUid=99910114 } U=0: not found
+03-08 13:41:22.297 W/ActivityManager( 1782): Unbind failed: could not find connection for android.os.BinderProxy@39dd40a
+03-08 13:41:22.336 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 99910114. pid: 21329
+03-08 13:41:23.198 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 10291. pid: 21350
+03-08 13:41:24.190 I/ActivityManager( 1782): Process com.google.process.gapps (pid 20124) has died: cch+55 CEM 
+03-08 13:41:24.199 W/ActivityManager( 1782): Process 21029 does not match uid 10185 ignore setting hits oom adj
+03-08 13:41:24.203 I/ActivityManager( 1782): Process com.google.process.gservices (pid 19719) has died: cch+45 CEM 
+03-08 13:41:24.216 I/ActivityManager( 1782): Process com.oplus.romupdate (pid 20654) has died: cch+45 CEM 
+03-08 13:41:24.231 W/ActivityManager( 1782): Process 21222 does not match uid 10177 ignore setting hits oom adj
+03-08 13:41:24.232 W/ActivityManager( 1782): Process 20294 does not match uid 10275 ignore setting hits oom adj
+03-08 13:41:24.232 W/ActivityManager( 1782): Process 21029 does not match uid 10185 ignore setting hits oom adj
+03-08 13:41:24.234 I/ActivityManager( 1782): Process com.coloros.securepay (pid 21029) has died: cch+65 CEM 
+03-08 13:41:24.250 I/ActivityManager( 1782): Process com.coloros.weather.service (pid 21222) has died: cch+15 CEM 
+03-08 13:41:24.256 W/ActivityManager( 1782): Process 20294 does not match uid 10275 ignore setting hits oom adj
+03-08 13:41:24.256 W/ActivityManager( 1782): Process 19154 does not match uid 10061 ignore setting hits oom adj
+03-08 13:41:24.260 I/ActivityManager( 1782): Process com.google.android.permissioncontroller (pid 20294) has died: cch+45 CEM 
+03-08 13:41:24.268 W/ActivityManager( 1782): Process 20975 does not match uid 10146 ignore setting hits oom adj
+03-08 13:41:24.268 W/ActivityManager( 1782): Process 20711 does not match uid 10152 ignore setting hits oom adj
+03-08 13:41:24.268 W/ActivityManager( 1782): Process 19154 does not match uid 10061 ignore setting hits oom adj
+03-08 13:41:24.269 I/ActivityManager( 1782): Process com.oplus.notificationmanager (pid 20490) has died: cch+5 CEM 
+03-08 13:41:24.276 W/ActivityManager( 1782): Process 20975 does not match uid 10146 ignore setting hits oom adj
+03-08 13:41:24.276 W/ActivityManager( 1782): Process 20711 does not match uid 10152 ignore setting hits oom adj
+03-08 13:41:24.276 W/ActivityManager( 1782): Process 19154 does not match uid 10061 ignore setting hits oom adj
+03-08 13:41:24.277 I/ActivityManager( 1782): Process com.android.chrome (pid 20975) has died: cch+35 CEM 
+03-08 13:41:24.285 W/ActivityManager( 1782): Process 20711 does not match uid 10152 ignore setting hits oom adj
+03-08 13:41:24.285 W/ActivityManager( 1782): Process 19154 does not match uid 10061 ignore setting hits oom adj
+03-08 13:41:24.286 I/ActivityManager( 1782): Process com.google.process.gservices (pid 21329) has died: svcb SVC 
+03-08 13:41:24.292 I/ActivityManager( 1782): Process android.process.acore (pid 19154) has died: cch+45 CEM 
+03-08 13:41:24.300 I/ActivityManager( 1782): Process com.google.android.webview:webview_service (pid 20711) has died: cch+35 CEM 
+03-08 13:41:24.432 I/ActivityManager( 1782): Start proc 21418:com.google.android.googlequicksearchbox:search/u0a117 for service {com.google.android.googlequicksearchbox/androidx.work.impl.background.systemjob.SystemJobService}
+03-08 13:41:24.929 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 10117. pid: 21418
+03-08 13:41:25.000 I/ActivityManager( 1782): Start proc 21462:com.google.process.gservices/u0a114 for content provider {com.google.android.gsf/com.google.android.gsf.gservices.GservicesProvider}
+03-08 13:41:25.210 W/ActivityManager( 1782): Unable to start service Intent { act=com.google.android.gms.gservices.START pkg=com.google.android.gms mCallingUid=10114 } U=0: not found
+03-08 13:41:25.211 W/ActivityManager( 1782): Unbind failed: could not find connection for android.os.BinderProxy@2a12db6
+03-08 13:41:25.241 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 10114. pid: 21462
+03-08 13:41:25.308 I/ActivityManager( 1782): Start proc 21477:com.android.chrome/u0a146 for service {com.android.chrome/org.chromium.chrome.browser.customtabs.CustomTabsConnectionService}
+03-08 13:41:25.463 I/ActivityManager( 1782): Flag disabled. Ignoring finishAttachApplication from uid: 10146. pid: 21477

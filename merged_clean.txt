@@ -1,0 +1,9 @@
+﻿origin/chore/decompose-prepladderrr-screen-14672854969066851753
+origin/cleanup-unused-imports-drawing-canvas-7785053382096683352
+origin/code-health/decompose-drawing-canvas-14802939991277591667
+origin/feat/optimize-db-sync-7999002372655652262
+origin/feat/services-local-first-architecture-7120893356867722229
+origin/feature/firestore-manual-sync-6843833097225846346
+origin/fix/decompose-annotation-toolbar-14872815429021961774
+origin/optimize-okhttp-retries-12377846954625492770
+origin/performance-optimize-time-formatting-15422705285399814131

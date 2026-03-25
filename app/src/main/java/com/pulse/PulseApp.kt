@@ -31,8 +31,13 @@ class PulseApp : Application(), Configuration.Provider {
         if (GlobalContext.getOrNull() == null) {
             initKoin()
         }
-        // Start periodic Firestore sync (every 30 min when connected)
+        
+        // Initialize notifications
+        com.pulse.core.domain.util.NotificationHelper.createNotificationChannel(this)
+        
+        // Start periodic services
         com.pulse.data.sync.FirestoreSyncWorker.enqueuePeriodicSync(this)
+        com.pulse.data.worker.QuoteWorker.enqueuePeriodicQuote(this)
     }
 
     private fun initKoin() {

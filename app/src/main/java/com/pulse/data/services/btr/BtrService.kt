@@ -33,7 +33,7 @@ class GoogleDriveBtrService(
         val processedFolders = java.util.Collections.synchronizedSet(mutableSetOf<String>())
 
         while (foldersToProcess.isNotEmpty()) {
-            val tasks = mutableListOf<kotlinx.coroutines.Deferred<*>>()
+            val tasks = mutableListOf<kotlinx.coroutines.Deferred<Unit>>()
             val batch = synchronized(foldersToProcess) {
                 val copy = foldersToProcess.toList()
                 foldersToProcess.clear()
@@ -76,6 +76,7 @@ class GoogleDriveBtrService(
                     } catch (e: Exception) {
                         logger.e("BtrService", "Network/API exception for $currentFolderId", e)
                     }
+                    Unit
                 })
             }
             // Wait for all fetches in this level to finish before moving to sub-branches

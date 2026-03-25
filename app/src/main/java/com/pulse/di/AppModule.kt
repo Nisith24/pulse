@@ -108,6 +108,7 @@ val appModule = module {
     // Workers
     worker { com.pulse.data.services.btr.BtrSyncWorker(get(), get(), get()) }
     worker { com.pulse.data.sync.FirestoreSyncWorker(get(), get(), get(), get(), get(), get(), get(), get()) }
+    worker { com.pulse.data.worker.QuoteWorker(get(), get()) }
 
     // Firestore Sync
     single { com.pulse.data.sync.FirestoreSyncManager(get(), get()) }
