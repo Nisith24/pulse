@@ -76,6 +76,9 @@ interface LectureDao {
     @Query("SELECT * FROM lectures")
     suspend fun getAllLecturesAsList(): List<Lecture>
 
+    @Query("SELECT * FROM lectures WHERE id IN (:ids)")
+    suspend fun getLecturesByIds(ids: List<String>): List<Lecture>
+
     @Query("SELECT * FROM lectures WHERE lastPosition > 1000 AND isDeleted = 0 ORDER BY updatedAt DESC LIMIT 1")
     fun getRecentLecture(): Flow<Lecture?>
 

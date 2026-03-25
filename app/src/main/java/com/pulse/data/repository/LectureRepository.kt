@@ -242,7 +242,15 @@ class LectureRepository(
 
             val grouped = syncLecturesUseCase(files)
             
-            val existingLectures = lectureDao.getAllLecturesAsList().associateBy { it.id }
+            val existingLectures = if (grouped.isNotEmpty()) {
+                val ids = grouped.map { it.id }
+                // SQLite limits IN clauses to 999 items, so we chunk to be safe
+                ids.chunked(900).flatMap { chunk ->
+                    lectureDao.getLecturesByIds(chunk)
+                }.associateBy { it.id }
+            } else {
+                emptyMap()
+            }
             
             val hlc = hlcGenerator.generate()
             val lecturesToInsert = grouped.map { newLecture ->
@@ -289,7 +297,14 @@ class LectureRepository(
             val files = btrService.listFolder(folderId, token, recursive = true)
             val grouped = syncLecturesUseCase(files)
             
-            val existingLectures = lectureDao.getAllLecturesAsList().associateBy { it.id }
+            val existingLectures = if (grouped.isNotEmpty()) {
+                val ids = grouped.map { it.id }
+                ids.chunked(900).flatMap { chunk ->
+                    lectureDao.getLecturesByIds(chunk)
+                }.associateBy { it.id }
+            } else {
+                emptyMap()
+            }
             val hlc = hlcGenerator.generate()
             
             val lecturesToInsert = grouped.map { newLecture ->
