@@ -275,7 +275,9 @@ class LectureRepository(
                         isPdfDownloaded = existing.isPdfDownloaded,
                         isDeleted = existing.isDeleted,
                         updatedAt = existing.updatedAt,
-                        hlcTimestamp = existing.hlcTimestamp
+                        hlcTimestamp = existing.hlcTimestamp,
+                        pdfId = existing.pdfId ?: newLecture.pdfId,
+                        videoId = existing.videoId ?: newLecture.videoId
                     )
                 } else {
                     newLecture.copy(hlcTimestamp = hlc)
@@ -329,7 +331,9 @@ class LectureRepository(
                         isPdfDownloaded = existing.isPdfDownloaded,
                         isDeleted = existing.isDeleted,
                         updatedAt = existing.updatedAt,
-                        hlcTimestamp = existing.hlcTimestamp
+                        hlcTimestamp = existing.hlcTimestamp,
+                        pdfId = existing.pdfId ?: newLecture.pdfId,
+                        videoId = existing.videoId ?: newLecture.videoId
                     )
                 } else {
                     newLecture.copy(subject = subjectName, hlcTimestamp = hlc)

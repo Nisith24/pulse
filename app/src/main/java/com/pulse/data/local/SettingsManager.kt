@@ -25,6 +25,7 @@ class SettingsManager(private val context: Context) {
         val PDF_HORIZONTAL_ORIENTATION_KEY = booleanPreferencesKey("pdf_horizontal_orientation")
         val LAST_SYNC_TIME_KEY = longPreferencesKey("last_sync_time")
         val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
+        val CLOUD_SYNC_ENABLED_KEY = booleanPreferencesKey("cloud_sync_enabled")
     }
 
     val splitRatioFlow: Flow<Float> = context.dataStore.data
@@ -40,6 +41,7 @@ class SettingsManager(private val context: Context) {
     val pdfHorizontalOrientationFlow: Flow<Boolean> = context.dataStore.data.map { it[PDF_HORIZONTAL_ORIENTATION_KEY] ?: false }
     val lastSyncTimeFlow: Flow<Long> = context.dataStore.data.map { it[LAST_SYNC_TIME_KEY] ?: 0L }
     val themeModeFlow: Flow<String> = context.dataStore.data.map { it[THEME_MODE_KEY] ?: "SYSTEM" }
+    val cloudSyncEnabledFlow: Flow<Boolean> = context.dataStore.data.map { it[CLOUD_SYNC_ENABLED_KEY] ?: false }
 
     suspend fun saveSplitRatio(value: Float) {
         context.dataStore.edit { preferences ->
@@ -55,4 +57,5 @@ class SettingsManager(private val context: Context) {
     suspend fun savePdfHorizontalOrientation(value: Boolean) { context.dataStore.edit { it[PDF_HORIZONTAL_ORIENTATION_KEY] = value } }
     suspend fun saveLastSyncTime(value: Long) { context.dataStore.edit { it[LAST_SYNC_TIME_KEY] = value } }
     suspend fun saveThemeMode(value: String) { context.dataStore.edit { it[THEME_MODE_KEY] = value } }
+    suspend fun saveCloudSyncEnabled(value: Boolean) { context.dataStore.edit { it[CLOUD_SYNC_ENABLED_KEY] = value } }
 }

@@ -68,11 +68,13 @@ class FirestoreSyncWorker(
                                 pdfLocalPath = local.pdfLocalPath,
                                 videoLocalPath = local.videoLocalPath,
                                 isPdfDownloaded = local.isPdfDownloaded,
-                                pdfId = local.pdfId,
+                                pdfId = local.pdfId ?: remote.pdfId,
+                                videoId = local.videoId ?: remote.videoId,
                                 speed = local.speed,
                                 pdfPageCount = local.pdfPageCount,
                                 lastPdfPage = local.lastPdfPage,
-                                pdfIsHorizontal = local.pdfIsHorizontal
+                                pdfIsHorizontal = local.pdfIsHorizontal,
+                                isLocal = local.isLocal
                             )
                         } else remote
                     }

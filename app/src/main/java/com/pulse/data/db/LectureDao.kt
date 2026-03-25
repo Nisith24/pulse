@@ -31,11 +31,39 @@ interface LectureDao {
     @Query("SELECT * FROM lectures WHERE id = :id AND isDeleted = 0")
     suspend fun getByIdSync(id: String): Lecture?
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(lecture: Lecture)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertIgnore(lecture: Lecture): Long
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAll(list: List<Lecture>)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertAllIgnore(list: List<Lecture>): List<Long>
+
+    @Update
+    suspend fun updateLecture(lecture: Lecture)
+
+    @Update
+    suspend fun updateAll(list: List<Lecture>)
+
+    @androidx.room.Transaction
+    suspend fun insert(lecture: Lecture) {
+        val id = insertIgnore(lecture)
+        if (id == -1L) {
+            updateLecture(lecture)
+        }
+    }
+
+    @androidx.room.Transaction
+    suspend fun insertAll(list: List<Lecture>) {
+        val insertResults = insertAllIgnore(list)
+        val updateList = mutableListOf<Lecture>()
+        for (i in insertResults.indices) {
+            if (insertResults[i] == -1L) {
+                updateList.add(list[i])
+            }
+        }
+        if (updateList.isNotEmpty()) {
+            updateAll(updateList)
+        }
+    }
 
     @Update
     suspend fun update(lecture: Lecture)
