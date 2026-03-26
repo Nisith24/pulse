@@ -6,7 +6,7 @@ import androidx.work.*
 import com.pulse.core.domain.util.HlcGenerator
 import com.pulse.data.db.LectureDao
 import com.pulse.data.db.NoteDao
-import com.pulse.data.db.NoteVisualDao
+import com.pulse.data.db.LectureAnnotationDao
 import com.pulse.data.local.SettingsManager
 import kotlinx.coroutines.flow.first
 import java.util.concurrent.TimeUnit
@@ -16,7 +16,7 @@ class FirestoreSyncWorker(
     workerParams: WorkerParameters,
     private val lectureDao: LectureDao,
     private val noteDao: NoteDao,
-    private val noteVisualDao: NoteVisualDao,
+    private val lectureAnnotationDao: LectureAnnotationDao,
     private val settingsManager: SettingsManager,
     private val syncManager: FirestoreSyncManager,
     private val hlcGenerator: HlcGenerator
@@ -31,26 +31,26 @@ class FirestoreSyncWorker(
 
             var pushedLecturesCount = 0
             var pushedNotesCount = 0
-            var pushedVisualsCount = 0
+            var pushedAnnotationsCount = 0
             var pulledLecturesCount = 0
             var pulledNotesCount = 0
-            var pulledVisualsCount = 0
+            var pulledAnnotationsCount = 0
             
             // --- PUSH: Local changes -> Firestore ---
             if (syncType == "PUSH" || syncType == "BOTH") {
                 val modifiedLectures = lectureDao.getModifiedSince(lastSync)
                 val modifiedNotes = noteDao.getModifiedSince(lastSync)
-                val modifiedVisuals = noteVisualDao.getModifiedSince(lastSync)
+                val modifiedAnnotations = lectureAnnotationDao.getUpdatesSince(lastSync)
 
                 val filteredLectures = modifiedLectures.filter { !it.isLocal }
 
                 syncManager.pushLectures(filteredLectures)
                 syncManager.pushNotes(modifiedNotes)
-                syncManager.pushNoteVisuals(modifiedVisuals)
+                syncManager.pushLectureAnnotations(modifiedAnnotations)
 
                 pushedLecturesCount = filteredLectures.size
                 pushedNotesCount = modifiedNotes.size
-                pushedVisualsCount = modifiedVisuals.size
+                pushedAnnotationsCount = modifiedAnnotations.size
             }
 
             // --- PULL: Firestore -> Local (with HLC conflict resolution) ---
@@ -91,13 +91,13 @@ class FirestoreSyncWorker(
                 }
                 pulledNotesCount = remoteNotes.size
 
-                val remoteVisuals = syncManager.pullNoteVisuals(lastSync)
-                if (remoteVisuals.isNotEmpty()) {
-                    // To avoid loading the entire DB for visuals, we just insert. Room's onConflictStrategy will handle it
-                    // Or we can query the specific IDs if needed, but assuming a reasonable amount for now.
-                    noteVisualDao.insertAll(remoteVisuals)
+                val remoteAnnotations = syncManager.pullLectureAnnotations(lastSync)
+                if (remoteAnnotations.isNotEmpty()) {
+                    remoteAnnotations.forEach { annotation ->
+                        lectureAnnotationDao.insertWithCrdt(annotation)
+                    }
                 }
-                pulledVisualsCount = remoteVisuals.size
+                pulledAnnotationsCount = remoteAnnotations.size
             }
 
             // Only advance the global sync cursor if we're doing a full BOTH sync,
@@ -106,7 +106,7 @@ class FirestoreSyncWorker(
                 settingsManager.saveLastSyncTime(System.currentTimeMillis())
             }
             
-            Log.d("FirestoreSyncWorker", "Sync OK ($syncType). Push: ${pushedLecturesCount}L/${pushedNotesCount}N/${pushedVisualsCount}V. Pull: ${pulledLecturesCount}L/${pulledNotesCount}N/${pulledVisualsCount}V")
+            Log.d("FirestoreSyncWorker", "Sync OK ($syncType). Push: ${pushedLecturesCount}L/${pushedNotesCount}N/${pushedAnnotationsCount}A. Pull: ${pulledLecturesCount}L/${pulledNotesCount}N/${pulledAnnotationsCount}A")
             Result.success()
         } catch (e: Exception) {
             Log.e("FirestoreSyncWorker", "Sync failed", e)

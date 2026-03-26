@@ -11,10 +11,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.pulse.core.data.db.CustomList
 import com.pulse.core.data.db.CustomListLectureCrossRef
 import com.pulse.core.data.db.DriveFileEntity
+import com.pulse.core.data.db.LectureAnnotation
 
 @Database(
-    entities = [Lecture::class, Note::class, NoteVisual::class, CustomList::class, CustomListLectureCrossRef::class, DriveFileEntity::class],
-    version = 15,
+    entities = [Lecture::class, Note::class, NoteVisual::class, CustomList::class, CustomListLectureCrossRef::class, DriveFileEntity::class, LectureAnnotation::class],
+    version = 16,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -23,8 +24,15 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun noteVisualDao(): NoteVisualDao
     abstract fun customListDao(): com.pulse.data.db.CustomListDao
     abstract fun driveFileDao(): DriveFileDao
+    abstract fun lectureAnnotationDao(): LectureAnnotationDao
 
     companion object {
+        val MIGRATION_15_16 = object : Migration(15, 16) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("CREATE TABLE IF NOT EXISTS `lecture_annotations` (`lectureId` TEXT NOT NULL, `annotationsJson` TEXT NOT NULL, `hlcTimestamp` TEXT NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`lectureId`), FOREIGN KEY(`lectureId`) REFERENCES `lectures`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+                database.execSQL("CREATE INDEX IF NOT EXISTS `index_lecture_annotations_lectureId` ON `lecture_annotations` (`lectureId`)")
+            }
+        }
         val MIGRATION_14_15 = object : Migration(14, 15) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("CREATE TABLE IF NOT EXISTS `drive_files` (`id` TEXT NOT NULL, `parentId` TEXT NOT NULL, `name` TEXT NOT NULL, `mimeType` TEXT NOT NULL, `size` INTEGER, `lastSyncedAt` INTEGER NOT NULL, PRIMARY KEY(`id`))")

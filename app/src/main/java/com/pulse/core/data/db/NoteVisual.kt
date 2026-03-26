@@ -1,11 +1,13 @@
 package com.pulse.core.data.db
 
 import androidx.room.*
+import kotlinx.serialization.Serializable
 
 /**
  * NoteVisual stores complex visual annotations (drawings, bounding boxes)
  * mapped to a video timestamp and a PDF page.
  */
+@Serializable
 @Entity(
     tableName = "note_visuals",
     foreignKeys = [
@@ -34,6 +36,7 @@ data class NoteVisual(
     val updatedAt: Long = System.currentTimeMillis()
 )
 
+@Serializable
 enum class VisualType {
     DRAWING,
     HIGHLIGHT,

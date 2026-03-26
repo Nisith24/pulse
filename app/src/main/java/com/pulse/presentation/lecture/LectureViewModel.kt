@@ -73,8 +73,8 @@ class LectureViewModel(
             lecture.filterNotNull()
                 .map { resolveActivePdfId(it) }
                 .distinctUntilChanged()
-                .flatMapLatest { pdfId ->
-                    noteVisualRepository.getVisualsForFile(lectureId, pdfId)
+                .flatMapLatest { _ -> // _pdfId is ignored by repository now, but we still trigger when lecture changes
+                    noteVisualRepository.getVisualsForFile(lectureId, "")
                 }
         }
     val player = playerProvider.player
@@ -299,13 +299,11 @@ class LectureViewModel(
     }
 
     fun addVisual(type: VisualType, data: String, page: Int, color: Int, width: Float, alpha: Float = 1f) {
-        val currentPdfId = _lecture.value?.let { resolveActivePdfId(it) } ?: "blank_note"
-
         viewModelScope.launch {
             noteVisualRepository.insert(
                 NoteVisual(
                     lectureId = lectureId,
-                    pdfId = currentPdfId,
+                    pdfId = lectureId, // Always use lectureId to fulfill display always requirement
                     timestamp = player.currentPosition,
                     pageNumber = page,
                     type = type,
@@ -319,12 +317,11 @@ class LectureViewModel(
     }
 
     fun addVisualAtPos(type: VisualType, x: Float, y: Float, page: Int, color: Int, width: Float = 1f, alpha: Float = 1f) {
-        val currentPdfId = _lecture.value?.let { resolveActivePdfId(it) } ?: "blank_note"
         viewModelScope.launch {
             noteVisualRepository.insert(
                 NoteVisual(
                     lectureId = lectureId,
-                    pdfId = currentPdfId,
+                    pdfId = lectureId, // Always use lectureId
                     timestamp = player.currentPosition,
                     pageNumber = page,
                     type = type,
@@ -338,7 +335,7 @@ class LectureViewModel(
     }
 
     fun deleteVisual(id: Long) {
-        viewModelScope.launch { noteVisualRepository.delete(id) }
+        viewModelScope.launch { noteVisualRepository.delete(lectureId, id) }
     }
 
     fun setPlaybackSpeed(speed: Float) {
