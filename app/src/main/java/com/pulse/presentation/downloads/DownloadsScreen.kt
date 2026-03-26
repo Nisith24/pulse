@@ -36,6 +36,7 @@ fun DownloadsScreen(
     val cloudOnly by viewModel.cloudOnlyLectures.collectAsState()
     val activeDownloads by viewModel.activeDownloads.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
+    val error by viewModel.error.collectAsState()
     var isSearching by remember { mutableStateOf(false) }
     var showClearAllDialog by remember { mutableStateOf(false) }
 
@@ -114,6 +115,39 @@ fun DownloadsScreen(
                 .padding(padding),
             contentPadding = PaddingValues(bottom = 80.dp)
         ) {
+            error?.let { msg ->
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                            contentColor = MaterialTheme.colorScheme.onErrorContainer
+                        ),
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = "Error",
+                                modifier = Modifier.padding(end = 12.dp)
+                            )
+                            Text(
+                                text = msg,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.weight(1f)
+                            )
+                            TextButton(onClick = { viewModel.clearError() }) {
+                                Text("Dismiss")
+                            }
+                        }
+                    }
+                }
+            }
+
             item {
                 val totalDownloaded = downloaded.size
                 Surface(

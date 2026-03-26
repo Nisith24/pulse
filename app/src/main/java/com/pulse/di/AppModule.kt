@@ -96,7 +96,7 @@ val appModule = module {
     // ViewModels
     viewModel { com.pulse.presentation.theme.ThemeViewModel(get()) }
     viewModel { LibraryViewModel(get(), get(), get()) }
-    viewModel { DownloadsViewModel(get()) }
+    viewModel { DownloadsViewModel(get(), get()) }
     
     viewModel { (lectureId: String) -> 
         LectureViewModel(lectureId, get(), get(), get(), get(), get(), get(), get()) 
