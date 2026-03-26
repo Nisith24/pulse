@@ -159,26 +159,20 @@ fun VideoPlayer(
         DisposableEffect(lifecycle) {
             val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
                 when (event) {
-                    androidx.lifecycle.Lifecycle.Event.ON_START -> {
-                        playerViewRef?.player = player
-                        // Force ExoPlayer to re-render the current frame onto the
-                        // newly attached surface. Without this, a paused player has
-                        // no reason to push a frame, so the surface stays black.
-                        if (!player.isPlaying && player.currentPosition > 0) {
-                            player.seekTo(player.currentPosition)
-                        }
-                    }
                     androidx.lifecycle.Lifecycle.Event.ON_RESUME -> {
                         playerViewRef?.onResume()
+                        // Ensure player is attached to the view.
+                        // The AndroidView update block handles this during recomposition,
+                        // but this ensures it's explicitly set upon resuming.
+                        if (playerViewRef?.player != player) {
+                            playerViewRef?.player = player
+                        }
                     }
                     androidx.lifecycle.Lifecycle.Event.ON_PAUSE -> {
                         playerViewRef?.onPause()
-                        if (!isPip) {
-                            player.pause()
-                        }
-                    }
-                    androidx.lifecycle.Lifecycle.Event.ON_STOP -> {
-                        playerViewRef?.player = null
+                        // We do not nullify playerViewRef?.player here or in ON_STOP
+                        // to prevent the black screen issue upon returning. The view's
+                        // surface will handle backgrounding natively without fully detaching the player.
                     }
                     else -> {}
                 }
