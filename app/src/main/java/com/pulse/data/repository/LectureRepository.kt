@@ -249,10 +249,8 @@ class LectureRepository(
             
             val existingLectures = if (grouped.isNotEmpty()) {
                 val ids = grouped.map { it.id }
-                // SQLite limits IN clauses to 999 items, so we chunk to be safe
-                ids.chunked(900).flatMap { chunk ->
-                    lectureDao.getLecturesByIds(chunk)
-                }.associateBy { it.id }
+                // Room 2.2.0+ handles large IN clauses automatically
+                lectureDao.getLecturesByIds(ids).associateBy { it.id }
             } else {
                 emptyMap()
             }
@@ -304,9 +302,7 @@ class LectureRepository(
             
             val existingLectures = if (grouped.isNotEmpty()) {
                 val ids = grouped.map { it.id }
-                ids.chunked(900).flatMap { chunk ->
-                    lectureDao.getLecturesByIds(chunk)
-                }.associateBy { it.id }
+                lectureDao.getLecturesByIds(ids).associateBy { it.id }
             } else {
                 emptyMap()
             }
