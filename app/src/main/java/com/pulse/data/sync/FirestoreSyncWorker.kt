@@ -123,7 +123,7 @@ class FirestoreSyncWorker(
                 .build()
 
             val request = PeriodicWorkRequestBuilder<FirestoreSyncWorker>(
-                60, TimeUnit.MINUTES
+                30, TimeUnit.MINUTES
             ).setConstraints(constraints)
              .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 5, TimeUnit.MINUTES)
              .build()
