@@ -1,23 +1,42 @@
 package com.pulse.core.data.repository
 
+import android.content.Context
 import com.pulse.core.data.db.LectureAnnotation
 import com.pulse.core.data.db.NoteVisual
 import com.pulse.data.db.LectureAnnotationDao
 import com.pulse.data.db.NoteVisualDao
 import com.pulse.core.domain.util.HlcGenerator
+import com.pulse.data.sync.FirestoreSyncWorker
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.decodeFromString
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.launch
 
 class NoteVisualRepository(
     private val dao: NoteVisualDao,
     private val lectureAnnotationDao: LectureAnnotationDao,
-    private val hlcGenerator: HlcGenerator
+    private val hlcGenerator: HlcGenerator,
+    private val context: Context
 ) {
     private val jsonFormat = Json { ignoreUnknownKeys = true }
+    // Debounce sync: wait 2s of inactivity after last stroke before syncing to Firestore
+    private val syncScope = CoroutineScope(Dispatchers.IO)
+    private var pendingSyncJob: Job? = null
+
+    private fun scheduleDebouncedSync() {
+        pendingSyncJob?.cancel()
+        pendingSyncJob = syncScope.launch {
+            delay(2000) // wait 2s of drawing inactivity
+            FirestoreSyncWorker.enqueueDebouncedSync(context)
+        }
+    }
 
     fun getVisualsForFile(lectureId: String, pdfId: String): Flow<List<NoteVisual>> {
         // Return from the single file. We ignore pdfId completely for lookup now,
@@ -69,6 +88,8 @@ class NoteVisualRepository(
                 updatedAt = System.currentTimeMillis()
             )
         )
+        // Debounce: only enqueue sync after drawing activity settles
+        scheduleDebouncedSync()
     }
 
     suspend fun delete(lectureId: String, id: Long) {
@@ -98,6 +119,8 @@ class NoteVisualRepository(
                         updatedAt = System.currentTimeMillis()
                     )
                 )
+                // Debounce: only enqueue sync after activity settles
+                scheduleDebouncedSync()
             }
         }
     }

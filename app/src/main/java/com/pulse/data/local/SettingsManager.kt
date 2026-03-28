@@ -41,7 +41,7 @@ class SettingsManager(private val context: Context) {
     val pdfHorizontalOrientationFlow: Flow<Boolean> = context.dataStore.data.map { it[PDF_HORIZONTAL_ORIENTATION_KEY] ?: false }
     val lastSyncTimeFlow: Flow<Long> = context.dataStore.data.map { it[LAST_SYNC_TIME_KEY] ?: 0L }
     val themeModeFlow: Flow<String> = context.dataStore.data.map { it[THEME_MODE_KEY] ?: "SYSTEM" }
-    val cloudSyncEnabledFlow: Flow<Boolean> = context.dataStore.data.map { it[CLOUD_SYNC_ENABLED_KEY] ?: false }
+    val cloudSyncEnabledFlow: Flow<Boolean> = context.dataStore.data.map { it[CLOUD_SYNC_ENABLED_KEY] ?: true }
 
     suspend fun saveSplitRatio(value: Float) {
         context.dataStore.edit { preferences ->

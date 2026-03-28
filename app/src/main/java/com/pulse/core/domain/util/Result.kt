@@ -20,6 +20,7 @@ inline fun <T> safeApiCall(apiCall: () -> T): Result<T> {
     return try {
         Result.Success(apiCall())
     } catch (e: Exception) {
+        if (e is kotlinx.coroutines.CancellationException) throw e
         Result.Error(e)
     }
 }

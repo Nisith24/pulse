@@ -63,6 +63,7 @@ fun LectureScreen(
     val drivePdfs by viewModel.drivePdfs.collectAsState()
     val isLoadingDrivePdfs by viewModel.isLoadingDrivePdfs.collectAsState()
     val pdfDownloadState by viewModel.pdfDownloadState.collectAsState()
+    val pdfMatchTypes by viewModel.pdfMatchTypes.collectAsState()
     var showDrivePdfPicker by remember { mutableStateOf(false) }
 
     val onAddDrivePdf = {
@@ -177,7 +178,7 @@ fun LectureScreen(
 
     val onCreateBlankNote = {
         showPdf = true
-        viewModel.updateLocalPdfPath("blank_note")
+        viewModel.updateLocalPdfPath("blank_note_${lectureId}")
     }
 
     // ── Lifecycle management ──
@@ -405,7 +406,14 @@ fun LectureScreen(
                 },
                 onDismissRequest = { showDrivePdfPicker = false },
                 isLoading = isLoadingDrivePdfs,
-                folderPdf = folderPdf
+                folderPdf = folderPdf,
+                matchLabels = pdfMatchTypes.mapValues { (_, type) ->
+                    when (type) {
+                        LectureViewModel.PdfMatchType.EXACT -> "Exact Match"
+                        LectureViewModel.PdfMatchType.SUBJECT -> "Subject Match"
+                        else -> ""
+                    }
+                }.filterValues { it.isNotEmpty() }
             )
         }
     }

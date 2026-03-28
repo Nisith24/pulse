@@ -55,17 +55,22 @@ class PrepladderRRViewModel(
         loadSubfolders()
     }
 
+    private var subfoldersJob: kotlinx.coroutines.Job? = null
+
     fun loadSubfolders() {
-        viewModelScope.launch {
+        subfoldersJob?.cancel()
+        subfoldersJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoadingFolders = true, error = null) }
             try {
-                val folders = lectureRepository.listSubfolders(Constants.PREPLADDER_RR_FOLDER_ID)
-                val driveFolders = folders
-                    .sortedBy { it.name }
-                    .map { DriveFolder(id = it.id, name = it.name) }
-                Log.d("PrepladderRRVM", "Loaded ${driveFolders.size} subfolders")
-                _uiState.update { it.copy(isLoadingFolders = false, subfolders = driveFolders) }
+                lectureRepository.observeSubfolders(Constants.PREPLADDER_RR_FOLDER_ID, forceSync = true).collect { folders ->
+                    val driveFolders = folders
+                        .sortedBy { it.name }
+                        .map { DriveFolder(id = it.id, name = it.name) }
+                    Log.d("PrepladderRRVM", "Loaded ${driveFolders.size} subfolders")
+                    _uiState.update { it.copy(isLoadingFolders = false, subfolders = driveFolders) }
+                }
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 Log.e("PrepladderRRVM", "Failed to load subfolders", e)
                 _uiState.update { it.copy(isLoadingFolders = false, error = "Failed to load folders: ${e.message}") }
             }

@@ -38,6 +38,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -84,6 +85,12 @@ fun LibraryScreen(
     var selectedLongPressLecture by remember { mutableStateOf<com.pulse.core.data.db.Lecture?>(null) }
     var showDrivePdfPicker by remember { mutableStateOf(false) }
     val drivePdfs by viewModel.drivePdfs.collectAsState()
+    
+    // Expansion State
+    var isRecentExpanded by remember { mutableStateOf(true) }
+    var isVideosExpanded by remember { mutableStateOf(true) }
+    var isPdfsExpanded by remember { mutableStateOf(true) }
+    val expandedModules = remember { mutableStateMapOf<String, Boolean>() }
 
     if (isBtrViewActive && currentTab == LibraryTab.SERVICES) {
         androidx.activity.compose.BackHandler {
@@ -473,61 +480,81 @@ fun LibraryScreen(
                     if (currentTab == LibraryTab.HOME) {
                         if (recentLocalLectures.isNotEmpty()) {
                             item(span = { GridItemSpan(maxLineSpan) }) {
-                                Text("Continue Learning", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold), color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(vertical = 12.dp).fillMaxWidth())
-                            }
-                            items(recentLocalLectures, key = { "recent_${it.id}" }) { lecture ->
-                                LectureCard(
-                                    lecture = lecture, isLibraryHome = true,
-                                    onLectureSelected = onLectureSelected, onToggleFavorite = { viewModel.toggleFavorite(it) },
-                                    onDelete = { viewModel.deleteLecture(it) }, onLongPress = { selectedLongPressLecture = it }
+                                SectionHeader(
+                                    title = "Continue Learning",
+                                    isExpanded = isRecentExpanded,
+                                    onToggle = { isRecentExpanded = !isRecentExpanded }
                                 )
+                            }
+                            if (isRecentExpanded) {
+                                items(recentLocalLectures, key = { "recent_${it.id}" }) { lecture ->
+                                    LectureCard(
+                                        lecture = lecture, isLibraryHome = true,
+                                        onLectureSelected = onLectureSelected, onToggleFavorite = { viewModel.toggleFavorite(it) },
+                                        onDelete = { viewModel.deleteLecture(it) }, onLongPress = { selectedLongPressLecture = it }
+                                    )
+                                }
                             }
                         }
 
                         if (videoLocalLectures.isNotEmpty()) {
                             item(span = { GridItemSpan(maxLineSpan) }) {
-                                Text("My Videos", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold), color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(vertical = 12.dp).fillMaxWidth())
-                            }
-                            items(videoLocalLectures, key = { "video_${it.id}" }) { lecture ->
-                                LectureCard(
-                                    lecture = lecture, isLibraryHome = true,
-                                    onLectureSelected = onLectureSelected, onToggleFavorite = { viewModel.toggleFavorite(it) },
-                                    onDelete = { viewModel.deleteLecture(it) }, onLongPress = { selectedLongPressLecture = it }
+                                SectionHeader(
+                                    title = "My Videos",
+                                    isExpanded = isVideosExpanded,
+                                    onToggle = { isVideosExpanded = !isVideosExpanded }
                                 )
+                            }
+                            if (isVideosExpanded) {
+                                items(videoLocalLectures, key = { "video_${it.id}" }) { lecture ->
+                                    LectureCard(
+                                        lecture = lecture, isLibraryHome = true,
+                                        onLectureSelected = onLectureSelected, onToggleFavorite = { viewModel.toggleFavorite(it) },
+                                        onDelete = { viewModel.deleteLecture(it) }, onLongPress = { selectedLongPressLecture = it }
+                                    )
+                                }
                             }
                         }
 
                         if (pdfLocalLectures.isNotEmpty()) {
                             item(span = { GridItemSpan(maxLineSpan) }) {
-                                Text("My PDFs", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold), color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(vertical = 12.dp).fillMaxWidth())
-                            }
-                            items(pdfLocalLectures, key = { "pdf_${it.id}" }) { lecture ->
-                                LectureCard(
-                                    lecture = lecture, isLibraryHome = true,
-                                    onLectureSelected = onLectureSelected, onToggleFavorite = { viewModel.toggleFavorite(it) },
-                                    onDelete = { viewModel.deleteLecture(it) }, onLongPress = { selectedLongPressLecture = it }
+                                SectionHeader(
+                                    title = "My PDFs",
+                                    isExpanded = isPdfsExpanded,
+                                    onToggle = { isPdfsExpanded = !isPdfsExpanded }
                                 )
+                            }
+                            if (isPdfsExpanded) {
+                                items(pdfLocalLectures, key = { "pdf_${it.id}" }) { lecture ->
+                                    LectureCard(
+                                        lecture = lecture, isLibraryHome = true,
+                                        onLectureSelected = onLectureSelected, onToggleFavorite = { viewModel.toggleFavorite(it) },
+                                        onDelete = { viewModel.deleteLecture(it) }, onLongPress = { selectedLongPressLecture = it }
+                                    )
+                                }
                             }
                         }
                     } else {
                         groupedLectures.forEach { (moduleNumber, lectures) ->
+                            val isExpanded = expandedModules.getOrDefault(moduleNumber, true)
                             item(span = { GridItemSpan(maxLineSpan) }) {
-                                Text(
-                                    text = if (moduleNumber == "Misc") "Other Files" else "Module $moduleNumber",
-                                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold),
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.padding(vertical = 12.dp).fillMaxWidth()
+                                SectionHeader(
+                                    title = if (moduleNumber == "Misc") "Other Files" else "Module $moduleNumber",
+                                    isExpanded = isExpanded,
+                                    onToggle = { expandedModules[moduleNumber] = !isExpanded }
                                 )
                             }
-                            items(lectures, key = { it.id }) { lecture ->
-                                LectureCard(
-                                    lecture = lecture, 
-                                    isLibraryHome = currentTab == LibraryTab.HOME, 
-                                    onLectureSelected = onLectureSelected, 
-                                    onToggleFavorite = { viewModel.toggleFavorite(it) },
-                                    onDelete = { viewModel.deleteLecture(it) },
-                                    onLongPress = { selectedLongPressLecture = it }
-                                )
+                            if (isExpanded) {
+                                items(lectures, key = { it.id }) { lecture ->
+                                    LectureCard(
+                                        lecture = lecture, 
+                                        isLibraryHome = currentTab == LibraryTab.HOME, 
+                                        onLectureSelected = onLectureSelected, 
+                                        onToggleFavorite = { viewModel.toggleFavorite(it) },
+                                        onDelete = { viewModel.deleteLecture(it) },
+                                        onLongPress = { selectedLongPressLecture = it }
+                                    )
+                                }
                             }
                         }
                     }
@@ -565,6 +592,45 @@ fun LibraryScreen(
             onDismissRequest = { showDrivePdfPicker = false },
             isLoading = isLoading
         )
+    }
+}
+
+@Composable
+private fun SectionHeader(
+    title: String,
+    isExpanded: Boolean,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        onClick = onToggle,
+        color = Color.Transparent,
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 0.5.sp
+                ),
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f)
+            )
+            val rotation by animateFloatAsState(
+                targetValue = if (isExpanded) 0f else -90f,
+                label = "arrow_rotation"
+            )
+            Icon(
+                imageVector = Icons.Default.KeyboardArrowDown,
+                contentDescription = if (isExpanded) "Collapse" else "Expand",
+                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                modifier = Modifier.graphicsLayer { rotationZ = rotation }
+            )
+        }
     }
 }
 
@@ -666,7 +732,7 @@ private fun ServiceCard(
         label = "card_scale"
     )
     val elevation by animateFloatAsState(
-        targetValue = if (isPressed) 2f else 12f,
+        targetValue = if (isPressed) 2f else 6f,
         animationSpec = spring(stiffness = 400f),
         label = "card_elevation"
     )
@@ -675,17 +741,17 @@ private fun ServiceCard(
         modifier = Modifier
             .fillMaxWidth()
             .scale(scale)
-            .shadow(elevation = elevation.dp, shape = RoundedCornerShape(28.dp), clip = false)
-            .clip(RoundedCornerShape(28.dp))
+            .shadow(elevation = elevation.dp, shape = RoundedCornerShape(20.dp), clip = false)
+            .clip(RoundedCornerShape(20.dp))
             .background(brush = Brush.linearGradient(gradientColors))
             .clickable(interactionSource = interactionSource, indication = null) { onClick() }
     ) {
         // Decorative radial glow circles
         Box(
             modifier = Modifier
-                .size(160.dp)
+                .size(130.dp)
                 .align(Alignment.TopEnd)
-                .offset(x = 40.dp, y = (-30).dp)
+                .offset(x = 30.dp, y = (-20).dp)
                 .background(
                     brush = Brush.radialGradient(
                         colors = listOf(Color.White.copy(alpha = 0.15f), Color.Transparent)
@@ -695,9 +761,9 @@ private fun ServiceCard(
         )
         Box(
             modifier = Modifier
-                .size(90.dp)
+                .size(70.dp)
                 .align(Alignment.BottomStart)
-                .offset(x = (-20).dp, y = 20.dp)
+                .offset(x = (-15).dp, y = 15.dp)
                 .background(
                     brush = Brush.radialGradient(
                         colors = listOf(Color.White.copy(alpha = 0.10f), Color.Transparent)
@@ -709,17 +775,17 @@ private fun ServiceCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 22.dp),
+                .padding(horizontal = 20.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(20.dp)
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Icon container with frosted glass effect
             Box(
                 modifier = Modifier
-                    .size(68.dp)
+                    .size(52.dp)
                     .background(
                         color = Color.White.copy(alpha = 0.2f),
-                        shape = RoundedCornerShape(20.dp)
+                        shape = RoundedCornerShape(16.dp)
                     ),
                 contentAlignment = Alignment.Center
             ) {
@@ -727,14 +793,14 @@ private fun ServiceCard(
                     imageVector = icon,
                     contentDescription = null,
                     tint = Color.White,
-                    modifier = Modifier.size(34.dp)
+                    modifier = Modifier.size(26.dp)
                 )
             }
 
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.headlineSmall.copy(
+                    style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Black,
                         letterSpacing = 0.5.sp
                     ),

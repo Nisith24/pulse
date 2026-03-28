@@ -39,7 +39,7 @@ import com.pulse.presentation.lecture.components.AnnotationToggleButton
 private enum class ContentMode { BLANK_NOTE, PDF_FILE, CONTENT_URI, PLACEHOLDER }
 
 private fun resolveContentMode(pdfPath: String): ContentMode = when {
-    pdfPath == "blank_note" -> ContentMode.BLANK_NOTE
+    pdfPath.startsWith("blank_note") -> ContentMode.BLANK_NOTE
     pdfPath.startsWith("content://") -> ContentMode.CONTENT_URI
     pdfPath.isNotEmpty() && File(pdfPath).exists() -> ContentMode.PDF_FILE
     else -> ContentMode.PLACEHOLDER
@@ -435,27 +435,31 @@ private fun PdfMode(
     // Track container size for coordinate remapping
     var containerWidth by remember { mutableIntStateOf(0) }
     var containerHeight by remember { mutableIntStateOf(0) }
+    // Wrap params in updated states to avoid re-calling setContent
+    val currentVisualsState = rememberUpdatedState(visuals)
+    val currentPageState = rememberUpdatedState(currentPage)
+    val currentPdfViewRefState = rememberUpdatedState(pdfViewRef.value)
+    
+    val currentOnAddVisual = rememberUpdatedState(onAddVisual)
+    val currentOnAddVisualAtPos = rememberUpdatedState(onAddVisualAtPos)
+    val currentOnDeleteVisual = rememberUpdatedState(onDeleteVisual)
 
-    // Pre-compute page visuals to avoid re-filtering on every tick
-    val pageVisuals by remember(visuals, currentPage) {
-        derivedStateOf { visuals.filter { it.pageNumber == currentPage } }
-    }
-    val currentPdfViewSnapshot = pdfViewRef.value
-
-    // Set overlay content when visuals, page, or pdfView changes
-    LaunchedEffect(pageVisuals, currentPage, currentPdfViewSnapshot) {
+    // Call setContent ONCE. The contents will recompose smartly because they read the State wrappers.
+    LaunchedEffect(composeOverlay) {
         composeOverlay.setContent {
+            val pageVis = remember { derivedStateOf { currentVisualsState.value.filter { it.pageNumber == currentPageState.value } } }
+            
             DrawingCanvas(
                 annotationState = annotationState,
-                pdfView = currentPdfViewSnapshot,
-                visuals = pageVisuals,
+                pdfView = currentPdfViewRefState.value,
+                visuals = pageVis.value,
                 onDrawComplete = { type, data, color, width, alpha ->
-                    onAddVisual(type, data, currentPage, color.toArgb(), width, alpha)
+                    currentOnAddVisual.value(type, data, currentPageState.value, color.toArgb(), width, alpha)
                 },
                 onAddVisualAtPos = { type, x, y, color, width, alpha ->
-                    onAddVisualAtPos(type, x, y, currentPage, color, width, alpha)
+                    currentOnAddVisualAtPos.value(type, x, y, currentPageState.value, color, width, alpha)
                 },
-                onDeleteVisual = onDeleteVisual,
+                onDeleteVisual = { currentOnDeleteVisual.value(it) },
                 modifier = Modifier.fillMaxSize()
             )
         }

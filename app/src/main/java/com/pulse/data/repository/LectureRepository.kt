@@ -389,32 +389,30 @@ class LectureRepository(
         }
     }
 
-    /** Observe PDF files in a Drive folder locally, syncing if needed */
-    fun observePdfs(folderId: String): Flow<List<BtrFile>> {
-        triggerFolderSyncIfNeeded(folderId, true)
+    fun observePdfs(folderId: String, forceSync: Boolean = false): Flow<List<BtrFile>> {
+        triggerFolderSyncIfNeeded(folderId, true, forceSync)
         return driveFileDao.observeFilesByParentId(folderId).map { files ->
             files.map { it.toDomainModel() }
                  .filter { it.mimeType == "application/pdf" || it.name.endsWith(".pdf", ignoreCase = true) }
         }
     }
 
-    /** Observe subfolders in a Drive folder locally, syncing if needed */
-    fun observeSubfolders(folderId: String): Flow<List<BtrFile>> {
-        triggerFolderSyncIfNeeded(folderId, false)
+    fun observeSubfolders(folderId: String, forceSync: Boolean = false): Flow<List<BtrFile>> {
+        triggerFolderSyncIfNeeded(folderId, false, forceSync)
         return driveFileDao.observeFilesByParentId(folderId).map { files ->
             files.map { it.toDomainModel() }
                  .filter { it.mimeType == "application/vnd.google-apps.folder" }
         }
     }
 
-    private fun triggerFolderSyncIfNeeded(folderId: String, isPdfRequest: Boolean) {
+    private fun triggerFolderSyncIfNeeded(folderId: String, isPdfRequest: Boolean, forceSync: Boolean = false) {
         scope.launch {
             try {
                 val lastSyncTime = driveFileDao.getLastSyncTime(folderId) ?: 0L
                 val now = System.currentTimeMillis()
                 val twelveHoursInMillis = 12 * 60 * 60 * 1000L
 
-                if (now - lastSyncTime > twelveHoursInMillis) {
+                if (forceSync || now - lastSyncTime > twelveHoursInMillis) {
                     val token = try { authManager.getToken() } catch (e: Exception) { "" }
 
                     // Fallback to anonymous access if token fails, since shared folders can often be viewed publicly
@@ -442,9 +440,18 @@ class LectureRepository(
         }
     }
 
-    /** Old suspended versions (can wrap the flow for compatibility if needed elsewhere) */
-    suspend fun listPdfs(folderId: String): List<BtrFile> = observePdfs(folderId).first()
-    suspend fun listSubfolders(folderId: String): List<BtrFile> = observeSubfolders(folderId).first()
+    /** Suspend versions that wait for network sync to populate the DB, avoiding instant-empty UI flashes */
+    suspend fun listPdfs(folderId: String): List<BtrFile> {
+        return kotlinx.coroutines.withTimeoutOrNull(5000) {
+            observePdfs(folderId, forceSync = true).first { it.isNotEmpty() }
+        } ?: observePdfs(folderId, forceSync = false).first() // Fallback to current state if timeout or truly empty
+    }
+
+    suspend fun listSubfolders(folderId: String): List<BtrFile> {
+        return kotlinx.coroutines.withTimeoutOrNull(5000) {
+            observeSubfolders(folderId, forceSync = true).first { it.isNotEmpty() }
+        } ?: observeSubfolders(folderId, forceSync = false).first()
+    }
 
     /** Compute the local path where a Drive PDF would be cached */
     fun getLecturePdfPath(lectureId: String, pdf: com.pulse.data.services.btr.BtrFile): String {

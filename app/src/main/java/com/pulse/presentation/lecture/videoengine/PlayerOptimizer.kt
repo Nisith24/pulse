@@ -27,13 +27,13 @@ object PlayerOptimizer {
     fun createLoadControl(): DefaultLoadControl {
         return DefaultLoadControl.Builder()
             .setBufferDurationsMs(
-                30_000,   // min buffer 30s
-                120_000,  // max buffer 120s (2 min lookahead)
-                1_000,    // rebuffer resume playback
-                1_500     // initial playback start
+                15_000,   // min buffer: 15s (was 30s) — fast start
+                50_000,   // max buffer: 50s (was 120s) — enough ahead without memory pressure
+                1_500,    // rebuffer resume
+                2_000     // initial start
             )
             .setPrioritizeTimeOverSizeThresholds(true)
-            .setBackBuffer(30_000, true) // 30s back-buffer for instant backward seek
+            .setBackBuffer(15_000, true) // 15s back-buffer (was 30s)
             .build()
     }
 

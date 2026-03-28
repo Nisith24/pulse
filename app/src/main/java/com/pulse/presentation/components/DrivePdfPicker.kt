@@ -23,7 +23,8 @@ fun DrivePdfPicker(
     onPdfSelected: (BtrFile) -> Unit,
     onDismissRequest: () -> Unit,
     isLoading: Boolean = false,
-    folderPdf: BtrFile? = null
+    folderPdf: BtrFile? = null,
+    matchLabels: Map<String, String> = emptyMap()
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
@@ -142,9 +143,13 @@ fun DrivePdfPicker(
                                 )
                             },
                             supportingContent = {
+                                val matchLabel = matchLabels[pdf.id]
+                                val sizeStr = "${(pdf.size ?: 0) / 1024 / 1024} MB"
+                                val supportText = if (matchLabel != null) "$sizeStr • $matchLabel" else "$sizeStr • PDF Document"
                                 Text(
-                                    "${(pdf.size ?: 0) / 1024 / 1024} MB • PDF Document",
-                                    style = MaterialTheme.typography.labelSmall
+                                    supportText,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (matchLabel != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             },
                             leadingContent = {

@@ -88,7 +88,7 @@ val appModule = module {
     
     // Repositories
     single<INoteRepository> { NoteRepository(get(), get()) }
-    single { NoteVisualRepository(get(), get(), get()) }
+    single { NoteVisualRepository(get(), get(), get(), androidContext()) }
     single { LectureRepository(get(), get(), get(), get(), get(), get(), get(), androidContext(), get(), get(), get()) }
     
     // Player — MUST be singleton (SimpleCache uses exclusive DB lock)

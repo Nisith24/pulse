@@ -45,6 +45,11 @@ class LectureViewModel(
     private val _isLoadingDrivePdfs = MutableStateFlow(false)
     val isLoadingDrivePdfs: StateFlow<Boolean> = _isLoadingDrivePdfs.asStateFlow()
 
+    enum class PdfMatchType { NONE, SUBJECT, EXACT }
+
+    private val _pdfMatchTypes = MutableStateFlow<Map<String, PdfMatchType>>(emptyMap())
+    val pdfMatchTypes: StateFlow<Map<String, PdfMatchType>> = _pdfMatchTypes.asStateFlow()
+
     // PDF download state (observed from repository — disk-first, no RAM buffering)
     val pdfDownloadState: StateFlow<com.pulse.data.repository.PdfDownloadState> = repository.pdfDownloadState
 
@@ -58,7 +63,7 @@ class LectureViewModel(
      * Annotations are per-lecture, not per-file.
      */
     private fun resolveActivePdfId(lecture: Lecture): String {
-        return if (lecture.pdfLocalPath == "blank_note") "blank_note" else lecture.id
+        return if (lecture.pdfLocalPath.startsWith("blank_note")) lecture.pdfLocalPath else lecture.id
     }
 
     val notes: Flow<List<Note>> = noteRepository.getNotes(lectureId)
@@ -355,7 +360,7 @@ class LectureViewModel(
         _lecture.value?.let { l ->
             viewModelScope.launch { 
                 // Initialize page count for blank note
-                if (path == "blank_note" && l.pdfPageCount == 0) {
+                if (path.startsWith("blank_note") && l.pdfPageCount == 0) {
                     repository.updatePageCount(l.id, 5)
                 }
                 
@@ -442,10 +447,28 @@ class LectureViewModel(
             _isLoadingDrivePdfs.value = true
             _drivePdfs.value = emptyList()
             _folderPdf.value = null
+            _pdfMatchTypes.value = emptyMap()
             try {
                 val pdfs = repository.listPdfs(resolvedFolderId)
-                _drivePdfs.value = pdfs
-                _folderPdf.value = pdfs.firstOrNull()
+                val lectureTitle = _lecture.value?.name ?: ""
+                val lectureSubject = _lecture.value?.subject ?: ""
+
+                val matches = mutableMapOf<String, PdfMatchType>()
+                val sortedPdfs = pdfs.sortedByDescending { pdf ->
+                    val exactScore = com.pulse.core.domain.util.StringUtils.similarityScore(lectureTitle, pdf.name)
+                    val subjectScore = com.pulse.core.domain.util.StringUtils.similarityScore(lectureSubject, pdf.name)
+                    val bestScore = maxOf(exactScore, subjectScore)
+                    
+                    if (exactScore > 0.7) matches[pdf.id] = PdfMatchType.EXACT
+                    else if (subjectScore > 0.6) matches[pdf.id] = PdfMatchType.SUBJECT
+                    else matches[pdf.id] = PdfMatchType.NONE
+                    
+                    bestScore
+                }
+
+                _pdfMatchTypes.value = matches
+                _drivePdfs.value = sortedPdfs
+                _folderPdf.value = sortedPdfs.firstOrNull()
             } catch (e: Exception) {
                 logger.e("LectureViewModel", "Failed to load Drive PDFs", e)
             } finally {
