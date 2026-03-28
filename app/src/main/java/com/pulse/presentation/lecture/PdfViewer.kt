@@ -39,7 +39,7 @@ import com.pulse.presentation.lecture.components.AnnotationToggleButton
 private enum class ContentMode { BLANK_NOTE, PDF_FILE, CONTENT_URI, PLACEHOLDER }
 
 private fun resolveContentMode(pdfPath: String): ContentMode = when {
-    pdfPath == "blank_note" -> ContentMode.BLANK_NOTE
+    pdfPath.startsWith("blank_note") -> ContentMode.BLANK_NOTE
     pdfPath.startsWith("content://") -> ContentMode.CONTENT_URI
     pdfPath.isNotEmpty() && File(pdfPath).exists() -> ContentMode.PDF_FILE
     else -> ContentMode.PLACEHOLDER

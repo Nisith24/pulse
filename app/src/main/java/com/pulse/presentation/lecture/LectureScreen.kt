@@ -177,7 +177,8 @@ fun LectureScreen(
 
     val onCreateBlankNote = {
         showPdf = true
-        viewModel.updateLocalPdfPath("blank_note")
+        val l = viewModel.lecture.value
+        viewModel.updateLocalPdfPath(if (l != null) "blank_note_${l.id}" else "blank_note")
     }
 
     // ── Lifecycle management ──
@@ -284,7 +285,7 @@ fun LectureScreen(
                             }
                     ) {
                         val isTablet = maxWidth > 840.dp
-                        val isStandalonePdf = !hasVideo && (l.pdfLocalPath.isNotEmpty() || l.pdfId != null) && l.pdfLocalPath != "blank_note"
+                        val isStandalonePdf = !hasVideo && (l.pdfLocalPath.isNotEmpty() || l.pdfId != null) && !l.pdfLocalPath.startsWith("blank_note")
 
                         // Auto-download Drive PDFs
                         if (showPdf && !l.isPdfDownloaded && l.pdfId != null) {
