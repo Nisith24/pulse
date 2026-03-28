@@ -48,9 +48,12 @@ class LectureViewModel(
     // PDF download state (observed from repository — disk-first, no RAM buffering)
     val pdfDownloadState: StateFlow<com.pulse.data.repository.PdfDownloadState> = repository.pdfDownloadState
 
-    // ── Folder PDF: first PDF found in the folder for quick-select ──
+    // ── Folder PDF: smart selected PDF based on name or subject match ──
     private val _folderPdf = MutableStateFlow<com.pulse.data.services.btr.BtrFile?>(null)
     val folderPdf: StateFlow<com.pulse.data.services.btr.BtrFile?> = _folderPdf.asStateFlow()
+
+    private val _folderPdfMatchType = MutableStateFlow<PdfMatchType>(PdfMatchType.NONE)
+    val folderPdfMatchType: StateFlow<PdfMatchType> = _folderPdfMatchType.asStateFlow()
 
     /**
      * Single source of truth for annotation lookup key.
@@ -445,10 +448,66 @@ class LectureViewModel(
             _isLoadingDrivePdfs.value = true
             _drivePdfs.value = emptyList()
             _folderPdf.value = null
+            _folderPdfMatchType.value = PdfMatchType.NONE
             try {
                 val pdfs = repository.listPdfs(resolvedFolderId)
                 _drivePdfs.value = pdfs
-                _folderPdf.value = pdfs.firstOrNull()
+
+                // Smart Name Matching Logic
+                val currentLecture = _lecture.value
+                if (currentLecture != null && pdfs.isNotEmpty()) {
+                    var bestScore = 0.0f
+                    var bestMatch: com.pulse.data.services.btr.BtrFile? = null
+
+                    // Step A: Find matching PDF by Lecture Name
+                    for (pdf in pdfs) {
+                        // Strip common extensions before matching
+                        val cleanPdfName = pdf.name.replace(".pdf", "", ignoreCase = true)
+                        val score = com.pulse.core.domain.util.StringUtils.similarityScore(currentLecture.name, cleanPdfName)
+                        if (score > bestScore) {
+                            bestScore = score
+                            bestMatch = pdf
+                        }
+                    }
+
+                    // Step B: If confidence is high (> 0.7), use it as Exact/Smart match
+                    if (bestMatch != null && bestScore > 0.7f) {
+                        _folderPdf.value = bestMatch
+                        _folderPdfMatchType.value = PdfMatchType.EXACT
+                        logger.d("LectureViewModel", "Smart matched PDF: ${bestMatch.name} with score $bestScore")
+                    } else {
+                        // Step D: Fallback to Subject Matching if no good name match is found
+                        val subjectName = currentLecture.subject
+                        if (!subjectName.isNullOrEmpty()) {
+                            var bestSubjectScore = 0.0f
+                            var bestSubjectMatch: com.pulse.data.services.btr.BtrFile? = null
+
+                            for (pdf in pdfs) {
+                                val cleanPdfName = pdf.name.replace(".pdf", "", ignoreCase = true)
+                                val score = com.pulse.core.domain.util.StringUtils.similarityScore(subjectName, cleanPdfName)
+                                if (score > bestSubjectScore) {
+                                    bestSubjectScore = score
+                                    bestSubjectMatch = pdf
+                                }
+                            }
+
+                            if (bestSubjectMatch != null && bestSubjectScore > 0.6f) {
+                                _folderPdf.value = bestSubjectMatch
+                                _folderPdfMatchType.value = PdfMatchType.SUBJECT
+                                logger.d("LectureViewModel", "Subject matched PDF: ${bestSubjectMatch.name} with score $bestSubjectScore")
+                            } else {
+                                // No safe match, leave folderPdf as null to force manual selection, or default to first if preferred
+                                // As per instruction: "display a button to display the relevance subject name PDF... restrict to process"
+                                // we will just keep it null so the UI prompts the user to open the picker.
+                                _folderPdf.value = null
+                                _folderPdfMatchType.value = PdfMatchType.NONE
+                            }
+                        }
+                    }
+                } else {
+                    _folderPdf.value = pdfs.firstOrNull()
+                    _folderPdfMatchType.value = PdfMatchType.NONE
+                }
             } catch (e: Exception) {
                 logger.e("LectureViewModel", "Failed to load Drive PDFs", e)
             } finally {
@@ -487,4 +546,8 @@ sealed class PlayerUiState {
     object READY : PlayerUiState()
     data class PERMISSION_REQUIRED(val intent: android.content.Intent) : PlayerUiState()
     data class ERROR(val message: String) : PlayerUiState()
+}
+
+enum class PdfMatchType {
+    EXACT, SUBJECT, NONE
 }

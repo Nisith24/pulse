@@ -392,6 +392,7 @@ fun LectureScreen(
 
         if (showDrivePdfPicker) {
             val folderPdf by viewModel.folderPdf.collectAsState()
+            val matchType by viewModel.folderPdfMatchType.collectAsState()
             DrivePdfPicker(
                 pdfs = drivePdfs,
                 onPdfSelected = { pdf ->
@@ -401,7 +402,8 @@ fun LectureScreen(
                 },
                 onDismissRequest = { showDrivePdfPicker = false },
                 isLoading = isLoadingDrivePdfs,
-                folderPdf = folderPdf
+                folderPdf = folderPdf,
+                matchType = matchType
             )
         }
     }
