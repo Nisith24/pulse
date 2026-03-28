@@ -59,7 +59,7 @@ fun ProfileSettingsScreen(
     val defaultSpeed by settingsManager.defaultSpeedFlow.collectAsState(initial = 1.0f)
     var showSpeedDialog by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
-    var cloudSyncEnabled by remember { mutableStateOf(false) }
+    val cloudSyncEnabled by settingsManager.cloudSyncEnabledFlow.collectAsState(initial = true)
     var notificationsEnabled by remember { mutableStateOf(false) }
     val videoQuality by settingsManager.videoQualityFlow.collectAsState(initial = "Auto")
     var showQualityDialog by remember { mutableStateOf(false) }
@@ -231,7 +231,7 @@ fun ProfileSettingsScreen(
                     title = "Cross-Device Sync",
                     subtitle = "Sync progress, notes & settings across devices",
                     checked = cloudSyncEnabled,
-                    onCheckedChange = { cloudSyncEnabled = it }
+                    onCheckedChange = { scope.launch { settingsManager.saveCloudSyncEnabled(it) } }
                 )
                 SettingsClickItem(
                     icon = Icons.Default.Backup,
