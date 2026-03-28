@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Forward
@@ -39,6 +40,7 @@ fun ControlsOverlay(
     currentPosition: Long,
     duration: Long,
     isOrientationLocked: Boolean,
+    onNavigateBack: () -> Unit,
     onOrientationToggle: () -> Unit,
     onPipClick: () -> Unit,
     onFullscreenToggle: () -> Unit,
@@ -49,20 +51,50 @@ fun ControlsOverlay(
 
     AnimatedVisibility(visible = showControls && !isPip, enter = fadeIn(), exit = fadeOut()) {
         Box(Modifier.fillMaxSize()) {
-            // Title
-            if (title.isNotEmpty()) {
-                Text(
-                    text = title,
-                    color = Color.White,
-                    style = if (isMinimal) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+            // Top Bar: Back Button, Red Circle, Title
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .statusBarsPadding()
+                    .padding(start = 24.dp, top = 24.dp, end = 16.dp)
+            ) {
+                // Back Button
+                IconButton(
+                    onClick = onNavigateBack,
                     modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(if (isMinimal) 8.dp else 16.dp)
-                        .background(Color.Black.copy(alpha = 0.6f), MaterialTheme.shapes.small)
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .size(40.dp)
+                        .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "Back",
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+
+                // Red Circle
+                Box(
+                    modifier = Modifier
+                        .size(12.dp)
+                        .background(Color.Red, CircleShape)
                 )
+
+                // Title
+                if (title.isNotEmpty()) {
+                    Text(
+                        text = title,
+                        color = Color.White,
+                        style = if (isMinimal) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .background(Color.Black.copy(alpha = 0.6f), MaterialTheme.shapes.small)
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
             }
 
             // Bottom Seekbar + Time + Buttons 
