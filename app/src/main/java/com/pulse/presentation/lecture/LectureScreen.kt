@@ -190,13 +190,17 @@ fun LectureScreen(
                     val inPip = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                         activity?.isInPictureInPictureMode == true
                     } else false
-                    if (!inPip && !isBackgroundPlaybackEnabled) {
+
+                    // Always pause unless in PiP mode
+                    if (!inPip) {
                         viewModel.player.pause()
                     }
                 }
                 androidx.lifecycle.Lifecycle.Event.ON_START,
                 androidx.lifecycle.Lifecycle.Event.ON_RESUME -> {
                     viewModel.playSessionIfNeeded()
+                    // Autoplay when returning to foreground (even if buffering)
+                    viewModel.player.play()
                 }
                 else -> {}
             }
