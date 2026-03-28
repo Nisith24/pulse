@@ -337,6 +337,7 @@ class LectureRepository(
             }
             
             lectureDao.insertAll(lecturesToInsert)
+            lectureDao.markMissingSubjectBtrDeleted(subjectName, grouped.map { it.id }, hlc)
             
             val btrToSync = lecturesToInsert.filter { !it.isLocal }
             if (btrToSync.isNotEmpty()) {
@@ -390,8 +391,8 @@ class LectureRepository(
     }
 
     /** Observe PDF files in a Drive folder locally, syncing if needed */
-    fun observePdfs(folderId: String): Flow<List<BtrFile>> {
-        triggerFolderSyncIfNeeded(folderId, true)
+    fun observePdfs(folderId: String, forceSync: Boolean = false): Flow<List<BtrFile>> {
+        triggerFolderSyncIfNeeded(folderId, true, forceSync)
         return driveFileDao.observeFilesByParentId(folderId).map { files ->
             files.map { it.toDomainModel() }
                  .filter { it.mimeType == "application/pdf" || it.name.endsWith(".pdf", ignoreCase = true) }
@@ -399,22 +400,22 @@ class LectureRepository(
     }
 
     /** Observe subfolders in a Drive folder locally, syncing if needed */
-    fun observeSubfolders(folderId: String): Flow<List<BtrFile>> {
-        triggerFolderSyncIfNeeded(folderId, false)
+    fun observeSubfolders(folderId: String, forceSync: Boolean = false): Flow<List<BtrFile>> {
+        triggerFolderSyncIfNeeded(folderId, false, forceSync)
         return driveFileDao.observeFilesByParentId(folderId).map { files ->
             files.map { it.toDomainModel() }
                  .filter { it.mimeType == "application/vnd.google-apps.folder" }
         }
     }
 
-    private fun triggerFolderSyncIfNeeded(folderId: String, isPdfRequest: Boolean) {
+    private fun triggerFolderSyncIfNeeded(folderId: String, isPdfRequest: Boolean, forceSync: Boolean) {
         scope.launch {
             try {
                 val lastSyncTime = driveFileDao.getLastSyncTime(folderId) ?: 0L
                 val now = System.currentTimeMillis()
                 val twelveHoursInMillis = 12 * 60 * 60 * 1000L
 
-                if (now - lastSyncTime > twelveHoursInMillis) {
+                if (forceSync || now - lastSyncTime > twelveHoursInMillis) {
                     val token = try { authManager.getToken() } catch (e: Exception) { "" }
 
                     // Fallback to anonymous access if token fails, since shared folders can often be viewed publicly
@@ -443,8 +444,8 @@ class LectureRepository(
     }
 
     /** Old suspended versions (can wrap the flow for compatibility if needed elsewhere) */
-    suspend fun listPdfs(folderId: String): List<BtrFile> = observePdfs(folderId).first()
-    suspend fun listSubfolders(folderId: String): List<BtrFile> = observeSubfolders(folderId).first()
+    suspend fun listPdfs(folderId: String, forceSync: Boolean = false): List<BtrFile> = observePdfs(folderId, forceSync).first()
+    suspend fun listSubfolders(folderId: String, forceSync: Boolean = false): List<BtrFile> = observeSubfolders(folderId, forceSync).first()
 
     /** Compute the local path where a Drive PDF would be cached */
     fun getLecturePdfPath(lectureId: String, pdf: com.pulse.data.services.btr.BtrFile): String {
