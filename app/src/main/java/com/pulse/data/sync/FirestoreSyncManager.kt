@@ -166,6 +166,7 @@ class FirestoreSyncManager(
 
     private fun lectureToMap(l: Lecture) = mapOf(
         "id" to l.id, "name" to l.name, "videoId" to l.videoId, 
+        "pdfId" to l.pdfId, "pdfPageCount" to l.pdfPageCount, "lastPdfPage" to l.lastPdfPage, "pdfIsHorizontal" to l.pdfIsHorizontal,
         "lastPosition" to l.lastPosition, "videoDuration" to l.videoDuration,
         "isFavorite" to l.isFavorite,
         "subject" to l.subject,
@@ -181,16 +182,16 @@ class FirestoreSyncManager(
 
     private fun mapToLecture(m: Map<String, Any>): Lecture = Lecture(
         id = m["id"] as? String ?: "", name = m["name"] as? String ?: "",
-        videoId = m["videoId"] as? String, pdfId = null,
+        videoId = m["videoId"] as? String, pdfId = m["pdfId"] as? String,
         pdfLocalPath = "", videoLocalPath = null,
         isPdfDownloaded = false, isLocal = false,
         lastPosition = (m["lastPosition"] as? Number)?.toLong() ?: 0,
         videoDuration = (m["videoDuration"] as? Number)?.toLong() ?: 0,
         speed = 1f,
         isFavorite = m["isFavorite"] as? Boolean ?: false,
-        pdfPageCount = 0,
-        lastPdfPage = 0,
-        pdfIsHorizontal = false,
+        pdfPageCount = (m["pdfPageCount"] as? Number)?.toInt() ?: 0,
+        lastPdfPage = (m["lastPdfPage"] as? Number)?.toInt() ?: 0,
+        pdfIsHorizontal = m["pdfIsHorizontal"] as? Boolean ?: false,
         hlcTimestamp = m["hlcTimestamp"] as? String ?: "",
         isDeleted = m["isDeleted"] as? Boolean ?: false,
         updatedAt = (m["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
