@@ -1,0 +1,10 @@
+--- app/src/main/java/com/pulse/data/sync/FirestoreSyncWorker.kt
++++ app/src/main/java/com/pulse/data/sync/FirestoreSyncWorker.kt
+@@ -69,6 +69,7 @@
+                                 isPdfDownloaded = local.isPdfDownloaded,
+                                 pdfId = local.pdfId,
+                                 speed = local.speed,
++                                updatedAt = local.updatedAt,
+                                 pdfPageCount = local.pdfPageCount,
+                                 lastPdfPage = local.lastPdfPage,
+                                 pdfIsHorizontal = local.pdfIsHorizontal

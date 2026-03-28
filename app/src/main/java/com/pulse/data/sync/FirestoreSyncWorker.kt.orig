@@ -35,7 +35,7 @@ class FirestoreSyncWorker(
             var pulledLecturesCount = 0
             var pulledNotesCount = 0
             var pulledVisualsCount = 0
-            
+
             // --- PUSH: Local changes -> Firestore ---
             if (syncType == "PUSH" || syncType == "BOTH") {
                 val modifiedLectures = lectureDao.getModifiedSince(lastSync)
@@ -70,7 +70,6 @@ class FirestoreSyncWorker(
                                 isPdfDownloaded = local.isPdfDownloaded,
                                 pdfId = local.pdfId,
                                 speed = local.speed,
-                                updatedAt = local.updatedAt,
                                 pdfPageCount = local.pdfPageCount,
                                 lastPdfPage = local.lastPdfPage,
                                 pdfIsHorizontal = local.pdfIsHorizontal
@@ -106,7 +105,7 @@ class FirestoreSyncWorker(
             if (syncType == "BOTH" && !isFullSync) {
                 settingsManager.saveLastSyncTime(System.currentTimeMillis())
             }
-            
+
             Log.d("FirestoreSyncWorker", "Sync OK ($syncType). Push: ${pushedLecturesCount}L/${pushedNotesCount}N/${pushedVisualsCount}V. Pull: ${pulledLecturesCount}L/${pulledNotesCount}N/${pulledVisualsCount}V")
             Result.success()
         } catch (e: Exception) {

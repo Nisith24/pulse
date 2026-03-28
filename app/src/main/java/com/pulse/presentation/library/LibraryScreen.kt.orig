@@ -64,9 +64,6 @@ fun LibraryScreen(
     val currentTab by viewModel.currentTab.collectAsState()
     val btrLectures by viewModel.btrLectures.collectAsState()
     val localLectures by viewModel.localLectures.collectAsState()
-    val recentLocalLectures by viewModel.recentLocalLectures.collectAsState()
-    val videoLocalLectures by viewModel.videoLocalLectures.collectAsState()
-    val pdfLocalLectures by viewModel.pdfLocalLectures.collectAsState()
     val error by viewModel.error.collectAsState()
     val authIntent by viewModel.authIntent.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -78,7 +75,7 @@ fun LibraryScreen(
     var isSearching by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
     val context = LocalContext.current
-    
+
     // Custom List State
     val customLists by customListViewModel.customLists.collectAsState()
     var selectedLongPressLecture by remember { mutableStateOf<com.pulse.core.data.db.Lecture?>(null) }
@@ -198,7 +195,7 @@ fun LibraryScreen(
                                 unfocusedIndicatorColor = Color.Transparent
                             ),
                             trailingIcon = {
-                                IconButton(onClick = { 
+                                IconButton(onClick = {
                                     isSearching = false
                                     viewModel.setSearchQuery("")
                                 }) {
@@ -318,7 +315,7 @@ fun LibraryScreen(
                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                     ) { Icon(Icons.Default.PictureAsPdf, contentDescription = "Add PDF") }
-                    
+
                     FloatingActionButton(
                         onClick = { showFabMenu = false; requestLocalAccess(isPdf = false) },
                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
@@ -326,14 +323,14 @@ fun LibraryScreen(
                     ) { Icon(Icons.Default.VideoLibrary, contentDescription = "Add Video") }
                 } else if (currentTab == LibraryTab.SERVICES && isBtrViewActive && showFabMenu) {
                     FloatingActionButton(
-                        onClick = { 
+                        onClick = {
                             showFabMenu = false
                             viewModel.loadDrivePdfs(com.pulse.core.domain.util.Constants.DRIVE_FOLDER_ID)
-                            showDrivePdfPicker = true 
+                            showDrivePdfPicker = true
                         },
                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                    ) { 
+                    ) {
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 12.dp)) {
                             Icon(Icons.Default.Cloud, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
@@ -521,9 +518,9 @@ fun LibraryScreen(
                             }
                             items(lectures, key = { it.id }) { lecture ->
                                 LectureCard(
-                                    lecture = lecture, 
-                                    isLibraryHome = currentTab == LibraryTab.HOME, 
-                                    onLectureSelected = onLectureSelected, 
+                                    lecture = lecture,
+                                    isLibraryHome = currentTab == LibraryTab.HOME,
+                                    onLectureSelected = onLectureSelected,
                                     onToggleFavorite = { viewModel.toggleFavorite(it) },
                                     onDelete = { viewModel.deleteLecture(it) },
                                     onLongPress = { selectedLongPressLecture = it }

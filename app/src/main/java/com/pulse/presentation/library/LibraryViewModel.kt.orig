@@ -70,8 +70,8 @@ class LibraryViewModel(
             .filter { query.isBlank() || it.name.contains(query, ignoreCase = true) }
 
         return sequence.sortedWith(
-            compareBy<com.pulse.core.data.db.Lecture> { 
-                MODULE_NUMBER_REGEX.find(it.name)?.value?.toIntOrNull() ?: Int.MAX_VALUE 
+            compareBy<com.pulse.core.data.db.Lecture> {
+                MODULE_NUMBER_REGEX.find(it.name)?.value?.toIntOrNull() ?: Int.MAX_VALUE
             }.thenBy { it.name }
         ).toList()
     }
@@ -96,24 +96,6 @@ class LibraryViewModel(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = emptyList()
     )
-
-    val recentLocalLectures = localLectures.combine(repository.recentLecture) { lectures, _ ->
-        lectures.filter { it.lastPosition > 0 || it.updatedAt > 0 }
-            .sortedByDescending { it.updatedAt.takeIf { t -> t > 0 } ?: it.lastPosition }
-            .take(4)
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = emptyList()
-    )
-
-    val videoLocalLectures = combine(localLectures, recentLocalLectures) { lectures, recent ->
-        lectures.filter { !it.videoLocalPath.isNullOrEmpty() && it.id !in recent.map { r -> r.id } }
-    }.stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5000), initialValue = emptyList())
-
-    val pdfLocalLectures = combine(localLectures, recentLocalLectures) { lectures, recent ->
-        lectures.filter { it.pdfLocalPath.isNotEmpty() && it.id !in recent.map { r -> r.id } }
-    }.stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5000), initialValue = emptyList())
 
     val recentLecture = repository.recentLecture
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
@@ -172,7 +154,7 @@ class LibraryViewModel(
             _error.value = null
             _authIntent.value = null
             _isLoading.value = true
-            
+
             repository.sync()
                 .onError { e, message ->
                     if (e is com.pulse.data.services.btr.PulseAuthException) {
@@ -193,7 +175,7 @@ class LibraryViewModel(
                         _error.value = "Sync failed: $message"
                     }
                 }
-                
+
             _isLoading.value = false
         }
     }
