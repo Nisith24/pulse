@@ -23,7 +23,8 @@ fun DrivePdfPicker(
     onPdfSelected: (BtrFile) -> Unit,
     onDismissRequest: () -> Unit,
     isLoading: Boolean = false,
-    folderPdf: BtrFile? = null
+    folderPdf: BtrFile? = null,
+    matchType: com.pulse.presentation.lecture.PdfMatchType = com.pulse.presentation.lecture.PdfMatchType.NONE
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
@@ -66,8 +67,13 @@ fun DrivePdfPicker(
                             )
                         },
                         supportingContent = {
+                            val typeLabel = when(matchType) {
+                                com.pulse.presentation.lecture.PdfMatchType.EXACT -> "🎯 Suggested for you"
+                                com.pulse.presentation.lecture.PdfMatchType.SUBJECT -> "📚 Subject PDF"
+                                else -> "Folder PDF"
+                            }
                             Text(
-                                "Folder PDF • ${(folderPdf.size ?: 0) / 1024 / 1024} MB",
+                                "$typeLabel • ${(folderPdf.size ?: 0) / 1024 / 1024} MB",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                             )
