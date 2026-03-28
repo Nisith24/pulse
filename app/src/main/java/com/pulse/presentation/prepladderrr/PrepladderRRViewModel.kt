@@ -52,19 +52,23 @@ class PrepladderRRViewModel(
         )
 
     init {
-        loadSubfolders()
+        loadSubfolders(forceSync = false)
     }
 
-    fun loadSubfolders() {
-        viewModelScope.launch {
+    private var subfoldersJob: kotlinx.coroutines.Job? = null
+
+    fun loadSubfolders(forceSync: Boolean = true) {
+        subfoldersJob?.cancel()
+        subfoldersJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoadingFolders = true, error = null) }
             try {
-                val folders = lectureRepository.listSubfolders(Constants.PREPLADDER_RR_FOLDER_ID)
-                val driveFolders = folders
-                    .sortedBy { it.name }
-                    .map { DriveFolder(id = it.id, name = it.name) }
-                Log.d("PrepladderRRVM", "Loaded ${driveFolders.size} subfolders")
-                _uiState.update { it.copy(isLoadingFolders = false, subfolders = driveFolders) }
+                lectureRepository.observeSubfolders(Constants.PREPLADDER_RR_FOLDER_ID, forceSync).collect { folders ->
+                    val driveFolders = folders
+                        .sortedBy { it.name }
+                        .map { DriveFolder(id = it.id, name = it.name) }
+                    Log.d("PrepladderRRVM", "Loaded ${driveFolders.size} subfolders")
+                    _uiState.update { it.copy(isLoadingFolders = false, subfolders = driveFolders) }
+                }
             } catch (e: Exception) {
                 Log.e("PrepladderRRVM", "Failed to load subfolders", e)
                 _uiState.update { it.copy(isLoadingFolders = false, error = "Failed to load folders: ${e.message}") }
@@ -117,11 +121,20 @@ class PrepladderRRViewModel(
         lectureRepository.startDownload(lecture)
     }
 
+    private var pdfsJob: kotlinx.coroutines.Job? = null
+
     fun loadDrivePdfs(folderId: String) {
-        viewModelScope.launch {
+        pdfsJob?.cancel()
+        pdfsJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoadingVideos = true) }
-            val pdfs = lectureRepository.listPdfs(folderId)
-            _uiState.update { it.copy(isLoadingVideos = false, drivePdfs = pdfs, folderPdf = pdfs.firstOrNull()) }
+            try {
+                lectureRepository.observePdfs(folderId, forceSync = true).collect { pdfs ->
+                    _uiState.update { it.copy(isLoadingVideos = false, drivePdfs = pdfs, folderPdf = pdfs.firstOrNull()) }
+                }
+            } catch (e: Exception) {
+                Log.e("PrepladderRRVM", "Failed to load PDFs", e)
+                _uiState.update { it.copy(isLoadingVideos = false) }
+            }
         }
     }
 

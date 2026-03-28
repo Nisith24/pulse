@@ -55,6 +55,9 @@ interface LectureDao {
     @Query("UPDATE lectures SET isDeleted = 1, hlcTimestamp = :hlcTimestamp WHERE isLocal = 0 AND (subject IS NULL OR subject = '') AND id NOT IN (:ids)")
     suspend fun markMissingBtrDeleted(ids: List<String>, hlcTimestamp: String)
 
+    @Query("UPDATE lectures SET isDeleted = 1, hlcTimestamp = :hlcTimestamp WHERE isLocal = 0 AND subject = :subject AND id NOT IN (:ids)")
+    suspend fun markMissingSubjectBtrDeleted(subject: String, ids: List<String>, hlcTimestamp: String)
+
     @Query("UPDATE lectures SET isFavorite = NOT isFavorite, updatedAt = :updatedAt, hlcTimestamp = :hlcTimestamp WHERE id = :id")
     suspend fun toggleFavorite(id: String, updatedAt: Long, hlcTimestamp: String)
 
