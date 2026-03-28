@@ -45,7 +45,7 @@ val appModule = module {
             androidContext(),
             AppDatabase::class.java,
             "Pulse.db"
-        ).addMigrations(AppDatabase.MIGRATION_12_13, AppDatabase.MIGRATION_13_14, AppDatabase.MIGRATION_14_15)
+        ).addMigrations(AppDatabase.MIGRATION_12_13, AppDatabase.MIGRATION_13_14, AppDatabase.MIGRATION_14_15, AppDatabase.MIGRATION_15_16)
          .fallbackToDestructiveMigration()
          .build()
     }
@@ -55,6 +55,7 @@ val appModule = module {
     single { get<AppDatabase>().noteVisualDao() }
     single { get<AppDatabase>().customListDao() }
     single { get<AppDatabase>().driveFileDao() }
+    single { get<AppDatabase>().lectureAnnotationDao() }
     
     // HLC Generator for CRDT
     single { 
@@ -87,7 +88,7 @@ val appModule = module {
     
     // Repositories
     single<INoteRepository> { NoteRepository(get(), get()) }
-    single { NoteVisualRepository(get(), get()) }
+    single { NoteVisualRepository(get(), get(), get()) }
     single { LectureRepository(get(), get(), get(), get(), get(), get(), get(), androidContext(), get(), get(), get()) }
     
     // Player — MUST be singleton (SimpleCache uses exclusive DB lock)

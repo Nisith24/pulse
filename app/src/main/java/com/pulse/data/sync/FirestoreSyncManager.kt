@@ -10,6 +10,7 @@ import com.pulse.core.data.db.Lecture
 import com.pulse.core.data.db.Note
 import com.pulse.core.data.db.NoteVisual
 import com.pulse.core.data.db.VisualType
+import com.pulse.core.data.db.LectureAnnotation
 import kotlinx.coroutines.tasks.await
 
 class FirestoreSyncManager(
@@ -65,19 +66,19 @@ class FirestoreSyncManager(
         }
     }
 
-    suspend fun pushNoteVisuals(visuals: List<NoteVisual>) {
+    suspend fun pushLectureAnnotations(annotations: List<LectureAnnotation>) {
         val uid = userId ?: return
-        if (visuals.isEmpty()) return
-        val ref = db.collection("users").document(uid).collection("note_visuals")
+        if (annotations.isEmpty()) return
+        val ref = db.collection("users").document(uid).collection("lecture_annotations")
         try {
-            visuals.chunked(500).forEach { chunk ->
+            annotations.chunked(500).forEach { chunk ->
                 val batch = db.batch()
-                chunk.forEach { batch.set(ref.document(it.id.toString()), noteVisualToMap(it), SetOptions.merge()) }
+                chunk.forEach { batch.set(ref.document(it.lectureId), lectureAnnotationToMap(it), SetOptions.merge()) }
                 batch.commit().await()
             }
-            Log.d("FirestoreSync", "Batch pushed ${visuals.size} note visuals")
+            Log.d("FirestoreSync", "Batch pushed ${annotations.size} lecture annotations")
         } catch (e: Exception) {
-            Log.e("FirestoreSync", "Batch push note visuals error", e)
+            Log.e("FirestoreSync", "Batch push lecture annotations error", e)
         }
     }
 
@@ -109,15 +110,15 @@ class FirestoreSyncManager(
         }
     }
 
-    suspend fun pullNoteVisuals(lastSyncTime: Long = 0): List<NoteVisual> {
+    suspend fun pullLectureAnnotations(lastSyncTime: Long = 0): List<LectureAnnotation> {
         val uid = userId ?: return emptyList()
         return try {
-            val snapshot = db.collection("users").document(uid).collection("note_visuals")
+            val snapshot = db.collection("users").document(uid).collection("lecture_annotations")
                 .whereGreaterThan("updatedAt", lastSyncTime)
                 .get().await()
-            snapshot.documents.mapNotNull { doc -> mapToNoteVisual(doc.data ?: return@mapNotNull null) }
+            snapshot.documents.mapNotNull { doc -> mapToLectureAnnotation(doc.data ?: return@mapNotNull null) }
         } catch (e: Exception) {
-            Log.e("FirestoreSync", "Pull note visuals error", e)
+            Log.e("FirestoreSync", "Pull lecture annotations error", e)
             emptyList()
         }
     }
@@ -207,28 +208,17 @@ class FirestoreSyncManager(
         isDeleted = m["isDeleted"] as? Boolean ?: false
     )
 
-    private fun noteVisualToMap(v: NoteVisual) = mapOf(
-        "id" to v.id, "lectureId" to v.lectureId, "pdfId" to v.pdfId,
-        "timestamp" to v.timestamp, "pageNumber" to v.pageNumber,
-        "type" to v.type.name, "data" to v.data, "color" to v.color,
-        "strokeWidth" to v.strokeWidth, "alpha" to v.alpha,
-        "hlcTimestamp" to v.hlcTimestamp, "isDeleted" to v.isDeleted,
-        "updatedAt" to v.updatedAt
+    private fun lectureAnnotationToMap(a: LectureAnnotation) = mapOf(
+        "lectureId" to a.lectureId,
+        "annotationsJson" to a.annotationsJson,
+        "hlcTimestamp" to a.hlcTimestamp,
+        "updatedAt" to a.updatedAt
     )
 
-    private fun mapToNoteVisual(m: Map<String, Any>): NoteVisual = NoteVisual(
-        id = (m["id"] as? Number)?.toLong() ?: 0,
+    private fun mapToLectureAnnotation(m: Map<String, Any>): LectureAnnotation = LectureAnnotation(
         lectureId = m["lectureId"] as? String ?: "",
-        pdfId = m["pdfId"] as? String ?: "",
-        timestamp = (m["timestamp"] as? Number)?.toLong() ?: 0,
-        pageNumber = (m["pageNumber"] as? Number)?.toInt() ?: 0,
-        type = enumValueOf<VisualType>(m["type"] as? String ?: VisualType.DRAWING.name),
-        data = m["data"] as? String ?: "",
-        color = (m["color"] as? Number)?.toInt() ?: android.graphics.Color.RED,
-        strokeWidth = (m["strokeWidth"] as? Number)?.toFloat() ?: 5f,
-        alpha = (m["alpha"] as? Number)?.toFloat() ?: 1f,
+        annotationsJson = m["annotationsJson"] as? String ?: "",
         hlcTimestamp = m["hlcTimestamp"] as? String ?: "",
-        isDeleted = m["isDeleted"] as? Boolean ?: false,
         updatedAt = (m["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
     )
 }
