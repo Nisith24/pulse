@@ -32,5 +32,6 @@ class NoteVisualRepository(
     /** Migrate old annotations to use lectureId as pdfId (fixes volatile key issue) */
     suspend fun migrateToLectureId(lectureId: String) {
         dao.migrateToLectureId(lectureId)
+        dao.migrateBlankNotesToLectureId(lectureId)
     }
 }

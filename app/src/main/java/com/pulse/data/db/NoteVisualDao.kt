@@ -49,8 +49,12 @@ interface NoteVisualDao {
     suspend fun insertAll(visuals: List<NoteVisual>)
 
     /** Migrate all existing visuals for a lecture to use lectureId as pdfId (skips blank_note) */
-    @Query("UPDATE note_visuals SET pdfId = :lectureId WHERE lectureId = :lectureId AND pdfId != 'blank_note' AND pdfId != :lectureId")
+    @Query("UPDATE note_visuals SET pdfId = :lectureId WHERE lectureId = :lectureId AND pdfId NOT LIKE 'blank_note%' AND pdfId != :lectureId")
     suspend fun migrateToLectureId(lectureId: String)
+
+    /** Migrate old generic blank_note annotations to lecture-specific blank_note annotations */
+    @Query("UPDATE note_visuals SET pdfId = 'blank_note_' || :lectureId WHERE lectureId = :lectureId AND pdfId = 'blank_note'")
+    suspend fun migrateBlankNotesToLectureId(lectureId: String)
 
     /** Get ALL visuals for a lecture (ignoring pdfId) — used as fallback */
     @Query("SELECT * FROM note_visuals WHERE lectureId = :lectureId AND isDeleted = 0")

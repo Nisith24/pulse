@@ -58,7 +58,7 @@ class LectureViewModel(
      * Annotations are per-lecture, not per-file.
      */
     private fun resolveActivePdfId(lecture: Lecture): String {
-        return if (lecture.pdfLocalPath == "blank_note") "blank_note" else lecture.id
+        return if (lecture.pdfLocalPath.startsWith("blank_note")) "blank_note_${lecture.id}" else lecture.id
     }
 
     val notes: Flow<List<Note>> = noteRepository.getNotes(lectureId)
@@ -299,7 +299,7 @@ class LectureViewModel(
     }
 
     fun addVisual(type: VisualType, data: String, page: Int, color: Int, width: Float, alpha: Float = 1f) {
-        val currentPdfId = _lecture.value?.let { resolveActivePdfId(it) } ?: "blank_note"
+        val currentPdfId = _lecture.value?.let { resolveActivePdfId(it) } ?: "blank_note_${lectureId}"
 
         viewModelScope.launch {
             noteVisualRepository.insert(
@@ -319,7 +319,7 @@ class LectureViewModel(
     }
 
     fun addVisualAtPos(type: VisualType, x: Float, y: Float, page: Int, color: Int, width: Float = 1f, alpha: Float = 1f) {
-        val currentPdfId = _lecture.value?.let { resolveActivePdfId(it) } ?: "blank_note"
+        val currentPdfId = _lecture.value?.let { resolveActivePdfId(it) } ?: "blank_note_${lectureId}"
         viewModelScope.launch {
             noteVisualRepository.insert(
                 NoteVisual(
@@ -358,7 +358,7 @@ class LectureViewModel(
         _lecture.value?.let { l ->
             viewModelScope.launch { 
                 // Initialize page count for blank note
-                if (path == "blank_note" && l.pdfPageCount == 0) {
+                if (path.startsWith("blank_note") && l.pdfPageCount == 0) {
                     repository.updatePageCount(l.id, 5)
                 }
                 
