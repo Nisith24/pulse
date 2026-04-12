@@ -56,8 +56,8 @@ suspend fun OkHttpClient.executeWithRetry(request: Request): Response {
         }
 
         if (attempt < 2) {
-            // Non-blocking delay for exponential-like backoff (300ms, 600ms)
-            delay(300L * (attempt + 1))
+            // Non-blocking delay for exponential-like backoff (1000ms, 2000ms)
+            delay(1000L * (attempt + 1))
         }
     }
     throw lastException ?: IOException("Retry exhausted for ${request.url}")
