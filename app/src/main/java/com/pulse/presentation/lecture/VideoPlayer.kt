@@ -49,6 +49,14 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import android.media.AudioManager
 import kotlin.math.roundToInt
+
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.layout.onSizeChanged
+import com.pulse.data.local.SettingsManager
+import org.koin.compose.koinInject
 import com.pulse.presentation.lecture.components.ControlsOverlay
 import com.pulse.presentation.lecture.components.SettingsOverlay
 import kotlinx.coroutines.delay
@@ -70,6 +78,11 @@ fun VideoPlayer(
     var showControls by remember { mutableStateOf(!isPip) }
     var showSettings by remember { mutableStateOf(false) }
     var resizeMode by remember { mutableIntStateOf(AspectRatioFrameLayout.RESIZE_MODE_FIT) }
+
+    val settingsManager: SettingsManager = koinInject()
+    val doubleTapSeekOffset by settingsManager.doubleTapSeekOffsetFlow.collectAsState(initial = 15000L)
+    val longPressSpeed by settingsManager.longPressSpeedFlow.collectAsState(initial = 2.0f)
+    val coroutineScope = rememberCoroutineScope()
 
     val context = LocalContext.current
     val activity = context as? android.app.Activity
@@ -132,8 +145,36 @@ fun VideoPlayer(
         val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
         var playerViewRef by remember { mutableStateOf<PlayerView?>(null) }
 
+        // Zoom State
+        var scale by remember { mutableFloatStateOf(1f) }
+        var offsetX by remember { mutableFloatStateOf(0f) }
+        var offsetY by remember { mutableFloatStateOf(0f) }
+        var playerSize by remember { mutableStateOf(androidx.compose.ui.geometry.Size.Zero) }
+
+        val state = rememberTransformableState { zoomChange, panChange, _ ->
+            scale = (scale * zoomChange).coerceIn(1f, 5f)
+
+            if (scale == 1f) {
+                offsetX = 0f
+                offsetY = 0f
+            } else {
+                val maxOffsetX = (playerSize.width * scale - playerSize.width) / 2
+                val maxOffsetY = (playerSize.height * scale - playerSize.height) / 2
+
+                offsetX = (offsetX + panChange.x * scale).coerceIn(-maxOffsetX, maxOffsetX)
+                offsetY = (offsetY + panChange.y * scale).coerceIn(-maxOffsetY, maxOffsetY)
+            }
+        }
+
         AndroidView(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .clipToBounds()
+                .onSizeChanged { size ->
+                    playerSize = androidx.compose.ui.geometry.Size(size.width.toFloat(), size.height.toFloat())
+                }
+                .graphicsLayer(scaleX = scale, scaleY = scale, translationX = offsetX, translationY = offsetY)
+                .transformable(state = state),
             factory = { ctx ->
                 val view = android.view.LayoutInflater.from(ctx).inflate(com.pulse.R.layout.texture_player_view, null) as PlayerView
                 view.apply {
@@ -232,7 +273,7 @@ fun VideoPlayer(
                             if (longPress != null) {
                                 // Long press detected
                                 savedSpeed = player.playbackParameters.speed
-                                player.setPlaybackSpeed(2.0f)
+                                player.setPlaybackSpeed(longPressSpeed)
                                 gestureType = "2x"
                                 
                                 // Wait for release
@@ -254,13 +295,13 @@ fun VideoPlayer(
                                 if (!showControls) showSettings = false
                             },
                             onDoubleTap = { offset ->
-                                val seekOffset = 15000L
+
                                 val currentWidth = size.width
                                 if (offset.x < currentWidth / 2f) {
-                                    player.seekTo((player.currentPosition - seekOffset).coerceAtLeast(0))
+                                    player.seekTo((player.currentPosition - doubleTapSeekOffset).coerceAtLeast(0))
                                     gestureType = "rw"
                                 } else {
-                                    player.seekTo((player.currentPosition + seekOffset).coerceAtMost(player.duration))
+                                    player.seekTo((player.currentPosition + doubleTapSeekOffset).coerceAtMost(player.duration))
                                     gestureType = "ff"
                                 }
                                 scope.launch {
@@ -452,8 +493,12 @@ fun VideoPlayer(
                     player = player,
                     isMinimal = isMinimal,
                     resizeMode = resizeMode,
+                                        doubleTapSeekOffset = doubleTapSeekOffset,
+                    longPressSpeed = longPressSpeed,
                     onResizeModeChanged = { resizeMode = it },
                     onSpeedChanged = onSpeedChanged,
+                    onDoubleTapSeekOffsetChanged = { coroutineScope.launch { settingsManager.saveDoubleTapSeekOffset(it) } },
+                    onLongPressSpeedChanged = { coroutineScope.launch { settingsManager.saveLongPressSpeed(it) } },
                     onDoneClick = { showSettings = false }
                 )
             }
