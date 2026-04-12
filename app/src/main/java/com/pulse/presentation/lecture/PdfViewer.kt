@@ -469,14 +469,14 @@ private fun PdfMode(
     LaunchedEffect(pdfViewRef.value, containerWidth, containerHeight) {
         pdfViewRef.value?.let { pdfView ->
             annotationState.pdfToScreenMapper = { x, y ->
-                val w = pdfView.width.toFloat().takeIf { it > 0 } ?: 1f
+                val w = pdfView.optimalPageWidth.takeIf { it > 0 } ?: pdfView.width.toFloat().takeIf { it > 0 } ?: 1f
                 android.graphics.PointF(
                     (x * w) * pdfView.zoom + pdfView.currentXOffset,
                     (y * w) * pdfView.zoom + pdfView.currentYOffset
                 )
             }
             annotationState.screenToPdfMapper = { x, y ->
-                val w = pdfView.width.toFloat().takeIf { it > 0 } ?: 1f
+                val w = pdfView.optimalPageWidth.takeIf { it > 0 } ?: pdfView.width.toFloat().takeIf { it > 0 } ?: 1f
                 android.graphics.PointF(
                     ((x - pdfView.currentXOffset) / pdfView.zoom) / w,
                     ((y - pdfView.currentYOffset) / pdfView.zoom) / w
