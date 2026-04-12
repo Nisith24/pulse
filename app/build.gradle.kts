@@ -11,6 +11,12 @@ android {
     namespace = "com.pulse"
     compileSdk = 34
 
+    val localProperties = java.util.Properties()
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use { localProperties.load(it) }
+    }
+
     defaultConfig {
         applicationId = "com.pulse"
         minSdk = 26
@@ -18,6 +24,9 @@ android {
         versionCode = 3
         versionName = "1.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "GOOGLE_API_KEY", "\"${localProperties.getProperty("GOOGLE_API_KEY") ?: ""}\"")
+        buildConfigField("String", "GOOGLE_SIGN_IN_WEB_CLIENT_ID", "\"${localProperties.getProperty("GOOGLE_SIGN_IN_WEB_CLIENT_ID") ?: ""}\"")
     }
 
     buildTypes {
@@ -52,6 +61,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
