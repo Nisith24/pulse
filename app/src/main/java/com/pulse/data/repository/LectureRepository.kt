@@ -73,6 +73,13 @@ class LectureRepository(
 
     val btrLectures: Flow<List<Lecture>> = lectureDao.getBtrLectures()
     val localLectures: Flow<List<Lecture>> = lectureDao.getLocalLectures()
+
+    // Manifest Queries
+    fun getLecturesByCategory(category: String): Flow<List<Lecture>> = lectureDao.getLecturesByCategory(category)
+    fun searchManifestLectures(query: String): Flow<List<Lecture>> = lectureDao.searchLectures(query)
+    val favoriteLectures: Flow<List<Lecture>> = lectureDao.getFavoriteLectures()
+    val recentlyWatchedLectures: Flow<List<Lecture>> = lectureDao.getRecentlyWatchedLectures()
+
     val downloadedLectures: Flow<List<Lecture>> = lectureDao.getDownloadedLectures()
     val cloudOnlyLectures: Flow<List<Lecture>> = lectureDao.getCloudOnlyLectures()
     val recentLecture: Flow<Lecture?> = lectureDao.getRecentLecture()

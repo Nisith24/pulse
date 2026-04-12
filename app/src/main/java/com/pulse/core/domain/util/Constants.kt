@@ -1,6 +1,9 @@
 package com.pulse.core.domain.util
 
 object Constants {
+    const val MANIFEST_FILE_ID = "1-TODO-ADD-MANIFEST-FILE-ID-HERE" // Single Source of Truth Manifest
+
+    // Legacy Folder IDs (To be deleted later)
     const val DRIVE_FOLDER_ID = "1PJEy0w5IpxV7G71UG6xQaR5Ez29E259e" // BTR Folder ID
     const val PREPLADDER_FOLDER_ID = "1qAt4Qm9H-18uh6JZ5sBDh4u_qLszcA47" // Microbiology Folder ID
     const val PREPLADDER_RR_FOLDER_ID = "1_4ACsgc8SoXAIxjdoz97tGO6WXGSZc1d" // PREPLADDER RR Root Folder

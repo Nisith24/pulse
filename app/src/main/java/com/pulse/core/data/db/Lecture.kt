@@ -23,5 +23,14 @@ data class Lecture(
     val hlcTimestamp: String = "",
     val isDeleted: Boolean = false,
     val updatedAt: Long = System.currentTimeMillis(),
-    val subject: String? = null
+    val subject: String? = null,
+
+    // Manifest Architecture Fields
+    val category: String? = null,
+    val orderIndex: Int = 0,
+    val manifestDurationSeconds: Int = 0,
+    val dateAdded: String? = null,
+    val tags: String? = null,
+    val downloadable: Boolean = true,
+    val manifestVersion: Int = 0
 )

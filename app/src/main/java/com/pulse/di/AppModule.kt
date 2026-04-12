@@ -45,7 +45,7 @@ val appModule = module {
             androidContext(),
             AppDatabase::class.java,
             "Pulse.db"
-        ).addMigrations(AppDatabase.MIGRATION_12_13, AppDatabase.MIGRATION_13_14, AppDatabase.MIGRATION_14_15, AppDatabase.MIGRATION_15_16)
+        ).addMigrations(AppDatabase.MIGRATION_12_13, AppDatabase.MIGRATION_13_14, AppDatabase.MIGRATION_14_15, AppDatabase.MIGRATION_15_16, AppDatabase.MIGRATION_16_17)
          .fallbackToDestructiveMigration()
          .build()
     }
@@ -94,9 +94,13 @@ val appModule = module {
     // Player — MUST be singleton (SimpleCache uses exclusive DB lock)
     single { PlayerProvider(androidContext(), get()) }
     
+    single { com.pulse.data.repository.manifest.ManifestRepository(get(), get(), get(), get()) }
+    single { com.pulse.domain.usecase.ManifestSyncUseCase(get()) }
+
     // ViewModels
     viewModel { com.pulse.presentation.theme.ThemeViewModel(get()) }
     viewModel { LibraryViewModel(get(), get(), get()) }
+    viewModel { com.pulse.presentation.library.UnifiedLibraryViewModel(get(), get()) }
     viewModel { DownloadsViewModel(get()) }
     
     viewModel { (lectureId: String) -> 

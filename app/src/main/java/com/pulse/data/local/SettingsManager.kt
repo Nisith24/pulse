@@ -26,6 +26,7 @@ class SettingsManager(private val context: Context) {
         val LAST_SYNC_TIME_KEY = longPreferencesKey("last_sync_time")
         val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
         val CLOUD_SYNC_ENABLED_KEY = booleanPreferencesKey("cloud_sync_enabled")
+        val MANIFEST_VERSION_KEY = androidx.datastore.preferences.core.intPreferencesKey("manifest_version")
     }
 
     val splitRatioFlow: Flow<Float> = context.dataStore.data
@@ -42,6 +43,7 @@ class SettingsManager(private val context: Context) {
     val lastSyncTimeFlow: Flow<Long> = context.dataStore.data.map { it[LAST_SYNC_TIME_KEY] ?: 0L }
     val themeModeFlow: Flow<String> = context.dataStore.data.map { it[THEME_MODE_KEY] ?: "SYSTEM" }
     val cloudSyncEnabledFlow: Flow<Boolean> = context.dataStore.data.map { it[CLOUD_SYNC_ENABLED_KEY] ?: true }
+    val manifestVersionFlow: Flow<Int> = context.dataStore.data.map { it[MANIFEST_VERSION_KEY] ?: 0 }
 
     suspend fun saveSplitRatio(value: Float) {
         context.dataStore.edit { preferences ->
@@ -58,4 +60,5 @@ class SettingsManager(private val context: Context) {
     suspend fun saveLastSyncTime(value: Long) { context.dataStore.edit { it[LAST_SYNC_TIME_KEY] = value } }
     suspend fun saveThemeMode(value: String) { context.dataStore.edit { it[THEME_MODE_KEY] = value } }
     suspend fun saveCloudSyncEnabled(value: Boolean) { context.dataStore.edit { it[CLOUD_SYNC_ENABLED_KEY] = value } }
+    suspend fun saveManifestVersion(value: Int) { context.dataStore.edit { it[MANIFEST_VERSION_KEY] = value } }
 }
