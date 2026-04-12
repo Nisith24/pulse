@@ -89,6 +89,7 @@ class LectureViewModel(
 
     private var periodicSaveJob: Job? = null
     private var hasStartedPlayback = false
+    private var lastSavedPosition: Long = -1L
 
     init {
         // Migrate old annotations (saved under volatile pdfId) to use stable lecture.id
@@ -268,7 +269,7 @@ class LectureViewModel(
     private fun startPeriodicSave() {
         periodicSaveJob = viewModelScope.launch {
             while (isActive) {
-                delay(5000)
+                delay(15000)
                 saveProgress()
             }
         }
@@ -284,6 +285,10 @@ class LectureViewModel(
         
         // Optimization: Don't save if in IDLE state or at extreme beginning
         if (player.playbackState == Player.STATE_IDLE || dur <= 1000) return
+
+        // Optimization: Don't save if the position hasn't changed (e.g. video is paused)
+        if (pos == lastSavedPosition) return
+        lastSavedPosition = pos
 
         // Use kotlinx.coroutines.NonCancellable to ensure DB save completes even if VM is cleared
         viewModelScope.launch(kotlinx.coroutines.NonCancellable) {
