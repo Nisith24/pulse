@@ -15,7 +15,7 @@ import com.pulse.core.data.db.LectureAnnotation
 
 @Database(
     entities = [Lecture::class, Note::class, NoteVisual::class, CustomList::class, CustomListLectureCrossRef::class, DriveFileEntity::class, LectureAnnotation::class],
-    version = 16,
+    version = 17,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -27,6 +27,17 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun lectureAnnotationDao(): LectureAnnotationDao
 
     companion object {
+        val MIGRATION_16_17 = object : Migration(16, 17) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE lectures ADD COLUMN category TEXT DEFAULT NULL")
+                database.execSQL("ALTER TABLE lectures ADD COLUMN orderIndex INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("ALTER TABLE lectures ADD COLUMN manifestDurationSeconds INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("ALTER TABLE lectures ADD COLUMN dateAdded TEXT DEFAULT NULL")
+                database.execSQL("ALTER TABLE lectures ADD COLUMN tags TEXT DEFAULT NULL")
+                database.execSQL("ALTER TABLE lectures ADD COLUMN downloadable INTEGER NOT NULL DEFAULT 1")
+                database.execSQL("ALTER TABLE lectures ADD COLUMN manifestVersion INTEGER NOT NULL DEFAULT 0")
+            }
+        }
         val MIGRATION_15_16 = object : Migration(15, 16) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("CREATE TABLE IF NOT EXISTS `lecture_annotations` (`lectureId` TEXT NOT NULL, `annotationsJson` TEXT NOT NULL, `hlcTimestamp` TEXT NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`lectureId`), FOREIGN KEY(`lectureId`) REFERENCES `lectures`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")

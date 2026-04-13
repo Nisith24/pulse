@@ -25,6 +25,18 @@ interface LectureDao {
     @Query("SELECT * FROM lectures WHERE subject = :subject AND isDeleted = 0 ORDER BY updatedAt DESC")
     fun getLecturesBySubject(subject: String): Flow<List<Lecture>>
 
+    @Query("SELECT * FROM lectures WHERE category = :category AND isDeleted = 0 ORDER BY orderIndex ASC, updatedAt DESC")
+    fun getLecturesByCategory(category: String): Flow<List<Lecture>>
+
+    @Query("SELECT * FROM lectures WHERE (tags LIKE '%' || :query || '%' OR name LIKE '%' || :query || '%') AND isDeleted = 0 ORDER BY orderIndex ASC")
+    fun searchLectures(query: String): Flow<List<Lecture>>
+
+    @Query("SELECT * FROM lectures WHERE isFavorite = 1 AND isDeleted = 0 ORDER BY updatedAt DESC")
+    fun getFavoriteLectures(): Flow<List<Lecture>>
+
+    @Query("SELECT * FROM lectures WHERE lastPosition > 0 AND isDeleted = 0 ORDER BY updatedAt DESC")
+    fun getRecentlyWatchedLectures(): Flow<List<Lecture>>
+
     @Query("SELECT * FROM lectures WHERE id = :id AND isDeleted = 0")
     fun getById(id: String): Flow<Lecture?>
 
