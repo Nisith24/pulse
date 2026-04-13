@@ -26,6 +26,11 @@ class ManifestRepository(
 
     suspend fun syncManifest(): com.pulse.core.domain.util.Result<Unit> = withContext(Dispatchers.IO) {
         try {
+            // Guard: skip sync if manifest file ID is not configured yet
+            if (Constants.MANIFEST_FILE_ID.startsWith("1-TODO")) {
+                logger.w("ManifestRepository", "MANIFEST_FILE_ID is not configured. Skipping manifest sync.")
+                return@withContext com.pulse.core.domain.util.Result.Success(Unit)
+            }
             logger.d("ManifestRepository", "Starting manifest sync...")
             val manifestUrl = "https://www.googleapis.com/drive/v3/files/${Constants.MANIFEST_FILE_ID}?alt=media&key=${Constants.GOOGLE_API_KEY}"
             val request = Request.Builder().url(manifestUrl).build()
