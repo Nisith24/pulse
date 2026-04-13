@@ -82,7 +82,7 @@ fun VideoPlayer(
     val settingsManager: SettingsManager = koinInject()
     val doubleTapSeekOffset by settingsManager.doubleTapSeekOffsetFlow.collectAsState(initial = 15000L)
     val longPressSpeed by settingsManager.longPressSpeedFlow.collectAsState(initial = 2.0f)
-    val coroutineScope = rememberCoroutineScope()
+    val settingsScope = rememberCoroutineScope()
 
     val context = LocalContext.current
     val activity = context as? android.app.Activity
@@ -364,12 +364,12 @@ fun VideoPlayer(
                         "rw" -> {
                             Icon(Icons.Default.FastRewind, contentDescription = null, tint = Color.White, modifier = Modifier.size(52.dp))
                             Spacer(Modifier.height(8.dp))
-                            Text("-15s", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                            Text("-${doubleTapSeekOffset / 1000}s", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                         }
                         "ff" -> {
                             Icon(Icons.Default.FastForward, contentDescription = null, tint = Color.White, modifier = Modifier.size(52.dp))
                             Spacer(Modifier.height(8.dp))
-                            Text("+15s", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                            Text("+${doubleTapSeekOffset / 1000}s", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                         }
                         "2x" -> {
                             Icon(Icons.Default.FastForward, contentDescription = null, tint = Color.White, modifier = Modifier.size(52.dp))
@@ -394,14 +394,14 @@ fun VideoPlayer(
             ) {
                 // Backward 15s
                 IconButton(
-                    onClick = { player.seekTo((player.currentPosition - 15000L).coerceAtLeast(0)) },
+                    onClick = { player.seekTo((player.currentPosition - doubleTapSeekOffset).coerceAtLeast(0)) },
                     modifier = Modifier
                         .size(if (isMinimal) 48.dp else 64.dp)
                         .background(Color.Black.copy(alpha = 0.3f), CircleShape)
                 ) {
                     Icon(
                         imageVector = Icons.Default.FastRewind,
-                        contentDescription = "-15s",
+                        contentDescription = "-${doubleTapSeekOffset / 1000}s",
                         tint = Color.White,
                         modifier = Modifier.size(if (isMinimal) 28.dp else 36.dp)
                     )
@@ -426,14 +426,14 @@ fun VideoPlayer(
 
                 // Forward 15s
                 IconButton(
-                    onClick = { player.seekTo((player.currentPosition + 15000L).coerceAtMost(player.duration)) },
+                    onClick = { player.seekTo((player.currentPosition + doubleTapSeekOffset).coerceAtMost(player.duration)) },
                     modifier = Modifier
                         .size(if (isMinimal) 48.dp else 64.dp)
                         .background(Color.Black.copy(alpha = 0.3f), CircleShape)
                 ) {
                     Icon(
                         imageVector = Icons.Default.FastForward,
-                        contentDescription = "+15s",
+                        contentDescription = "+${doubleTapSeekOffset / 1000}s",
                         tint = Color.White,
                         modifier = Modifier.size(if (isMinimal) 28.dp else 36.dp)
                     )
@@ -497,8 +497,8 @@ fun VideoPlayer(
                     longPressSpeed = longPressSpeed,
                     onResizeModeChanged = { resizeMode = it },
                     onSpeedChanged = onSpeedChanged,
-                    onDoubleTapSeekOffsetChanged = { coroutineScope.launch { settingsManager.saveDoubleTapSeekOffset(it) } },
-                    onLongPressSpeedChanged = { coroutineScope.launch { settingsManager.saveLongPressSpeed(it) } },
+                    onDoubleTapSeekOffsetChanged = { settingsScope.launch { settingsManager.saveDoubleTapSeekOffset(it) } },
+                    onLongPressSpeedChanged = { settingsScope.launch { settingsManager.saveLongPressSpeed(it) } },
                     onDoneClick = { showSettings = false }
                 )
             }

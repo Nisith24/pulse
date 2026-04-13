@@ -80,10 +80,10 @@ fun SettingsOverlay(
                 Text("Double Tap Seek Offset: ${(localSeekOffset / 1000).toInt()}s", color = Color.White.copy(alpha = 0.6f), style = MaterialTheme.typography.labelSmall)
                 Slider(
                     value = localSeekOffset,
-                    onValueChange = { localSeekOffset = it },
+                    onValueChange = { localSeekOffset = ((it / 5000f).roundToInt() * 5000f).coerceIn(5000f, 30000f) }, // Snap to 5s steps
                     onValueChangeFinished = { onDoubleTapSeekOffsetChanged(localSeekOffset.toLong()) },
                     valueRange = 5000f..30000f,
-                    steps = 4, // 5s, 10s, 15s, 20s, 25s, 30s
+                    steps = 4, // 5 intermediate: 10s, 15s, 20s, 25s (endpoints: 5s, 30s)
                     modifier = Modifier.padding(vertical = 8.dp),
                     colors = SliderDefaults.colors(
                         thumbColor = MaterialTheme.colorScheme.primary,
@@ -96,10 +96,10 @@ fun SettingsOverlay(
                 Text("Long Press Speed: ${String.format("%.1fx", localLongPressSpeed)}", color = Color.White.copy(alpha = 0.6f), style = MaterialTheme.typography.labelSmall)
                 Slider(
                     value = localLongPressSpeed,
-                    onValueChange = { localLongPressSpeed = (it * 10).roundToInt() / 10f }, // Snap to 0.1 steps
+                    onValueChange = { localLongPressSpeed = (it * 2).roundToInt() / 2f }, // Snap to 0.5 steps
                     onValueChangeFinished = { onLongPressSpeedChanged(localLongPressSpeed) },
                     valueRange = 1.5f..3.0f,
-                    steps = 14, // 1.5, 1.6, ..., 3.0
+                    steps = 2, // 2.0, 2.5 (endpoints: 1.5, 3.0)
                     modifier = Modifier.padding(vertical = 8.dp),
                     colors = SliderDefaults.colors(
                         thumbColor = MaterialTheme.colorScheme.primary,
