@@ -412,6 +412,7 @@ fun VideoPlayer(
             currentPosition = currentPosition,
             duration = duration,
             isOrientationLocked = isOrientationLocked,
+            onNavigateBack = onNavigateBack,
             onOrientationToggle = {
                 isOrientationLocked = !isOrientationLocked
                 activity?.requestedOrientation = if (isOrientationLocked) {
@@ -424,25 +425,6 @@ fun VideoPlayer(
             onFullscreenToggle = onFullscreenToggle,
             onSettingsClick = { showSettings = !showSettings }
         )
-        
-        // ── Back Button (top-left) ──
-        if (showControls && !isPip) {
-            IconButton(
-                onClick = onNavigateBack,
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(start = 8.dp, top = 8.dp)
-                    .size(40.dp)
-                    .background(Color.Black.copy(alpha = 0.5f), CircleShape)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Back",
-                    tint = Color.White,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-        }
 
 
         // Settings panel
