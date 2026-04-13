@@ -476,7 +476,7 @@ class LectureViewModel(
                         _folderPdfMatchType.value = PdfMatchType.EXACT
                         logger.d("LectureViewModel", "Smart matched PDF: ${bestMatch.name} with score $bestScore")
                     } else {
-                        // Step D: Fallback to Subject Matching if no good name match is found
+                        // Step C: Fallback to Subject Matching if no good name match is found
                         val subjectName = currentLecture.subject
                         if (!subjectName.isNullOrEmpty()) {
                             var bestSubjectScore = 0.0f
