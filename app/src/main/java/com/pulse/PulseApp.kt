@@ -47,6 +47,10 @@ class PulseApp : Application(), Configuration.Provider {
         // Start periodic services
         com.pulse.data.worker.QuoteWorker.enqueuePeriodicQuote(this)
 
+        // Periodic background sync safety net (runs even if app stays open for hours)
+        com.pulse.data.sync.FirestoreSyncWorker.enqueuePeriodicSync(this)
+
+        // Smart lifecycle sync for immediate foreground/background transitions
         setupSmartSync()
     }
 
