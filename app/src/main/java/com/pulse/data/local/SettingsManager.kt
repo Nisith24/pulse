@@ -26,6 +26,8 @@ class SettingsManager(private val context: Context) {
         val LAST_SYNC_TIME_KEY = longPreferencesKey("last_sync_time")
         val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
         val CLOUD_SYNC_ENABLED_KEY = booleanPreferencesKey("cloud_sync_enabled")
+        val DOUBLE_TAP_SEEK_OFFSET_KEY = longPreferencesKey("double_tap_seek_offset")
+        val LONG_PRESS_SPEED_KEY = floatPreferencesKey("long_press_speed")
     }
 
     val splitRatioFlow: Flow<Float> = context.dataStore.data
@@ -42,6 +44,8 @@ class SettingsManager(private val context: Context) {
     val lastSyncTimeFlow: Flow<Long> = context.dataStore.data.map { it[LAST_SYNC_TIME_KEY] ?: 0L }
     val themeModeFlow: Flow<String> = context.dataStore.data.map { it[THEME_MODE_KEY] ?: "SYSTEM" }
     val cloudSyncEnabledFlow: Flow<Boolean> = context.dataStore.data.map { it[CLOUD_SYNC_ENABLED_KEY] ?: true }
+    val doubleTapSeekOffsetFlow: Flow<Long> = context.dataStore.data.map { it[DOUBLE_TAP_SEEK_OFFSET_KEY] ?: 10000L }
+    val longPressSpeedFlow: Flow<Float> = context.dataStore.data.map { it[LONG_PRESS_SPEED_KEY] ?: 2.0f }
 
     suspend fun saveSplitRatio(value: Float) {
         context.dataStore.edit { preferences ->
@@ -58,4 +62,6 @@ class SettingsManager(private val context: Context) {
     suspend fun saveLastSyncTime(value: Long) { context.dataStore.edit { it[LAST_SYNC_TIME_KEY] = value } }
     suspend fun saveThemeMode(value: String) { context.dataStore.edit { it[THEME_MODE_KEY] = value } }
     suspend fun saveCloudSyncEnabled(value: Boolean) { context.dataStore.edit { it[CLOUD_SYNC_ENABLED_KEY] = value } }
+    suspend fun saveDoubleTapSeekOffset(value: Long) { context.dataStore.edit { it[DOUBLE_TAP_SEEK_OFFSET_KEY] = value } }
+    suspend fun saveLongPressSpeed(value: Float) { context.dataStore.edit { it[LONG_PRESS_SPEED_KEY] = value } }
 }
